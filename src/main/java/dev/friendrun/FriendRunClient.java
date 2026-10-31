@@ -63,6 +63,52 @@ public final class FriendRunClient implements ClientModInitializer {
 
     public static boolean inLobby() { return lobby != null; }
 
+    /** Called by the client packet mixin for an item pickup confirmed by the server. */
+    public static void recordDraftPlusPickup(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return;
+        RunState s = STATE;
+        if (s.phase != RunState.Phase.RUNNING || s.roundGame != Game.DRAFT_PLUS) return;
+        String id = ItemPicker.idOf(stack.getItem());
+        synchronized (s.draftPlusPickupPending) {
+            s.draftPlusPickupPending.merge(id, stack.getCount(), Integer::sum);
+        }
+    }
+
+    private static void resetDraftPlusAcquisitionTracking(Minecraft mc, RunState s) {
+        s.draftPlusAcquired.clear();
+        s.draftPlusLastInventory.clear();
+        synchronized (s.draftPlusPickupPending) { s.draftPlusPickupPending.clear(); }
+        if (mc == null || mc.player == null) return;
+        for (DraftGoal goal : s.draftGoals) {
+            String id = goal.type() == DraftGoal.Type.ITEM ? goal.id()
+                : goal.type() == DraftGoal.Type.QUEST ? DraftGoal.Quest.itemId(goal.id()) : null;
+            if (id == null || s.draftPlusLastInventory.containsKey(id)) continue;
+            Item item = ItemPicker.byId(id);
+            if (item == null) continue;
+            s.draftPlusLastInventory.put(id, Inv.count(mc.player, item));
+            s.draftPlusAcquired.put(id, 0);
+        }
+    }
+
+    private static void updateDraftPlusAcquisitions(Minecraft mc, RunState s) {
+        if (mc == null || mc.player == null) return;
+        for (var entry : new ArrayList<>(s.draftPlusLastInventory.entrySet())) {
+            String id = entry.getKey();
+            Item item = ItemPicker.byId(id);
+            if (item == null) continue;
+            int current = Inv.count(mc.player, item);
+            int inventoryGain = Math.max(0, current - entry.getValue());
+            int pickedUp;
+            synchronized (s.draftPlusPickupPending) {
+                pickedUp = s.draftPlusPickupPending.getOrDefault(id, 0);
+                s.draftPlusPickupPending.remove(id);
+            }
+            int gained = Math.max(inventoryGain, pickedUp);
+            if (gained > 0) s.draftPlusAcquired.merge(id, gained, Integer::sum);
+            s.draftPlusLastInventory.put(id, current);
+        }
+    }
+
     /** Строка состояния: видна на экране лобби (даже когда игрок в меню и чата нет) и в чате. */
     public static void status(String text) {
         Minecraft.getInstance().execute(() -> STATE.status = text);
@@ -416,7 +462,7 @@ public final class FriendRunClient implements ClientModInitializer {
                         s.draftPlusNeedsBaseline = lateDraftPlusJoin;
                         if (lateDraftPlusJoin && mc.player != null) {
                             for (int i = 0; i < Math.min(DraftPlusRules.CELL_COUNT, s.draftGoals.size()); i++)
-                                s.draftBase[i] = s.draftGoals.get(i).progressValue(mc);
+                                s.draftBase[i] = s.draftGoals.get(i).progressValue(mc, s.draftPlusAcquired);
                             s.draftPlusNeedsBaseline = false;
                         }
                         s.target = null;
@@ -935,8 +981,12 @@ public final class FriendRunClient implements ClientModInitializer {
             if (mc.player != null && (s.roundGame == Game.DRAFT || s.roundGame == Game.DRAFT_PLUS)) {
                 s.draftPlusNeedsBaseline = false;
                 s.draftBase = new int[49];
-                for (int i = 0; i < Math.min(s.cfgDraftSize * s.cfgDraftSize, s.draftGoals.size()); i++)
-                    s.draftBase[i] = s.draftGoals.get(i).progressValue(mc);
+                if (s.roundGame == Game.DRAFT_PLUS) resetDraftPlusAcquisitionTracking(mc, s);
+                for (int i = 0; i < Math.min(s.roundGame == Game.DRAFT_PLUS
+                        ? DraftPlusRules.CELL_COUNT : s.cfgDraftSize * s.cfgDraftSize, s.draftGoals.size()); i++)
+                    s.draftBase[i] = s.roundGame == Game.DRAFT_PLUS
+                        ? s.draftGoals.get(i).progressValue(mc, s.draftPlusAcquired)
+                        : s.draftGoals.get(i).progressValue(mc);
             }
             if (s.roundGame == Game.BINGO) printCard();
             if (s.roundGame == Game.DRAFT) chat("Драфт начался: " + DraftGoal.draftTypeName(s.cfgDraftType) + ". Карточка " + s.cfgDraftSize + "×" + s.cfgDraftSize + "; для победы нужно " + (s.cfgDraftSize * s.cfgDraftSize / 2 + 1) + " целей.");
@@ -1090,11 +1140,13 @@ public final class FriendRunClient implements ClientModInitializer {
             case Game.DRAFT_PLUS -> {
                 if (s.draftGoals.size() != DraftPlusRules.CELL_COUNT) return;
                 if (s.draftPlusNeedsBaseline) {
+                    resetDraftPlusAcquisitionTracking(mc, s);
                     for (int i = 0; i < DraftPlusRules.CELL_COUNT; i++)
-                        s.draftBase[i] = s.draftGoals.get(i).progressValue(mc);
+                        s.draftBase[i] = s.draftGoals.get(i).progressValue(mc, s.draftPlusAcquired);
                     s.draftPlusNeedsBaseline = false;
                     return;
                 }
+                updateDraftPlusAcquisitions(mc, s);
                 // Firebase stores one outstanding claim per player. Never overwrite it
                 // with another cell while the host is still settling the previous claim.
                 int pending = s.draftPlusClaimPendingIndex;
@@ -1115,7 +1167,7 @@ public final class FriendRunClient implements ClientModInitializer {
                 }
                 for (int i = 0; i < DraftPlusRules.CELL_COUNT; i++) {
                     if (!"-".equals(s.draftOwners[i]) || s.draftClaimPending[i]) continue;
-                    int progress = s.draftGoals.get(i).progressValue(mc);
+                    int progress = s.draftGoals.get(i).progressValue(mc, s.draftPlusAcquired);
                     if (progress < s.draftBase[i]) s.draftBase[i] = progress;
                     else if (progress > s.draftBase[i]) {
                         s.draftClaimPending[i] = true;
