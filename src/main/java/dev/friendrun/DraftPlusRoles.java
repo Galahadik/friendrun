@@ -37,12 +37,22 @@ public final class DraftPlusRoles {
     /** Called on the client thread after Firebase state or local match phase changes. */
     public static void publish(RunState state) {
         boolean active = state.launched && state.gameMode == Game.DRAFT_PLUS
-            && state.roundGame == Game.DRAFT_PLUS && state.phase == RunState.Phase.RUNNING;
+            && state.roundGame == Game.DRAFT_PLUS
+            && (state.phase == RunState.Phase.COUNTDOWN || state.phase == RunState.Phase.RUNNING);
         Map<String, String> roles = new HashMap<>();
         if (active) {
             for (Map.Entry<String, String> entry : state.draftPlusMatchRoles.entrySet()) {
                 if (DraftPlusRole.byId(entry.getValue()) != null)
                     roles.put(entry.getKey(), entry.getValue());
+            }
+            // The frozen map is authoritative, but a lobby snapshot can briefly
+            // arrive before its sibling draftPlusRoles field. Player roles are
+            // already locked after launch, so use them as a safe short-term fallback.
+            if (roles.isEmpty()) {
+                for (RunState.PlayerInfo player : state.players) {
+                    if (DraftPlusRole.byId(player.draftPlusRole()) != null)
+                        roles.put(player.name(), player.draftPlusRole());
+                }
             }
         }
         Snapshot next = new Snapshot(active, roles);
@@ -76,7 +86,7 @@ public final class DraftPlusRoles {
             if (role != null) {
                 AttributeInstance attribute = player.getAttribute(role.attribute());
                 if (attribute != null) {
-                    attribute.addTransientModifier(new AttributeModifier(
+                    attribute.addOrUpdateTransientModifier(new AttributeModifier(
                         role.modifierId(), role.amount(), role.operation()));
                 }
             }
