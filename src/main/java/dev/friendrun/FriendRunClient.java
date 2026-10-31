@@ -210,6 +210,22 @@ public final class FriendRunClient implements ClientModInitializer {
         t.start();
     }
 
+    private static void openDraftPlusResult(String historyId, boolean team) {
+        String dbUrl = Config.databaseUrl;
+        Thread worker = new Thread(() -> {
+            try {
+                Lobby.DraftPlusHistoryEntry entry = Lobby.fetchDraftPlusHistory(dbUrl, team).stream()
+                    .filter(match -> match.id().equals(historyId)).findFirst().orElse(null);
+                if (entry != null) Minecraft.getInstance().execute(() ->
+                    Mc.setScreen(new DraftPlusHistoryDetailScreen(new LobbyRoomScreen(null), entry, true)));
+            } catch (IOException ex) {
+                LOG.warn("FRun: could not load Draft+ result detail", ex);
+            }
+        }, "FriendRun-DraftPlus-Result");
+        worker.setDaemon(true);
+        worker.start();
+    }
+
     // ---------- применение документа лобби ----------
     private static void apply(JsonObject doc) {
         if (lobby == null) return;
@@ -243,6 +259,7 @@ public final class FriendRunClient implements ClientModInitializer {
         s.draftPlusMatchRoles = java.util.Map.copyOf(frozenRoles);
 
         s.players.clear();
+        s.myReady = Lobby.bool(Lobby.obj(players, myName()), "ready");
         for (String p : players.keySet()) {
             JsonObject playerDoc = Lobby.obj(players, p);
             long joinedAt = playerDoc.has("joinedAt")
@@ -372,7 +389,9 @@ public final class FriendRunClient implements ClientModInitializer {
         // победитель прошлого раунда
         JsonObject w = Lobby.obj(doc, "winner");
         long wr = Lobby.num(w, "round");
-        if (wr > lastWinnerRound) {
+        boolean draftPlusResultReady = (int) Lobby.num(w, "mode") != Game.DRAFT_PLUS
+            || !Lobby.str(w, "draftPlusHistoryId").isBlank();
+        if (wr > lastWinnerRound && draftPlusResultReady) {
             lastWinnerRound = wr;
             int wm = (int) Lobby.num(w, "mode");
             String wn = Lobby.str(w, "name");
@@ -406,6 +425,8 @@ public final class FriendRunClient implements ClientModInitializer {
                     s.resultMmr = draftPlusDeltas;
                     chat("Draft+ MMR: " + draftPlusDeltas);
                 }
+                String historyId = Lobby.str(w, "draftPlusHistoryId");
+                if (!historyId.isBlank()) openDraftPlusResult(historyId, s.draftPlusFormat == 1);
             }
             if (!deltas.isEmpty()) {
                 String modeName = Ranking.shortName(wm);
@@ -976,6 +997,16 @@ public final class FriendRunClient implements ClientModInitializer {
         if (STATE.gameMode == Game.MANHUNT && STATE.players.size() < 2) { chat("Манхант: нужно минимум 2 игрока."); return; }
         STATE.myReady = true;
         lobby.setReady();
+    }
+
+    /** Readies this player for a new Draft+ match after the previous result. */
+    public static void rematchDraftPlus() {
+        if (lobby == null || STATE.gameMode != Game.DRAFT_PLUS || STATE.draftPlusState == null
+            || STATE.draftPlusState.phase() != DraftPlusFlow.Phase.COMPLETE) return;
+        if (STATE.myReady) return;
+        STATE.myReady = true;
+        lobby.setReady();
+        chat("Готовность к следующему матчу Draft+ подтверждена. Ожидаем остальных игроков.");
     }
 
     public static void leave() {
