@@ -80,16 +80,19 @@ public final class DraftPlusScreen extends Screen {
 
     private void drawBoard(GuiGraphicsExtractor g, DraftPlusFlow.State state, java.util.List<DraftGoal> personalGoals, int x, int y) {
         int cell = 34, gap = 4;
+        boolean usePersonal = (state.phase() == DraftPlusFlow.Phase.PLAY
+            || state.phase() == DraftPlusFlow.Phase.COMPLETE)
+            && personalGoals.size() == DraftPlusRules.CELL_COUNT;
         for (int i = 0; i < DraftPlusRules.CELL_COUNT; i++) {
             int cx = x + (i % 5) * (cell + gap);
             int cy = y + (i / 5) * (cell + gap);
             Gfx.rect(g, cx, cy, cx + cell, cy + cell, 0xFF111A27);
             Gfx.rect(g, cx, cy, cx + cell, cy + 1, Ui.LINE);
-            if (i >= Math.max(personalGoals.size(), state.boardGoals().size())) {
+            if (i >= (usePersonal ? personalGoals.size() : state.boardGoals().size())) {
                 Gfx.centered(g, "·", cx + cell / 2, cy + 12, Ui.MUTED);
                 continue;
             }
-            DraftGoal goal = i < personalGoals.size() ? personalGoals.get(i) : DraftGoal.parse(state.boardGoals().get(i));
+            DraftGoal goal = usePersonal ? personalGoals.get(i) : DraftGoal.parse(state.boardGoals().get(i));
             if (goal != null && goal.icon() != null) {
                 var stack = ItemInfo.stack(goal.icon());
                 if (stack != null) Gfx.item(g, stack, cx + 9, cy + 3);
