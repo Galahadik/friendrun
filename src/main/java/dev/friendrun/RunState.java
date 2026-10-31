@@ -22,6 +22,7 @@ public final class RunState {
     public int gameMode;               // режим, выбранный в лобби
     public int draftPlusFormat;       // 0 = FFA, 1 = команды
     public int draftPlusTeamSize = 1;
+    public boolean draftPlusBansEnabled = true;
     public DraftPlusFlow.State draftPlusState;
     public String draftPlusStartError = "";
     public boolean draftPlusScreenDismissed;
