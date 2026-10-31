@@ -150,5 +150,11 @@
   "friendrun.draft_plus.settings.difficulty.medium": "Середня",
   "friendrun.draft_plus.settings.difficulty.hard": "Висока",
   "friendrun.draft_plus.settings.count.random": "Випадково 1–3",
-  "friendrun.draft_plus.settings.roles_off_note": "Ролі вимкнено — бонуси не застосовуються"
+  "friendrun.draft_plus.settings.roles_off_note": "Ролі вимкнено — бонуси не застосовуються",
+  "friendrun.draft_plus.setup.choose_format": "Оберіть формат матчу",
+  "friendrun.draft_plus.setup.team": "Команди",
+  "friendrun.draft_plus.setup.team_size": "Розмір команд: %s × %s (натисніть, щоб змінити)",
+  "friendrun.draft_plus.setup.ffa_info": "FFA: 1–10 гравців · поле 5 × 5",
+  "friendrun.draft_plus.setup.win_condition": "Перемога: захопити 13 із 25 клітинок",
+  "friendrun.draft_plus.setup.choose": "Обрати"
 }
