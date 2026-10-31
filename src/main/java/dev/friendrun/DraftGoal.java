@@ -150,7 +150,7 @@ public record DraftGoal(Type type, String id) {
         };
         public static boolean isKnown(String id) { for (String value : IDS) if (value.equals(id)) return true; return false; }
         public static String name(String id) {
-            String key = "advancement.minecraft." + id.replace('/', '.') + ".title";
+            String key = "advancements." + id.replace('/', '.') + ".title";
             String fallbackPath = id.substring(id.lastIndexOf('/') + 1).replace('_', ' ');
             String fallback = "Достижение: " + Character.toUpperCase(fallbackPath.charAt(0)) + fallbackPath.substring(1);
             return localized(key, fallback);
