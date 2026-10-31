@@ -139,7 +139,7 @@ public final class DraftPlusScreen extends Screen {
         boolean active = myTurn && state.phase() != DraftPlusFlow.Phase.COMPLETE;
         String status;
         if (state.phase() == DraftPlusFlow.Phase.COMPLETE) {
-            if (state.winner().isBlank()) status = "Поле заполнено — ничья";
+            if (state.winner().isBlank()) status = "Поле заполнено — победитель не определён";
             else if (state.winner().startsWith("player:")) status = "Победитель: " + state.winner().substring("player:".length());
             else status = "Победитель: " + (state.winner().equals("team:0")
                 ? FriendRunClient.STATE.draftPlusTeamNameA : FriendRunClient.STATE.draftPlusTeamNameB);
