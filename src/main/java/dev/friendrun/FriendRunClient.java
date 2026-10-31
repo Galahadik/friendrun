@@ -253,6 +253,7 @@ public final class FriendRunClient implements ClientModInitializer {
         if (lobby == null) return;
         Minecraft mc = Minecraft.getInstance();
         RunState s = STATE;
+        s.amHost = lobby.host;
 
         // настройки пула предметов/усложнений от хоста — первыми: от них зависит выбор предмета ниже
         Settings.applyLobby(doc);
