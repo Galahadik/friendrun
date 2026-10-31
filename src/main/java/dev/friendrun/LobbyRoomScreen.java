@@ -126,26 +126,33 @@ public final class LobbyRoomScreen extends Screen {
     private void drawSettings(GuiGraphicsExtractor g, RunState s, int mx, int my, boolean canSet, int cx) {
         int tmax = lw - 20;
         if (s.gameMode == Game.DRAFT_PLUS) {
-            String format = s.draftPlusFormat == 0 ? "FFA · до 10 игроков" : "Командный режим " + s.draftPlusTeamSize + "×" + s.draftPlusTeamSize;
+            String format = s.draftPlusFormat == 0
+                ? Tr.t("friendrun.draft_plus.lobby.ffa", "FFA · до 10 игроков")
+                : Tr.t("friendrun.draft_plus.lobby.team_format", "Командный режим %s×%s",
+                    s.draftPlusTeamSize, s.draftPlusTeamSize);
             if (s.draftPlusFormat == 1) {
                 int a = (int) s.players.stream().filter(p -> p.draftPlusTeam() == DraftPlusTeams.TEAM_A).count();
                 int b = (int) s.players.stream().filter(p -> p.draftPlusTeam() == DraftPlusTeams.TEAM_B).count();
                 boolean canOpenTeams = !s.launched && s.phase == RunState.Phase.IDLE;
                 Ui.button(g, rSetA, hv("draftTeams", rSetA, mx, my, canOpenTeams), canOpenTeams, Ui.Kind.NORMAL);
                 Icons.draw(g, Icons.CROWN, rSetA.x() + 8, rSetA.cy() - 3, 1, Ui.GOLD);
-                Gfx.text(g, Ui.trunc("Команды: " + a + "/" + s.draftPlusTeamSize + " · " + b + "/" + s.draftPlusTeamSize, tmax - 20),
+                Gfx.text(g, Ui.trunc(Tr.t("friendrun.draft_plus.lobby.teams", "Команды: %s/%s · %s/%s",
+                    a, s.draftPlusTeamSize, b, s.draftPlusTeamSize), tmax - 20),
                     rSetA.x() + 24, rSetA.cy() - 4, Ui.TEXT);
                 Icons.draw(g, Icons.CHEV_R, rSetA.x() + rSetA.w() - 12, rSetA.cy() - 3, 1, Ui.MUTED);
             } else {
                 Ui.frame(g, rSetA.x(), rSetA.y(), rSetA.w(), rSetA.h(), Ui.SECTION, Ui.LINE);
-                Gfx.text(g, Ui.trunc(format + " · поле 5×5 · цель 13 клеток", tmax), rSetA.x() + 8, rSetA.cy() - 4, Ui.TEXT);
+                Gfx.text(g, Ui.trunc(Tr.t("friendrun.draft_plus.lobby.board_info", "%s · поле 5×5 · цель 13 клеток", format), tmax), rSetA.x() + 8, rSetA.cy() - 4, Ui.TEXT);
             }
             boolean canToggleBans = s.amHost && !s.launched && s.phase == RunState.Phase.IDLE;
             Ui.button(g, rSetB, hv("draftPlusBans", rSetB, mx, my, canToggleBans), canToggleBans,
                 s.draftPlusBansEnabled ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
-            Gfx.text(g, Ui.trunc("Баны целей: " + (s.draftPlusBansEnabled ? "ВКЛ" : "ВЫКЛ")
-                + (s.draftPlusBansEnabled ? (s.draftPlusFormat == 0 ? " · 3 бана" : " · 4 бана") : ""),
-                tmax - 12), rSetB.x() + 8, rSetB.cy() - 4,
+            Gfx.text(g, Ui.trunc(Tr.t("friendrun.draft_plus.lobby.bans", "Баны целей: %s%s",
+                Tr.t(s.draftPlusBansEnabled ? "friendrun.draft_plus.lobby.bans_on" : "friendrun.draft_plus.lobby.bans_off",
+                    s.draftPlusBansEnabled ? "ВКЛ" : "ВЫКЛ"),
+                s.draftPlusBansEnabled ? Tr.t(s.draftPlusFormat == 0
+                    ? "friendrun.draft_plus.lobby.bans_ffa" : "friendrun.draft_plus.lobby.bans_team",
+                    s.draftPlusFormat == 0 ? " · 3 бана" : " · 4 бана") : ""), tmax - 12), rSetB.x() + 8, rSetB.cy() - 4,
                 canToggleBans ? Ui.TEXT : Ui.MUTED);
             return;
         }
@@ -305,9 +312,10 @@ public final class LobbyRoomScreen extends Screen {
             Ui.button(g, rChaos, hv("draftPlusRole", rChaos, mx, my, canChooseRole),
                 canChooseRole, role == null ? Ui.Kind.GOLD : Ui.Kind.GREEN);
             Icons.draw(g, Icons.GEAR, rChaos.x() + 8, rChaos.y() + 6, 1, role == null ? Ui.GOLD : Ui.GREEN);
-            Gfx.text(g, "Роль: " + (role == null ? "не выбрана" : role.title()),
+            Gfx.text(g, Tr.t("friendrun.draft_plus.lobby.role", "Роль: %s",
+                role == null ? Tr.t("friendrun.draft_plus.lobby.role_unselected", "не выбрана") : role.title()),
                 rChaos.x() + 22, rChaos.y() + 4, role == null ? Ui.GOLD : Ui.TEXT);
-            Gfx.text(g, Ui.trunc(role == null ? "Нажмите, чтобы выбрать" : role.bonus(),
+            Gfx.text(g, Ui.trunc(role == null ? Tr.t("friendrun.draft_plus.lobby.role_choose", "Нажмите, чтобы выбрать") : role.bonus(),
                 rChaos.w() - 32), rChaos.x() + 22, rChaos.y() + 16, Ui.MUTED);
         } else if (pillars || soloSpeedrun) {
             Icons.draw(g, Icons.GEAR, rChaos.x() + 8, rChaos.y() + 10, 1, Ui.GOLD);
@@ -348,8 +356,8 @@ public final class LobbyRoomScreen extends Screen {
             boolean forfeited = s.draftPlusForfeitedPlayers.contains(p.name());
             boolean disconnected = s.draftPlusDisconnectedPlayers.contains(p.name());
             float rd = anim.to("rdy:" + p.name(), p.ready());
-            String readyText = forfeited ? "Поражение"
-                : disconnected ? "Отключён · 5 мин"
+            String readyText = forfeited ? Tr.t("friendrun.draft_plus.lobby.defeat", "Поражение")
+                : disconnected ? Tr.t("friendrun.draft_plus.lobby.disconnected", "Отключён · 5 мин")
                 : rd > 0.5f ? Tr.t("friendrun.ui.ready", "Готов") : Tr.t("friendrun.ui.not_ready", "Не готов");
             int readyColor = forfeited ? Ui.RED : disconnected ? Ui.ORANGE : Ui.mix(Ui.MUTED, Ui.GREEN, rd);
             int xr = rx + rw - 12;
@@ -431,11 +439,15 @@ public final class LobbyRoomScreen extends Screen {
         int sc = canStart ? 0xFF1A1200 : 0xFF8A7A50;
         Icons.draw(g, Icons.PLAY, rStart.x() + 8, rStart.cy() - 3, 1, sc);
         String startText = draftPlusComplete
-            ? (s.myReady ? "Ожидаем остальных…" : "Сыграть ещё раз")
+            ? (s.myReady ? Tr.t("friendrun.draft_plus.lobby.waiting", "Ожидаем остальных…")
+                : Tr.t("friendrun.draft_plus.lobby.play_again", "Сыграть ещё раз"))
             : s.launched ? Tr.t("friendrun.ui.started", "Игра запущена")
-            : host ? (canStart ? (s.gameMode == Game.DRAFT_PLUS ? "Старт Draft+" : Tr.t("friendrun.ui.start", "Старт (создать мир)"))
+            : host ? (canStart ? ( s.gameMode == Game.DRAFT_PLUS ? Tr.t("friendrun.draft_plus.lobby.start", "Старт Draft+") : Tr.t("friendrun.ui.start", "Старт (создать мир)"))
                 : s.gameMode == Game.DRAFT_PLUS
-                    ? (draftPlusReady ? (draftPlusRolesReady ? "Готово к старту" : "Выберите роли") : "Заполните состав Draft+")
+                    ? (draftPlusReady
+                        ? (draftPlusRolesReady ? Tr.t("friendrun.draft_plus.lobby.ready", "Готово к старту")
+                            : Tr.t("friendrun.draft_plus.lobby.choose_roles", "Выберите роли"))
+                        : Tr.t("friendrun.draft_plus.lobby.fill_roster", "Заполните состав Draft+"))
                     : soloSpeedrun ? Tr.t("friendrun.ui.need_solo", "Одиночный спидран: 1 игрок") : Tr.t("friendrun.ui.need_two", "Нужно 2+ игрока и мир хоста"))
             : Tr.t("friendrun.ui.waiting_host", "Ждём старт от хоста…");
         Gfx.text(g, Ui.trunc(startText, rStart.w() - 26), rStart.x() + 20, rStart.cy() - 4, sc);
