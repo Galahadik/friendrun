@@ -255,7 +255,10 @@ public final class Hud {
 
     private static void drawDraftPlusHud(GuiGraphicsExtractor g, RunState s, int x, int y) {
         Gfx.text(g, "DRAFT+", x, y, Ui.GOLD);
-        Gfx.text(g, RunState.formatTime(s.elapsedMs()) + "  ·  " + draftPlusOwnedByMe(s) + "/13", x, y + 12, 0xFF55FF55);
+        String clock = s.phase == RunState.Phase.COUNTDOWN
+            ? "Старт через " + (Math.max(0L, s.countdownEndNanos - System.nanoTime()) / 1_000_000_000L + 1)
+            : RunState.formatTime(s.elapsedMs());
+        Gfx.text(g, clock + "  ·  " + draftPlusOwnedByMe(s) + "/13", x, y + 12, 0xFF55FF55);
         if (!(Mc.currentScreen() instanceof InventoryScreen) && s.draftGoals.size() == DraftPlusRules.CELL_COUNT) {
             double scale = Minecraft.getInstance().getWindow().getGuiScale();
             int mouseX = scale > 0 ? (int) (Minecraft.getInstance().mouseHandler.xpos() / scale) : -1;
