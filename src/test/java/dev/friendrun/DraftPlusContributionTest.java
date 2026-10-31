@@ -2,6 +2,7 @@ package dev.friendrun;
 
 import static org.junit.jupiter.api.Assertions.*;
 
+import com.google.gson.JsonObject;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -87,4 +88,32 @@ final class DraftPlusContributionTest {
             "b", new DraftPlusContribution.Metrics(Set.of(), 0)
         )));
     }
+    @Test
+    void reconnectRestoresPreviouslyPersistedItemAcquisitions() {
+        JsonObject persisted = new JsonObject();
+        persisted.addProperty("diamond", 4);
+        persisted.addProperty("blaze_rod", 2);
+
+        assertEquals(Map.of("diamond", 4, "blaze_rod", 2),
+            DraftPlusContribution.restoreAcquired(persisted));
+    }
+
+    @Test
+    void reconnectIgnoresInvalidAcquisitionEntriesWithoutDiscardingValidOnes() {
+        JsonObject persisted = new JsonObject();
+        persisted.addProperty("diamond", 3);
+        persisted.addProperty("empty", 0);
+        persisted.addProperty("negative", -2);
+        persisted.addProperty("bad", "not-a-number");
+        persisted.add("null", com.google.gson.JsonNull.INSTANCE);
+
+        assertEquals(Map.of("diamond", 3), DraftPlusContribution.restoreAcquired(persisted));
+    }
+
+    @Test
+    void reconnectWithNoPersistedAcquisitionsStartsAtZero() {
+        assertTrue(DraftPlusContribution.restoreAcquired(new JsonObject()).isEmpty());
+        assertTrue(DraftPlusContribution.restoreAcquired(null).isEmpty());
+    }
+
 }
