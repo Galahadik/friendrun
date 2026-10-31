@@ -48,6 +48,7 @@ public final class DraftPlusScreen extends Screen {
 
     @Override
     public void onClose() {
+        FriendRunClient.dismissDraftPlusScreen();
         Mc.setScreen(null);
     }
 
@@ -137,7 +138,10 @@ public final class DraftPlusScreen extends Screen {
         boolean active = myTurn && state.phase() != DraftPlusFlow.Phase.COMPLETE;
         String status;
         if (state.phase() == DraftPlusFlow.Phase.COMPLETE) {
-            status = state.winner().isBlank() ? "Поле заполнено — ничья" : "Победитель: " + state.winner().replace("player:", "").replace("team:", "Команда ");
+            if (state.winner().isBlank()) status = "Поле заполнено — ничья";
+            else if (state.winner().startsWith("player:")) status = "Победитель: " + state.winner().substring("player:".length());
+            else status = "Победитель: " + (state.winner().equals("team:0")
+                ? FriendRunClient.STATE.draftPlusTeamNameA : FriendRunClient.STATE.draftPlusTeamNameB);
         } else {
             status = myTurn
                 ? (state.phase() == DraftPlusFlow.Phase.BANS ? "Твой ход — выбери цель для бана" : "Твой ход — выбери цель на поле")
