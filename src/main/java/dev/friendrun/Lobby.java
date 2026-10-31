@@ -66,6 +66,8 @@ public final class Lobby {
     private final java.util.concurrent.atomic.AtomicBoolean snapshotQueued = new java.util.concurrent.atomic.AtomicBoolean();
     private ScheduledFuture<?> poller;
     private long lastBeat = 0;
+    // Captured before the reconnect heartbeat overwrites the persisted presence timestamp.
+    private volatile boolean draftPlusWasOfflineForFiveMinutes;
     private long nextDelay = 1000;
     private long scheduledStartRound; // prevents repeatedly extending startAt before SSE echoes the PATCH
     private int failures = 0;
@@ -916,10 +918,8 @@ public final class Lobby {
         }
         long nowMs = System.currentTimeMillis();
         host = str(doc, "host").equals(me);
-        if (host && bool(doc, "launched") && num(doc, "gameMode") == Game.DRAFT_PLUS
-            && !str(obj(doc, "draftPlusState"), "phase").equals(DraftPlusFlow.Phase.COMPLETE.name())
-            && nowMs - num(doc, "hostSeen") >= 300_000
-            && !bool(doc, "draftPlusAllDisconnectedTimeout")) {
+        boolean ownPresenceExpired = nowMs - num(obj(obj(doc, "players"), me), "lastSeen") >= 300_000;
+        if (host && shouldMarkDraftPlusGlobalTimeout(doc, me, nowMs, ownPresenceExpired)) {
             JsonObject timeout = new JsonObject();
             timeout.addProperty("draftPlusAllDisconnectedTimeout", true);
             timeout.addProperty("hostSeen", nowMs);
@@ -935,6 +935,8 @@ public final class Lobby {
                 // heartbeat before deterministic election, otherwise every candidate can
                 // reject itself as stale and the rated match can never recover.
                 if (shouldHeartbeatBeforeDraftPlusMigration(doc, nowMs, lastBeat)) {
+                    draftPlusWasOfflineForFiveMinutes = nowMs
+                        - num(obj(obj(doc, "players"), me), "lastSeen") >= 300_000;
                     lastBeat = nowMs;
                     heartbeatAsync();
                     nextDelay = 1000;
@@ -971,6 +973,30 @@ public final class Lobby {
         return isRatedDraftPlus(doc) && nowMs - lastBeat > 5_000;
     }
 
+    /**
+     * The global timeout is valid only when the elected/returning host itself was offline
+     * for five minutes and every other persisted participant was also stale for that long.
+     * The candidate's pre-heartbeat status is passed explicitly because its heartbeat may
+     * already have refreshed Firebase by the time migration is evaluated.
+     */
+    static boolean shouldMarkDraftPlusGlobalTimeout(
+        JsonObject doc, String candidateId, long nowMs, boolean candidateWasOfflineForFiveMinutes
+    ) {
+        if (!candidateWasOfflineForFiveMinutes || !bool(doc, "launched")
+            || num(doc, "gameMode") != Game.DRAFT_PLUS
+            || nowMs - num(doc, "hostSeen") < 300_000
+            || bool(doc, "draftPlusAllDisconnectedTimeout")
+            || str(obj(doc, "draftPlusState"), "phase").equals(DraftPlusFlow.Phase.COMPLETE.name()))
+            return false;
+        JsonObject players = obj(doc, "players");
+        if (!players.has(candidateId)) return false;
+        for (String id : players.keySet()) {
+            if (id.equals(candidateId)) continue;
+            if (nowMs - num(obj(players, id), "lastSeen") < 300_000) return false;
+        }
+        return true;
+    }
+
     private static boolean isRatedDraftPlus(JsonObject doc) {
         if (!bool(doc, "launched") || num(doc, "gameMode") != Game.DRAFT_PLUS) return false;
         boolean complete = str(obj(doc, "draftPlusState"), "phase")
@@ -1003,20 +1029,10 @@ public final class Lobby {
         transfer.addProperty("hostInGame", false);
         transfer.addProperty("hostMigrationFrom", currentHost);
         transfer.addProperty("hostMigrationAt", now);
-        boolean everyoneElseStale = true;
-        JsonObject playerDocs = obj(doc, "players");
-        for (String id : playerDocs.keySet()) {
-            if (id.equals(me)) continue;
-            if (now - num(obj(playerDocs, id), "lastSeen") <= 300_000) {
-                everyoneElseStale = false;
-                break;
-            }
-        }
-        if (everyoneElseStale && now - num(doc, "hostSeen") >= 300_000
-            && bool(doc, "launched") && num(doc, "gameMode") == Game.DRAFT_PLUS
-            && !str(obj(doc, "draftPlusState"), "phase").equals(DraftPlusFlow.Phase.COMPLETE.name()))
+        if (shouldMarkDraftPlusGlobalTimeout(doc, me, now, draftPlusWasOfflineForFiveMinutes))
             transfer.addProperty("draftPlusAllDisconnectedTimeout", true);
         request("PATCH", "", transfer.toString());
+        draftPlusWasOfflineForFiveMinutes = false;
         host = true;
         return true;
     }
