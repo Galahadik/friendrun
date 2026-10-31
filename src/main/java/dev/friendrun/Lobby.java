@@ -77,6 +77,8 @@ public final class Lobby {
     private long scheduledStartRound; // prevents repeatedly extending startAt before SSE echoes the PATCH
     private int failures = 0;
     private volatile boolean closed = false;
+    // Unique token ties this Lobby instance to the exact Firebase player entry it created.
+    private volatile String playerJoinNonce = "";
     // Не допускаем повторного начисления рейтинга, если финальный PATCH лобби задержался/не прошёл.
     // Ключ включает режим и номер раунда; доступ безопасен из poll/write потоков.
     private final java.util.Set<String> ratingAttempts = java.util.concurrent.ConcurrentHashMap.newKeySet();
@@ -427,7 +429,12 @@ public final class Lobby {
         doc.addProperty("startAt", 0);
         doc.addProperty("prepareRound", 0);
         JsonObject players = new JsonObject();
-        players.add(me, player());
+        String hostJoinNonce = Long.toUnsignedString(RNG.nextLong(), 36)
+            + Long.toUnsignedString(System.nanoTime(), 36);
+        JsonObject hostPlayer = player();
+        hostPlayer.addProperty("joinNonce", hostJoinNonce);
+        lb.playerJoinNonce = hostJoinNonce;
+        players.add(me, hostPlayer);
         doc.add("players", players);
         lb.cleanupStale(dbUrl);
 
@@ -465,6 +472,7 @@ public final class Lobby {
         Lobby lb = new Lobby(dbUrl, name, nick, false, l);
         String joinNonce = Long.toUnsignedString(RNG.nextLong(), 36)
             + Long.toUnsignedString(System.nanoTime(), 36);
+        lb.playerJoinNonce = joinNonce;
         JsonObject joiningPlayer = player();
         joiningPlayer.addProperty("joinNonce", joinNonce);
         lb.request("PUT", "/players/" + nick, joiningPlayer.toString());
@@ -1007,7 +1015,7 @@ public final class Lobby {
             writeEx.execute(() -> {
                 try {
                     if (!wasHost) {
-                        request("DELETE", "/players/" + me, null);
+                        deleteOwnPlayerEntry();
                         return;
                     }
 
@@ -1062,6 +1070,21 @@ public final class Lobby {
         pollEx.shutdownNow();
         streamEx.shutdownNow();
         writeEx.shutdown();
+    }
+
+    static boolean isOwnedPlayerEntry(JsonObject entry, String expectedNonce) {
+        return entry != null && expectedNonce != null && !expectedNonce.isBlank()
+            && expectedNonce.equals(str(entry, "joinNonce"));
+    }
+
+    private void deleteOwnPlayerEntry() throws IOException {
+        String expectedNonce = playerJoinNonce;
+        if (expectedNonce.isBlank()) return; // Legacy entry: let its heartbeat expire rather than risk deleting a replacement.
+        JsonElement raw = request("GET", "/players/" + me, null);
+        if (raw == null || !raw.isJsonObject()) return;
+        JsonObject current = raw.getAsJsonObject();
+        if (isOwnedPlayerEntry(current, expectedNonce))
+            conditionalFirebaseDelete(base + "/players/" + me, current);
     }
 
     static boolean shouldDeleteLobbyOnClose(JsonObject persisted, String actor) {
@@ -1315,6 +1338,8 @@ public final class Lobby {
 
     private void handleSse(String event, String raw) {
         if (closed || event.equals("keep-alive")) return;
+        if (!event.equals("put") && !event.equals("patch")
+            && !event.equals("cancel") && !event.equals("auth_revoked")) return;
         if (event.equals("cancel") || event.equals("auth_revoked")) {
             shutdown(event.equals("cancel") ? "Доступ к лобби отменён Firebase" : "Firebase отозвал доступ к лобби");
             return;
