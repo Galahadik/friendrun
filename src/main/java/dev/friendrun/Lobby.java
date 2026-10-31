@@ -430,9 +430,24 @@ public final class Lobby {
         players.add(me, player());
         doc.add("players", players);
         lb.cleanupStale(dbUrl);
-        lb.request("PUT", "", doc.toString());
+
+        // Re-read after cleanup, then claim the lobby name with root-level CAS.
+        // Two creators that both observed an empty name cannot overwrite each other.
+        JsonElement latest = lb.request("GET", "", null);
+        long createNow = System.currentTimeMillis();
+        if (isLobbyNameTaken(latest, createNow))
+            throw new IOException("Лобби с таким названием уже существует");
+        JsonElement expected = latest == null ? JsonNull.INSTANCE : latest;
+        if (!lb.conditionalFirebasePut(lb.base, expected, doc))
+            throw new IOException("Это название лобби уже занял другой игрок");
+
         lb.startPolling();
         return lb;
+    }
+
+    static boolean isLobbyNameTaken(JsonElement existing, long nowMs) {
+        return existing != null && existing.isJsonObject()
+            && nowMs - num(existing.getAsJsonObject(), "hostSeen") < 20_000L;
     }
 
     public static Lobby join(String dbUrl, String name, String me, Listener l) throws IOException {
