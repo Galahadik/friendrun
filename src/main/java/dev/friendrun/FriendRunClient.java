@@ -173,6 +173,7 @@ public final class FriendRunClient implements ClientModInitializer {
         JsonObject draftPlusJson = Lobby.obj(doc, "draftPlusState");
         try { s.draftPlusState = draftPlusJson.isEmpty() ? null : DraftPlusCodec.decode(draftPlusJson); }
         catch (RuntimeException ex) { s.draftPlusState = null; LOG.warn("FRun: could not read Draft+ state", ex); }
+        s.draftPlusStartError = Lobby.str(doc, "draftPlusStartError");
         s.draftActive = Lobby.bool(doc, "draftActive");
         s.draftComplete = Lobby.bool(doc, "draftComplete");
         s.draftPickCount = (int) Lobby.num(doc, "draftPickCount");
