@@ -97,7 +97,7 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
         int tableY = panel.y() + 84;
         Ui.frame(g, panel.x() + 12, tableY, panel.w() - 24, 18 + Math.min(10, players.size()) * 18, Ui.SECTION, Ui.LINE);
         Gfx.text(g, "Игрок", panel.x() + 20, tableY + 5, Ui.MUTED);
-        Gfx.text(g, "Клетки / пики", panel.x() + panel.w() - 290, tableY + 5, Ui.MUTED);
+        Gfx.text(g, "Кл/пик", panel.x() + panel.w() - 290, tableY + 5, Ui.MUTED);
         Gfx.text(g, "Вклад", panel.x() + panel.w() - 235, tableY + 5, Ui.MUTED);
         Gfx.text(g, "Роль", panel.x() + panel.w() - 165, tableY + 5, Ui.MUTED);
         Ui.right(g, "MMR", panel.x() + panel.w() - 20, tableY + 5, Ui.MUTED);
