@@ -931,6 +931,15 @@ public final class Lobby {
         long hostTimeout = isRatedDraftPlus(doc) ? 12_000 : 20_000;
         if (!host && nowMs - num(doc, "hostSeen") > hostTimeout) {
             if (isRatedDraftPlus(doc)) {
+                // A returning client may have a stale lastSeen in Firebase. Refresh its
+                // heartbeat before deterministic election, otherwise every candidate can
+                // reject itself as stale and the rated match can never recover.
+                if (shouldHeartbeatBeforeDraftPlusMigration(doc, nowMs, lastBeat)) {
+                    lastBeat = nowMs;
+                    heartbeatAsync();
+                    nextDelay = 1000;
+                    return;
+                }
                 try {
                     if (tryDraftPlusHostMigration(doc, nowMs)) {
                         nextDelay = 1000;
@@ -956,6 +965,10 @@ public final class Lobby {
         // Host timer checks stay responsive while active; no Firebase GET is performed here.
         nextDelay = !hostInGame ? (bool(doc, "launched") ? 2000 : 5000)
             : (startAt == 0 ? 1000 : 250);
+    }
+
+    static boolean shouldHeartbeatBeforeDraftPlusMigration(JsonObject doc, long nowMs, long lastBeat) {
+        return isRatedDraftPlus(doc) && nowMs - lastBeat > 5_000;
     }
 
     private static boolean isRatedDraftPlus(JsonObject doc) {
