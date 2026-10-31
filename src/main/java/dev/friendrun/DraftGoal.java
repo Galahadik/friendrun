@@ -161,6 +161,20 @@ public record DraftGoal(Type type, String id) {
             return localized(key, fallback);
         }
         public static String[] ids() { return IDS.clone(); }
+
+        /** Completed vanilla advancements on this client, used to personalize Draft+ offers. */
+        public static java.util.List<String> completedIds(net.minecraft.client.Minecraft mc) {
+            if (mc == null || mc.getConnection() == null) return java.util.List.of();
+            var advancements = mc.getConnection().getAdvancements();
+            java.util.List<String> completed = new java.util.ArrayList<>();
+            for (String id : IDS) {
+                var holder = advancements.get(
+                    net.minecraft.resources.Identifier.fromNamespaceAndPath("minecraft", id));
+                var progress = holder == null ? null : advancements.progress().get(holder);
+                if (progress != null && progress.isDone()) completed.add(id);
+            }
+            return java.util.List.copyOf(completed);
+        }
     }
 
     public static String draftTypeName(int type) {
