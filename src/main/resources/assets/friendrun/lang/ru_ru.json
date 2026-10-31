@@ -180,5 +180,9 @@
   "friendrun.draft_plus.detail.rematch": "Сыграть ещё раз",
   "friendrun.draft_plus.detail.exit_lobby": "Выйти в лобби",
   "friendrun.draft_plus.detail.all_disconnected": " · все отключились",
-  "friendrun.draft_plus.detail.afk_loss": " · AFK/поражение"
+  "friendrun.draft_plus.detail.afk_loss": " · AFK/поражение",
+  "friendrun.draft_plus.detail.contribution_value": "%s (%s MMR)",
+  "friendrun.draft_plus.detail.mmr_value": "%s (%s)",
+  "friendrun.draft_plus.detail.team_format": "Команды",
+  "friendrun.draft_plus.detail.mmr": "MMR"
 }
