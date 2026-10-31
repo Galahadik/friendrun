@@ -261,16 +261,27 @@ public final class FriendRunClient implements ClientModInitializer {
         // настройки
         s.mode = Lobby.num(doc, "mode") == 1 ? RunState.Mode.HOST_WORLD : RunState.Mode.SEPARATE_WORLDS;
         s.gameMode = (int) Lobby.num(doc, "gameMode");
-        s.draftPlusFormat = (int) Lobby.orDef(Lobby.num(doc, "draftPlusFormat"), 0);
-        s.draftPlusTeamSize = (int) Math.max(1, Math.min(5, Lobby.orDef(Lobby.num(doc, "draftPlusTeamSize"), 1)));
-        s.draftPlusBansEnabled = !doc.has("draftPlusBansEnabled") || Lobby.bool(doc, "draftPlusBansEnabled");
-        s.draftPlusRolesEnabled = !doc.has("draftPlusRolesEnabled") || Lobby.bool(doc, "draftPlusRolesEnabled");
-        s.draftPlusRated = Lobby.bool(doc, "draftPlusRated");
-        s.draftPlusChaosEnabled = !doc.has("draftPlusChaosEnabled") || Lobby.bool(doc, "draftPlusChaosEnabled");
-        s.draftPlusChaosCount = Math.max(1, Math.min(4, (int) Lobby.orDef(Lobby.num(doc, "draftPlusChaosCount"), 1)));
-        s.draftPlusChaosDifficulty = Math.max(0, Math.min(2, (int) Lobby.num(doc, "draftPlusChaosDifficulty")));
-        s.draftPlusTeamNameA = Lobby.str(doc, "draftPlusTeamNameA").isBlank() ? "Команда A" : Lobby.str(doc, "draftPlusTeamNameA");
-        s.draftPlusTeamNameB = Lobby.str(doc, "draftPlusTeamNameB").isBlank() ? "Команда B" : Lobby.str(doc, "draftPlusTeamNameB");
+        JsonObject frozenDraftPlus = Lobby.obj(doc, "draftPlusFrozenSettings");
+        JsonObject draftPlusSettings = Lobby.bool(doc, "launched") && !frozenDraftPlus.isEmpty() ? frozenDraftPlus : doc;
+        boolean frozen = draftPlusSettings == frozenDraftPlus;
+        s.draftPlusFormat = (int) Lobby.orDef(Lobby.num(draftPlusSettings, frozen ? "format" : "draftPlusFormat"), 0);
+        s.draftPlusTeamSize = (int) Math.max(1, Math.min(5,
+            Lobby.orDef(Lobby.num(draftPlusSettings, frozen ? "teamSize" : "draftPlusTeamSize"), 1)));
+        s.draftPlusBansEnabled = !draftPlusSettings.has(frozen ? "bansEnabled" : "draftPlusBansEnabled")
+            || Lobby.bool(draftPlusSettings, frozen ? "bansEnabled" : "draftPlusBansEnabled");
+        s.draftPlusRolesEnabled = !draftPlusSettings.has(frozen ? "rolesEnabled" : "draftPlusRolesEnabled")
+            || Lobby.bool(draftPlusSettings, frozen ? "rolesEnabled" : "draftPlusRolesEnabled");
+        s.draftPlusRated = Lobby.bool(draftPlusSettings, frozen ? "rated" : "draftPlusRated");
+        s.draftPlusChaosEnabled = !draftPlusSettings.has(frozen ? "chaosEnabled" : "draftPlusChaosEnabled")
+            || Lobby.bool(draftPlusSettings, frozen ? "chaosEnabled" : "draftPlusChaosEnabled");
+        s.draftPlusChaosCount = Math.max(1, Math.min(4, (int) Lobby.orDef(
+            Lobby.num(draftPlusSettings, frozen ? "chaosCount" : "draftPlusChaosCount"), 1)));
+        s.draftPlusChaosDifficulty = Math.max(0, Math.min(2,
+            (int) Lobby.num(draftPlusSettings, frozen ? "chaosDifficulty" : "draftPlusChaosDifficulty")));
+        String teamNameA = Lobby.str(draftPlusSettings, frozen ? "teamNameA" : "draftPlusTeamNameA");
+        String teamNameB = Lobby.str(draftPlusSettings, frozen ? "teamNameB" : "draftPlusTeamNameB");
+        s.draftPlusTeamNameA = teamNameA.isBlank() ? "Команда A" : teamNameA;
+        s.draftPlusTeamNameB = teamNameB.isBlank() ? "Команда B" : teamNameB;
         JsonObject draftPlusJson = Lobby.obj(doc, "draftPlusState");
         DraftPlusFlow.State previousDraftPlus = s.draftPlusState;
         DraftPlusFlow.State nextDraftPlus;
