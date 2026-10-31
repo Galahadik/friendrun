@@ -75,6 +75,41 @@ public final class FriendRunClient implements ClientModInitializer {
         }
     }
 
+    /** Replaces already-completed advancement cells with unused goals for this player. */
+    private static boolean personalizeDraftPlusBoard(Minecraft mc, RunState s) {
+        if (s.draftPlusBoardPersonalized) return true;
+        if (mc == null || mc.getConnection() == null || s.draftPlusState == null
+            || s.draftPlusState.boardGoals().size() != DraftPlusRules.CELL_COUNT) return false;
+        java.util.Set<String> completed = new java.util.HashSet<>(DraftGoal.Advancement.completedIds(mc));
+        java.util.Set<String> used = new java.util.HashSet<>(s.draftPlusState.boardGoals());
+        java.util.List<String> personalized = new ArrayList<>(s.draftPlusState.boardGoals());
+        long seed;
+        try { seed = Long.parseLong(s.draftPlusMatchSeed); }
+        catch (NumberFormatException ex) { seed = 0L; }
+        java.util.Random random = new java.util.Random(seed ^ myName().hashCode());
+        for (int i = 0; i < personalized.size(); i++) {
+            String goal = personalized.get(i);
+            if (!goal.startsWith("advancement:") || !completed.contains(goal.substring("advancement:".length())))
+                continue;
+            used.remove(goal);
+            java.util.List<String> replacements = new ArrayList<>();
+            for (String candidate : s.draftPlusState.availableGoals()) {
+                if (used.contains(candidate)) continue;
+                if (candidate.startsWith("advancement:")
+                    && completed.contains(candidate.substring("advancement:".length()))) continue;
+                replacements.add(candidate);
+            }
+            replacements.sort(java.util.Comparator.comparing(value -> value.startsWith("advancement:")));
+            if (replacements.isEmpty()) return false;
+            String replacement = replacements.get(random.nextInt(replacements.size()));
+            personalized.set(i, replacement);
+            used.add(replacement);
+        }
+        s.draftGoals = parseDraftGoals(String.join(",", personalized));
+        s.draftPlusBoardPersonalized = true;
+        return s.draftGoals.size() == DraftPlusRules.CELL_COUNT;
+    }
+
     private static void resetDraftPlusAcquisitionTracking(Minecraft mc, RunState s) {
         s.draftPlusAcquired.clear();
         s.draftPlusLastInventory.clear();
