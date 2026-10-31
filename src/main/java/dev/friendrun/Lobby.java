@@ -110,7 +110,7 @@ public final class Lobby {
             JsonObject profiles = raw.getAsJsonObject();
             for (String id : profiles.keySet()) {
                 // Internal idempotency ledger shares the atomic rating node, but is not a player profile.
-                if (id.equals("_settlements")) continue;
+                if (id.equals("__friendrun_draftplus_settlements_v1__")) continue;
                 JsonObject profile = obj(profiles, id);
                 String playerName = str(profile, "name");
                 if (playerName.isBlank()) playerName = id;
@@ -1459,7 +1459,7 @@ public final class Lobby {
             JsonElement initial = send("GET", ratingsUrl, null);
             JsonObject initialObject = initial != null && initial.isJsonObject()
                 ? initial.getAsJsonObject() : new JsonObject();
-            JsonObject settlements = obj(initialObject, "_settlements");
+            JsonObject settlements = obj(initialObject, "__friendrun_draftplus_settlements_v1__");
             if (settlements.has(historyId)) {
                 JsonObject saved = obj(settlements, historyId);
                 JsonObject savedHistory = obj(saved, "history");
@@ -1502,7 +1502,7 @@ public final class Lobby {
                 JsonElement existing = send("GET", ratingsUrl, null);
                 JsonObject currentRatings = existing != null && existing.isJsonObject()
                     ? existing.getAsJsonObject().deepCopy() : new JsonObject();
-                JsonObject currentSettlements = obj(currentRatings, "_settlements");
+                JsonObject currentSettlements = obj(currentRatings, "__friendrun_draftplus_settlements_v1__");
                 if (currentSettlements.has(historyId)) {
                     JsonObject saved = obj(currentSettlements, historyId);
                     JsonObject savedHistory = obj(saved, "history");
@@ -1620,9 +1620,9 @@ public final class Lobby {
                 JsonObject marker = new JsonObject();
                 marker.addProperty("deltas", deltaSummary);
                 marker.add("history", history);
-                JsonObject allMarkers = obj(currentRatings, "_settlements").deepCopy();
+                JsonObject allMarkers = obj(currentRatings, "__friendrun_draftplus_settlements_v1__").deepCopy();
                 allMarkers.add(historyId, marker);
-                currentRatings.add("_settlements", allMarkers);
+                currentRatings.add("__friendrun_draftplus_settlements_v1__", allMarkers);
 
                 if (conditionalFirebasePut(ratingsUrl, existing, currentRatings)) {
                     ensureDraftPlusHistory(historyUrl, history);
