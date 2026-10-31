@@ -91,7 +91,13 @@ public final class LobbyRoomScreen extends Screen {
         bRollChaos = make(rRollChaos, FriendRunClient::rollChaos);
         bToggle = make(rToggle, FriendRunClient::toggleChaos);
         bRole = make(rChaos, () -> Mc.setScreen(new DraftPlusRoleScreen(this)));
-        bStart = make(rStart, FriendRunClient::launch);
+        bStart = make(rStart, () -> {
+            RunState current = FriendRunClient.STATE;
+            if (current.gameMode == Game.DRAFT_PLUS && current.draftPlusState != null
+                && current.draftPlusState.phase() == DraftPlusFlow.Phase.COMPLETE)
+                FriendRunClient.rematchDraftPlus();
+            else FriendRunClient.launch();
+        });
         bLeave = make(rLeave, () -> { FriendRunClient.leave(); Mc.setScreen(parent); });
         openedAt = System.nanoTime();
     }
@@ -207,7 +213,10 @@ public final class LobbyRoomScreen extends Screen {
         }
         boolean draftPlusRolesReady = !s.draftPlusRolesEnabled || (!s.players.isEmpty()
             && s.players.stream().allMatch(p -> DraftPlusRole.byId(p.draftPlusRole()) != null));
-        boolean canStart = open && (!soloSpeedrun || s.players.size() == 1)
+        boolean draftPlusComplete = s.gameMode == Game.DRAFT_PLUS && s.draftPlusState != null
+            && s.draftPlusState.phase() == DraftPlusFlow.Phase.COMPLETE;
+        boolean canStart = draftPlusComplete ? !s.myReady
+            : open && (!soloSpeedrun || s.players.size() == 1)
             && (s.gameMode != Game.DRAFT_PLUS || (draftPlusReady && draftPlusRolesReady))
             && (s.gameMode != Game.MANHUNT || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2))
             && (s.gameMode != Game.PILLARS || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2));
@@ -412,10 +421,12 @@ public final class LobbyRoomScreen extends Screen {
         Ui.button(g, rStart, hv("start", rStart, mx, my, canStart), canStart, Ui.Kind.GOLD);
         int sc = canStart ? 0xFF1A1200 : 0xFF8A7A50;
         Icons.draw(g, Icons.PLAY, rStart.x() + 8, rStart.cy() - 3, 1, sc);
-        String startText = s.launched ? Tr.t("friendrun.ui.started", "Игра запущена")
+        String startText = draftPlusComplete
+            ? (s.myReady ? "Ожидаем остальных…" : "Сыграть ещё раз")
+            : s.launched ? Tr.t("friendrun.ui.started", "Игра запущена")
             : host ? (canStart ? (s.gameMode == Game.DRAFT_PLUS ? "Старт Draft+" : Tr.t("friendrun.ui.start", "Старт (создать мир)"))
                 : s.gameMode == Game.DRAFT_PLUS
-                    ? (draftPlusReady ? "Все игроки должны выбрать роль" : "Заполните состав Draft+")
+                    ? (draftPlusReady ? (draftPlusRolesReady ? "Готово к старту" : "Выберите роли") : "Заполните состав Draft+")
                     : soloSpeedrun ? Tr.t("friendrun.ui.need_solo", "Одиночный спидран: 1 игрок") : Tr.t("friendrun.ui.need_two", "Нужно 2+ игрока и мир хоста"))
             : Tr.t("friendrun.ui.waiting_host", "Ждём старт от хоста…");
         Gfx.text(g, Ui.trunc(startText, rStart.w() - 26), rStart.x() + 20, rStart.cy() - 4, sc);
