@@ -360,9 +360,12 @@ public final class LobbyRoomScreen extends Screen {
         label(g, rRollChaos, Icons.GEAR, rollChaosOn ? Ui.RED : Ui.MUTED, Tr.t("friendrun.ui.roll_chaos", "Ролл усложнения"), rollChaosOn ? Ui.TEXT : Ui.MUTED);
 
         boolean chaosOn = s.chaos && !soloSpeedrun;
-        Ui.button(g, rToggle, hv("toggle", rToggle, mx, my, host && !soloSpeedrun), host && !soloSpeedrun, s.chaos ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
-        label(g, rToggle, Icons.DICE, Ui.TEXT, soloSpeedrun ? Tr.t("friendrun.ui.chaos_disabled", "Усложнения отключены")
-            : Tr.t("friendrun.ui.chaos_toggle", "Случайное усложнение: %s", s.chaos ? Tr.t("friendrun.ui.on", "ВКЛ") : Tr.t("friendrun.ui.off", "выкл")), soloSpeedrun ? Ui.MUTED : Ui.TEXT);
+        boolean chaosControl = host && !soloSpeedrun && s.gameMode != Game.DRAFT_PLUS;
+        Ui.button(g, rToggle, hv("toggle", rToggle, mx, my, chaosControl), chaosControl, s.chaos ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
+        label(g, rToggle, Icons.DICE, Ui.TEXT, soloSpeedrun || s.gameMode == Game.DRAFT_PLUS
+            ? Tr.t("friendrun.ui.chaos_disabled", "Усложнения отключены")
+            : Tr.t("friendrun.ui.chaos_toggle", "Случайное усложнение: %s", s.chaos ? Tr.t("friendrun.ui.on", "ВКЛ") : Tr.t("friendrun.ui.off", "выкл")),
+            soloSpeedrun || s.gameMode == Game.DRAFT_PLUS ? Ui.MUTED : Ui.TEXT);
         // переключатель с плавным движком
         float tOn = anim.to("chaosToggle", chaosOn);
         int tx = rToggle.x() + rToggle.w() - 30, ty = rToggle.cy() - 5;
