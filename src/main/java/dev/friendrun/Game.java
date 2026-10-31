@@ -2,7 +2,7 @@ package dev.friendrun;
 
 /** Режимы FriendRun, включая запуск встроенной карты «Столбы». */
 public final class Game {
-    public static final int SPEEDRUN = 0, CONVEYOR = 1, CHAIN = 2, BINGO = 3, WAVES = 4, MANHUNT = 5, PILLARS = 6, DRAFT = 7, SINGLE_SPEEDRUN = 8, COUNT = 9;
+    public static final int SPEEDRUN = 0, CONVEYOR = 1, CHAIN = 2, BINGO = 3, WAVES = 4, MANHUNT = 5, PILLARS = 6, DRAFT = 7, SINGLE_SPEEDRUN = 8, DRAFT_PLUS = 9, COUNT = 10;
     public static final long WAVES_CAP_MS = 30 * 60_000L;       // волны: максимум 30 минут
     public static final long SLOT_MS = 3 * 60_000L;              // конвейер: смена предмета каждые 3 минуты
     public static final long CONVEYOR_TOTAL_MS = 20 * 60_000L;   // конвейер: длительность раунда
@@ -11,7 +11,7 @@ public final class Game {
     private Game() {}
 
     public static String name(int g) {
-        return switch (g) { case CONVEYOR -> "Конвейер"; case CHAIN -> "Цепочка"; case BINGO -> "Бинго"; case WAVES -> "Волны мобов"; case MANHUNT -> "Манхант"; case PILLARS -> "Столбы"; case DRAFT -> "Драфт"; case SINGLE_SPEEDRUN -> "Одиночный спидран"; default -> "Спидран"; };
+        return switch (g) { case CONVEYOR -> "Конвейер"; case CHAIN -> "Цепочка"; case BINGO -> "Бинго"; case WAVES -> "Волны мобов"; case MANHUNT -> "Манхант"; case PILLARS -> "Столбы"; case DRAFT -> "Драфт"; case SINGLE_SPEEDRUN -> "Одиночный спидран"; case DRAFT_PLUS -> "Драфт+"; default -> "Спидран"; };
     }
 
     public static String desc(int g) {
@@ -23,6 +23,7 @@ public final class Game {
             case MANHUNT -> "беглецы против охотников";
             case PILLARS -> "готовая карта «Столбики», рейтинговая";
             case DRAFT -> "выбор целей и захват большинства";
+            case DRAFT_PLUS -> "FFA и команды, общая доска 5×5";
             case SINGLE_SPEEDRUN -> "Minecraft до титров; без рейтинга, только личный рекорд";
             default -> "первый получивший побеждает";
         };
