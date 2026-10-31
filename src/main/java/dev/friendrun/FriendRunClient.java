@@ -890,7 +890,7 @@ public final class FriendRunClient implements ClientModInitializer {
         WorldLauncher.tick(mc);
         RunState s = STATE;
         if (lobby == null) return;
-        if (s.gameMode == Game.DRAFT_PLUS && s.launched && s.draftPlusState == null
+        if (s.gameMode == Game.DRAFT_PLUS && s.launched && (s.draftPlusState == null || s.draftPlusState.phase() == DraftPlusFlow.Phase.COMPLETE)
             && mc.getConnection() != null) {
             long targetRound = s.roundId + 1;
             String completed = String.join(",", DraftGoal.Advancement.completedIds(mc));
