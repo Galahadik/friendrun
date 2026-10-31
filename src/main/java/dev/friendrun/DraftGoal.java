@@ -47,18 +47,23 @@ public record DraftGoal(Type type, String id) {
 
     /** Numeric progress snapshot used to detect progress made during this round. */
     public int progressValue(net.minecraft.client.Minecraft mc) {
+        return progressValue(mc, java.util.Map.of());
+    }
+
+    /** Draft+ acquisition counters are monotonic for the duration of the round. */
+    public int progressValue(net.minecraft.client.Minecraft mc, java.util.Map<String, Integer> acquired) {
         if (mc == null || mc.player == null) return 0;
         return switch (type) {
             case ITEM -> {
                 Item item = ItemPicker.byId(id);
-                yield item == null ? 0 : Inv.count(mc.player, item);
+                yield item == null ? 0 : acquired.containsKey(id) ? acquired.get(id) : Inv.count(mc.player, item);
             }
             case QUEST -> {
                 if (id.equals("enter_nether")) yield mc.player.level().dimension() == net.minecraft.world.level.Level.NETHER ? 1 : 0;
                 if (id.equals("enter_end")) yield mc.player.level().dimension() == net.minecraft.world.level.Level.END ? 1 : 0;
                 String itemId = Quest.itemId(id);
                 Item item = itemId == null ? null : ItemPicker.byId(itemId);
-                yield item == null ? 0 : Inv.count(mc.player, item);
+                yield item == null ? 0 : acquired.containsKey(itemId) ? acquired.get(itemId) : Inv.count(mc.player, item);
             }
             case ADVANCEMENT -> {
                 var connection = mc.getConnection();
