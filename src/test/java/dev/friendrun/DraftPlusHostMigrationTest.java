@@ -125,6 +125,28 @@ final class DraftPlusHostMigrationTest {
     }
 
     @Test
+    void returningPlayerCanClaimLobbyAfterVoluntaryExitWithNoOnlineSuccessor() {
+        JsonObject doc = ratedMatch();
+        doc.addProperty("host", "");
+        doc.addProperty("hostSeen", 0);
+        doc.addProperty("hostEpoch", 9);
+        JsonObject players = new JsonObject();
+        JsonObject bob = new JsonObject();
+        bob.addProperty("joinedAt", 2);
+        bob.addProperty("lastSeen", 20_000);
+        players.add("bob", bob);
+        doc.add("players", players);
+
+        JsonObject transfer = new JsonObject();
+        transfer.addProperty("host", "bob");
+        transfer.addProperty("hostSeen", 20_000);
+        transfer.addProperty("hostMigrationFrom", "");
+        transfer.addProperty("hostMigrationAt", 20_000);
+        transfer.addProperty("hostEpoch", 10);
+
+        assertTrue(Lobby.isValidDraftPlusHostMigration(doc, "bob", transfer));
+    }
+    @Test
     void candidateCannotTakeOverWhileCurrentHostLeaseIsStillLive() {
         JsonObject doc = ratedMatch();
         doc.addProperty("host", "alice");
