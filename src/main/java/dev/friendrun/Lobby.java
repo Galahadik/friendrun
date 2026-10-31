@@ -607,7 +607,7 @@ public final class Lobby {
             frozenSettings.addProperty("rated", rated);
             frozenSettings.addProperty("chaosEnabled", !current.has("draftPlusChaosEnabled") || bool(current, "draftPlusChaosEnabled"));
             frozenSettings.addProperty("chaosCount", Math.max(1, Math.min(4, (int) orDef(num(current, "draftPlusChaosCount"), 1))));
-            frozenSettings.addProperty("chaosDifficulty", Math.max(0, Math.min(2, (int) num(current, "draftPlusChaosDifficulty")));
+            frozenSettings.addProperty("chaosDifficulty", Math.max(0, Math.min(2, (int) num(current, "draftPlusChaosDifficulty"))));
             o.add("draftPlusFrozenSettings", frozenSettings);
             int teamSize = Math.max(1, Math.min(5, (int) orDef(num(current, "draftPlusTeamSize"), 1)));
             if (format == 0) {
