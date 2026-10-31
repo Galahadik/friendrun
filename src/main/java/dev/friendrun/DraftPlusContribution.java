@@ -1,5 +1,7 @@
 package dev.friendrun;
 
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -54,6 +56,28 @@ public final class DraftPlusContribution {
             if (successful) result.merge(pickerId, 1, Integer::sum);
         }
         return Map.copyOf(result);
+    }
+
+    /**
+     * Restores a player's persisted match-local acquisition counts after reconnecting.
+     * Invalid, empty, negative, or malformed entries are ignored rather than resetting
+     * the valid contribution accumulated before the disconnect.
+     */
+    public static Map<String, Integer> restoreAcquired(JsonObject persisted) {
+        if (persisted == null || persisted.isEmpty()) return Map.of();
+        Map<String, Integer> restored = new HashMap<>();
+        for (Map.Entry<String, JsonElement> entry : persisted.entrySet()) {
+            String id = entry.getKey();
+            JsonElement value = entry.getValue();
+            if (id == null || id.isBlank() || value == null || !value.isJsonPrimitive()) continue;
+            try {
+                int count = value.getAsInt();
+                if (count > 0) restored.put(id, count);
+            } catch (RuntimeException ignored) {
+                // Ignore malformed entries; other valid item counts remain recoverable.
+            }
+        }
+        return Map.copyOf(restored);
     }
 
     /** IDs that should be included in the client's match-long inventory baseline. */
