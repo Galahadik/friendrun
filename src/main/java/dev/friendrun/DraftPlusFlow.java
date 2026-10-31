@@ -24,6 +24,7 @@ public final class DraftPlusFlow {
         List<String> availableGoals,
         List<String> bannedGoals,
         List<String> boardGoals,
+        List<String> pickers,
         List<String> owners,
         List<String> forfeitedPlayers,
         Phase phase,
@@ -43,6 +44,11 @@ public final class DraftPlusFlow {
             availableGoals = List.copyOf(availableGoals);
             bannedGoals = List.copyOf(bannedGoals);
             boardGoals = List.copyOf(boardGoals);
+            List<String> normalizedPickers = new ArrayList<>(pickers == null ? List.of() : pickers);
+            while (normalizedPickers.size() < boardGoals.size()) normalizedPickers.add("");
+            if (normalizedPickers.size() > boardGoals.size())
+                normalizedPickers = new ArrayList<>(normalizedPickers.subList(0, boardGoals.size()));
+            pickers = List.copyOf(normalizedPickers);
             owners = List.copyOf(owners);
             forfeitedPlayers = List.copyOf(forfeitedPlayers == null ? List.of() : forfeitedPlayers);
             currentActor = currentActor == null ? "" : currentActor;
@@ -78,7 +84,7 @@ public final class DraftPlusFlow {
                 ? random.nextInt(players.size()) : random.nextInt(2);
             DraftPlusRules.Player actor = DraftPlusRules.banActor(format, players, firstBanActor, 0);
             String[] offers = drawOffers(pool, excludedFor(completedAdvancements, actor.id()), random);
-            return new State(format, players, pool, List.of(), List.of(), List.of(), List.of(),
+            return new State(format, players, pool, List.of(), List.of(), List.of(), List.of(), List.of(),
                 Phase.BANS, 0, firstBanActor, -1, 0, actor.id(), offers[0], offers[1], "");
         }
         return beginDraft(format, players, pool, List.of(), List.of(), completedAdvancements, random);
@@ -105,7 +111,7 @@ public final class DraftPlusFlow {
             state.format(), state.players(), state.firstBanActor(), nextBan);
         String[] offers = drawOffers(available, excludedFor(completedAdvancements, next.id()), random);
         return new State(state.format(), state.players(), available, banned,
-            state.boardGoals(), state.owners(), state.forfeitedPlayers(), Phase.BANS, nextBan,
+            state.boardGoals(), state.pickers(), state.owners(), state.forfeitedPlayers(), Phase.BANS, nextBan,
             state.firstBanActor(), -1, 0, next.id(), offers[0], offers[1], "");
     }
 
@@ -123,12 +129,14 @@ public final class DraftPlusFlow {
         available.remove(selected);
         List<String> board = new ArrayList<>(state.boardGoals());
         board.add(selected);
+        List<String> pickers = new ArrayList<>(state.pickers());
+        pickers.add(actorId);
         List<String> owners = new ArrayList<>(state.owners());
         owners.add("-");
 
         if (board.size() >= DraftPlusRules.CELL_COUNT) {
             return new State(state.format(), state.players(), available, state.bannedGoals(),
-                board, owners, state.forfeitedPlayers(), Phase.PLAY, state.banIndex(), state.firstBanActor(),
+                board, pickers, owners, state.forfeitedPlayers(), Phase.PLAY, state.banIndex(), state.firstBanActor(),
                 state.firstDraftActor(), board.size(), "", "", "", "");
         }
 
@@ -137,7 +145,7 @@ public final class DraftPlusFlow {
             state.format(), state.players(), state.firstDraftActor(), nextPick);
         String[] offers = drawOffers(available, excludedFor(completedAdvancements, next.id()), random);
         return new State(state.format(), state.players(), available, state.bannedGoals(),
-            board, owners, state.forfeitedPlayers(), Phase.DRAFT, state.banIndex(), state.firstBanActor(),
+            board, pickers, owners, state.forfeitedPlayers(), Phase.DRAFT, state.banIndex(), state.firstBanActor(),
             state.firstDraftActor(), nextPick, next.id(), offers[0], offers[1], "");
     }
 
@@ -179,7 +187,7 @@ public final class DraftPlusFlow {
             winnerId = winnerAfterForfeit(state.format(), state.players(), owners, state.forfeitedPlayers());
         Phase nextPhase = !winnerId.isBlank() || full ? Phase.COMPLETE : Phase.PLAY;
         return new State(state.format(), state.players(), state.availableGoals(), state.bannedGoals(),
-            state.boardGoals(), owners, state.forfeitedPlayers(), nextPhase, state.banIndex(), state.firstBanActor(),
+            state.boardGoals(), state.pickers(), owners, state.forfeitedPlayers(), nextPhase, state.banIndex(), state.firstBanActor(),
             state.firstDraftActor(), state.pickIndex(), "", "", "", winnerId);
     }
 
@@ -196,7 +204,7 @@ public final class DraftPlusFlow {
             ? random.nextInt(players.size()) : random.nextInt(2);
         DraftPlusRules.Player first = DraftPlusRules.drafter(format, players, firstActor, 0);
         String[] offers = drawOffers(available, excludedFor(completedAdvancements, first.id()), random);
-        return new State(format, players, available, banned, List.of(), List.of(), forfeited,
+        return new State(format, players, available, banned, List.of(), List.of(), List.of(), forfeited,
             Phase.DRAFT, banned.size(), -1, firstActor, 0, first.id(),
             offers[0], offers[1], "");
     }
@@ -210,12 +218,12 @@ public final class DraftPlusFlow {
         List<String> forfeited = new ArrayList<>(state.forfeitedPlayers());
         forfeited.add(playerId);
         State updated = new State(state.format(), state.players(), state.availableGoals(), state.bannedGoals(),
-            state.boardGoals(), state.owners(), forfeited, state.phase(), state.banIndex(),
+            state.boardGoals(), state.pickers(), state.owners(), forfeited, state.phase(), state.banIndex(),
             state.firstBanActor(), state.firstDraftActor(), state.pickIndex(),
             state.currentActor(), state.offerA(), state.offerB(), "");
         if (forfeited.size() >= state.players().size())
             return new State(updated.format(), updated.players(), updated.availableGoals(), updated.bannedGoals(),
-                updated.boardGoals(), updated.owners(), updated.forfeitedPlayers(), Phase.COMPLETE,
+                updated.boardGoals(), updated.pickers(), updated.owners(), updated.forfeitedPlayers(), Phase.COMPLETE,
                 updated.banIndex(), updated.firstBanActor(), updated.firstDraftActor(), updated.pickIndex(),
                 updated.currentActor(), updated.offerA(), updated.offerB(),
                 winnerAfterForfeit(updated.format(), updated.players(), updated.owners(), updated.forfeitedPlayers()));
@@ -230,7 +238,7 @@ public final class DraftPlusFlow {
         boolean allForfeited = state.forfeitedPlayers().size() >= state.players().size();
         if (winner.isBlank() && !full && !allForfeited) return state;
         return new State(state.format(), state.players(), state.availableGoals(), state.bannedGoals(),
-            state.boardGoals(), state.owners(), state.forfeitedPlayers(), Phase.COMPLETE,
+            state.boardGoals(), state.pickers(), state.owners(), state.forfeitedPlayers(), Phase.COMPLETE,
             state.banIndex(), state.firstBanActor(), state.firstDraftActor(), state.pickIndex(),
             state.currentActor(), state.offerA(), state.offerB(), winner);
     }
@@ -269,7 +277,7 @@ public final class DraftPlusFlow {
             }
         }
         return new State(state.format(), state.players(), state.availableGoals(), state.bannedGoals(),
-            state.boardGoals(), state.owners(), forfeited, Phase.COMPLETE, state.banIndex(),
+            state.boardGoals(), state.pickers(), state.owners(), forfeited, Phase.COMPLETE, state.banIndex(),
             state.firstBanActor(), state.firstDraftActor(), state.pickIndex(),
             state.currentActor(), state.offerA(), state.offerB(), winner);
     }
