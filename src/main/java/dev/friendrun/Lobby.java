@@ -538,7 +538,24 @@ public final class Lobby {
     public void launch() {
         JsonObject o = new JsonObject();
         o.addProperty("launched", true); o.addProperty("worldSeed", newSeed());
+        JsonObject current = latestSnapshot();
+        if (current != null && num(current, "gameMode") == Game.DRAFT_PLUS) {
+            o.add("draftPlusState", JsonNull.INSTANCE);
+            o.addProperty("draftPlusLastActionId", "");
+            o.addProperty("draftPlusStartError", "");
+        }
         patch("", o);
+    }
+
+    /** Submit a single Draft+ action; the host validates the actor and phase from its snapshot. */
+    public void submitDraftPlusAction(String action, String goal, int choice) {
+        if (closed || action == null || (!action.equals("BAN") && !action.equals("PICK"))) return;
+        JsonObject request = new JsonObject();
+        request.addProperty("draftPlusActionId", java.util.UUID.randomUUID().toString());
+        request.addProperty("draftPlusAction", action);
+        request.addProperty("draftPlusGoal", goal == null ? "" : goal);
+        request.addProperty("draftPlusChoice", choice);
+        patch("/players/" + me, request);
     }
     public void setLanAddress(String addr) { JsonObject o = new JsonObject(); o.addProperty("lanAddress", addr); patch("", o); }
     /** Хост сообщает, находится ли он в игровом мире; это позволяет снизить частоту опроса в меню. */
@@ -858,6 +875,8 @@ public final class Lobby {
             reconcileDraftPlusTeams(players, (int) orDef(num(doc, "draftPlusTeamSize"), 1), updates);
         }
         boolean launched = bool(doc, "launched");
+        if (launched && num(doc, "gameMode") == Game.DRAFT_PLUS)
+            advanceDraftPlus(doc, players, updates, now);
         long startAt = num(doc, "startAt");
         long roundId = num(doc, "roundId");
         int roundGame = (int) num(doc, "roundGame");
@@ -975,6 +994,77 @@ public final class Lobby {
             request("PATCH", "", updates.toString());
             if (updates.has("startAt") && num(updates, "startAt") > 0) {
                 scheduledStartRound = num(doc, "prepareRound");
+            }
+        }
+    }
+
+    /** Host-authoritative Draft+ state machine. Requests and state are committed in one PATCH. */
+    private void advanceDraftPlus(JsonObject doc, JsonObject players, JsonObject updates, long now) {
+        JsonElement stored = doc.get("draftPlusState");
+        DraftPlusFlow.State state = null;
+        if (stored != null && stored.isJsonObject()) {
+            try { state = DraftPlusCodec.decode(stored.getAsJsonObject()); }
+            catch (RuntimeException ex) { FriendRunClient.LOG.warn("FRun: invalid Draft+ state in lobby", ex); return; }
+        }
+        if (state == null) {
+            boolean allReady = !players.isEmpty();
+            for (String id : players.keySet()) {
+                JsonObject p = obj(players, id);
+                if (now - num(p, "lastSeen") > 20_000 || !bool(p, "ready")) { allReady = false; break; }
+            }
+            if (!allReady) return;
+            try {
+                List<String> ids = new ArrayList<>();
+                for (String id : players.keySet()) if (now - num(obj(players, id), "lastSeen") <= 20_000) ids.add(id);
+                ids.sort(java.util.Comparator.comparingLong((String id) -> obj(players, id).has("joinedAt")
+                    ? num(obj(players, id), "joinedAt") : num(obj(players, id), "lastSeen")).thenComparing(id -> id));
+                List<DraftPlusRules.Player> roster = new ArrayList<>();
+                List<DraftPlusTeams.Member> members = new ArrayList<>();
+                for (String id : ids) {
+                    JsonObject p = obj(players, id);
+                    long joinedAt = p.has("joinedAt") ? num(p, "joinedAt") : num(p, "lastSeen");
+                    int team = p.has("draftPlusTeam") ? (int) num(p, "draftPlusTeam") : DraftPlusTeams.NO_TEAM;
+                    members.add(new DraftPlusTeams.Member(id, joinedAt, team));
+                }
+                DraftPlusRules.Format format = num(doc, "draftPlusFormat") == 1 ? DraftPlusRules.Format.TEAM : DraftPlusRules.Format.FFA;
+                for (int i = 0; i < members.size(); i++) {
+                    DraftPlusTeams.Member member = members.get(i);
+                    boolean captain = format == DraftPlusRules.Format.TEAM && DraftPlusTeams.isCaptain(members, member.id(), member.teamIndex());
+                    roster.add(new DraftPlusRules.Player(member.id(), format == DraftPlusRules.Format.FFA ? -1 : member.teamIndex(), captain, i));
+                }
+                long seed;
+                try { seed = Long.parseLong(str(doc, "worldSeed")); }
+                catch (NumberFormatException ex) { seed = Long.parseLong(str(doc, "itemSeed").isBlank() ? "1" : str(doc, "itemSeed")); }
+                state = DraftPlusFlow.start(format, roster, DraftPlusPool.build(), true, new Random(seed));
+                updates.add("draftPlusState", DraftPlusCodec.encode(state));
+                updates.addProperty("draftPlusLastActionId", "");
+                updates.addProperty("draftPlusStartError", "");
+            } catch (RuntimeException ex) {
+                FriendRunClient.LOG.warn("FRun: Draft+ match could not start: {}", ex.getMessage());
+                updates.addProperty("draftPlusStartError", ex.getMessage() == null ? "Не удалось начать Draft+" : ex.getMessage());
+            }
+            return;
+        }
+        String lastActionId = str(doc, "draftPlusLastActionId");
+        for (String id : players.keySet()) {
+            JsonObject player = obj(players, id);
+            String actionId = str(player, "draftPlusActionId");
+            if (actionId.isBlank() || actionId.equals(lastActionId) || !state.currentActor().equals(id)) continue;
+            String action = str(player, "draftPlusAction");
+            Random actionRandom = new Random(actionId.hashCode() * 0x9E3779B97F4A7C15L);
+            try {
+                if (state.phase() == DraftPlusFlow.Phase.BANS && action.equals("BAN"))
+                    state = DraftPlusFlow.ban(state, id, str(player, "draftPlusGoal"), actionRandom);
+                else if (state.phase() == DraftPlusFlow.Phase.DRAFT && action.equals("PICK"))
+                    state = DraftPlusFlow.pick(state, id, (int) num(player, "draftPlusChoice"), actionRandom);
+                else continue;
+                updates.add("draftPlusState", DraftPlusCodec.encode(state));
+                updates.addProperty("draftPlusLastActionId", actionId);
+                break;
+            } catch (RuntimeException ex) {
+                updates.addProperty("draftPlusLastActionId", actionId);
+                FriendRunClient.LOG.warn("FRun: rejected Draft+ action from {}: {}", id, ex.getMessage());
+                break;
             }
         }
     }
