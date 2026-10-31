@@ -410,10 +410,12 @@ public final class FriendRunClient implements ClientModInitializer {
                         s.draftPlusClaimPendingIndex = -1;
                         s.draftPlusClaimSentAtNanos = 0;
                         // A player joining an already-running match starts tracking only from now.
-                        // Goals completed before joining are intentionally not claimed retroactively.
+                        // If the world/player is not loaded yet, roundTick captures this baseline later.
+                        s.draftPlusNeedsBaseline = lateDraftPlusJoin;
                         if (lateDraftPlusJoin && mc.player != null) {
                             for (int i = 0; i < Math.min(DraftPlusRules.CELL_COUNT, s.draftGoals.size()); i++)
                                 s.draftBase[i] = s.draftGoals.get(i).progressValue(mc);
+                            s.draftPlusNeedsBaseline = false;
                         }
                         s.target = null;
                     } else if (s.roundGame == Game.WAVES || s.roundGame == Game.MANHUNT) {
@@ -929,6 +931,7 @@ public final class FriendRunClient implements ClientModInitializer {
             if (mc.player != null && s.target != null) s.baseline = Inv.count(mc.player, s.target);
             if (mc.player != null && s.roundGame == Game.BINGO && s.chain.size() == s.cfgBingoSize * s.cfgBingoSize) s.bingoBase = Inv.counts(mc.player, s.chain);
             if (mc.player != null && (s.roundGame == Game.DRAFT || s.roundGame == Game.DRAFT_PLUS)) {
+                s.draftPlusNeedsBaseline = false;
                 s.draftBase = new int[49];
                 for (int i = 0; i < Math.min(s.cfgDraftSize * s.cfgDraftSize, s.draftGoals.size()); i++)
                     s.draftBase[i] = s.draftGoals.get(i).progressValue(mc);
@@ -1084,6 +1087,12 @@ public final class FriendRunClient implements ClientModInitializer {
             }
             case Game.DRAFT_PLUS -> {
                 if (s.draftGoals.size() != DraftPlusRules.CELL_COUNT) return;
+                if (s.draftPlusNeedsBaseline) {
+                    for (int i = 0; i < DraftPlusRules.CELL_COUNT; i++)
+                        s.draftBase[i] = s.draftGoals.get(i).progressValue(mc);
+                    s.draftPlusNeedsBaseline = false;
+                    return;
+                }
                 // Firebase stores one outstanding claim per player. Never overwrite it
                 // with another cell while the host is still settling the previous claim.
                 int pending = s.draftPlusClaimPendingIndex;
