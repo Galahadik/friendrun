@@ -6,12 +6,17 @@ version = project.mod_version
 group = 'dev.friendrun'
 base { archivesName = 'frun' }
 
-repositories { }
+repositories { mavenCentral() }
 
 dependencies {
     minecraft "com.mojang:minecraft:${project.minecraft_version}"
     implementation "net.fabricmc:fabric-loader:${project.loader_version}"
     implementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.13.4'
+}
+
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
 }
 
 java {
