@@ -1434,7 +1434,10 @@ public final class Lobby {
     /** Stable Firebase key for one Draft+ match; the same match can be settled only once. */
     private String draftPlusHistoryId(JsonObject doc) {
         String session = str(doc, "sessionId");
-        if (session.isBlank()) session = Long.toString(num(doc, "hostSeen"));
+        // Older lobby documents may lack sessionId. itemSeed is fixed for the
+        // lifetime of the lobby; hostSeen is a heartbeat and must never identify a match.
+        if (session.isBlank()) session = str(doc, "itemSeed");
+        if (session.isBlank()) session = "legacy";
         String seed = str(doc, "draftPlusSeed");
         if (seed.isBlank()) seed = Long.toString(num(doc, "roundId"));
         return firebaseKey(name) + "_" + firebaseKey(session) + "_" + firebaseKey(seed);
@@ -1716,6 +1719,19 @@ public final class Lobby {
         return frozen;
     }
 
+    /** A completed match cannot be replaced by a rematch until its settlement is durable. */
+    static boolean draftPlusRematchReady(boolean settlementConfirmed, JsonObject players, long now) {
+        if (!settlementConfirmed || players == null || players.isEmpty()) return false;
+        boolean activePlayerFound = false;
+        for (String id : players.keySet()) {
+            JsonObject player = obj(players, id);
+            if (now - num(player, "lastSeen") > 20_000) continue;
+            activePlayerFound = true;
+            if (!bool(player, "ready")) return false;
+        }
+        return activePlayerFound;
+    }
+
     /** Host-authoritative Draft+ state machine. Requests and state are committed in one PATCH. */
     private void advanceDraftPlus(JsonObject doc, JsonObject players, JsonObject updates, long now) {
         JsonElement stored = doc.get("draftPlusState");
@@ -1744,23 +1760,23 @@ public final class Lobby {
         if (state != null && state.phase() == DraftPlusFlow.Phase.COMPLETE) {
             String matchSeed = str(doc, "draftPlusSeed");
             if (matchSeed.isBlank()) matchSeed = Long.toString(num(doc, "roundId"));
-            if (!matchSeed.equals(str(doc, "draftPlusSettledSeed"))) {
+            boolean settlementConfirmed = matchSeed.equals(str(doc, "draftPlusSettledSeed"));
+            if (!settlementConfirmed) {
                 String historyId = draftPlusHistoryId(doc);
                 String deltas = settleDraftPlusResult(doc, state, historyId);
                 if (deltas != null) {
                     updates.addProperty("winner/draftPlusDeltas", deltas);
                     updates.addProperty("winner/draftPlusHistoryId", historyId);
                     updates.addProperty("draftPlusSettledSeed", matchSeed);
+                    settlementConfirmed = true;
                 }
             }
-            boolean readyAgain = false;
-            for (String id : players.keySet()) {
-                JsonObject p = obj(players, id);
-                if (now - num(p, "lastSeen") > 20_000) continue;
-                if (!bool(p, "ready")) { readyAgain = false; break; }
-                readyAgain = true;
+            // If Firebase is unavailable or CAS retries are exhausted, keep COMPLETE
+            // persisted. Starting a rematch here would discard the only retryable result.
+            if (draftPlusRematchReady(settlementConfirmed, players, now)) {
+                state = null;
+                rematchStarting = true;
             }
-            if (readyAgain) { state = null; rematchStarting = true; }
         }
         if (state == null) {
             List<String> activeIds = new ArrayList<>();
