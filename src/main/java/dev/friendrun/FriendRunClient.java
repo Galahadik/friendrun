@@ -388,9 +388,8 @@ public final class FriendRunClient implements ClientModInitializer {
             } else if (wm == Game.DRAFT) {
                 chat("Драфт завершён. Победитель: " + wn + " — захвачено целей: " + Lobby.num(w, "score"));
             } else if (wm == Game.DRAFT_PLUS) {
-                chat(wn.equals("—") ? "Draft+ завершён без победителя: правило ничьей ещё не определено."
+                chat(wn.equals("—") ? "Draft+ завершён: ничья."
                     : "Draft+ завершён. Победитель: " + wn + " — захвачено клеток: " + Lobby.num(w, "score"));
-                chat("Напишите /go, чтобы начать новый матч Draft+.");
             } else {
                 chat("Победитель: " + wn + " — " + RunState.formatTime(Lobby.num(w, "ms")));
             }
@@ -401,6 +400,13 @@ public final class FriendRunClient implements ClientModInitializer {
             s.resultItem = (s.target != null && wm == Game.SPEEDRUN) ? ItemInfo.name(s.target) : "";
             s.resultMmr = ""; s.resultMmr2 = "";
             java.util.List<Ranking.Delta> deltas = Ranking.parseDeltas(Lobby.str(w, "deltas"));
+            if (wm == Game.DRAFT_PLUS) {
+                String draftPlusDeltas = Lobby.str(w, "draftPlusDeltas");
+                if (!draftPlusDeltas.isBlank()) {
+                    s.resultMmr = draftPlusDeltas;
+                    chat("Draft+ MMR: " + draftPlusDeltas);
+                }
+            }
             if (!deltas.isEmpty()) {
                 String modeName = Ranking.shortName(wm);
                 StringBuilder sb = new StringBuilder();
