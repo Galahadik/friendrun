@@ -138,6 +138,8 @@ final class DraftPlusFlowTest {
         DraftPlusFlow.State state = boardState(DraftPlusRules.Format.FFA, FFA_PLAYERS,
             new ArrayList<>(java.util.Collections.nCopies(25, "alice")));
         state = DraftPlusFlow.forfeit(state, "alice");
+        assertEquals("", state.winner());
+        state = DraftPlusFlow.forfeit(state, "cara");
         assertEquals("player:bob", state.winner());
         assertEquals(DraftPlusFlow.Phase.COMPLETE, state.phase());
     }
