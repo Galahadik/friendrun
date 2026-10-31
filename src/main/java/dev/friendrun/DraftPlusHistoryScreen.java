@@ -23,7 +23,7 @@ public final class DraftPlusHistoryScreen extends Screen {
     private int scroll;
 
     public DraftPlusHistoryScreen(Screen parent, boolean team) {
-        super(Component.literal("FriendRun — История Draft+"));
+        super(Component.literal(Tr.t("friendrun.draft_plus.history.title", "История Draft+")));
         this.parent = parent;
         this.team = team;
     }
@@ -54,7 +54,7 @@ public final class DraftPlusHistoryScreen extends Screen {
             } catch (Exception ex) {
                 Minecraft.getInstance().execute(() -> {
                     if (team == requestedTeam) {
-                        error = ex.getMessage() == null ? "Не удалось загрузить историю" : ex.getMessage();
+                        error = ex.getMessage() == null ? Tr.t("friendrun.draft_plus.history.error", "Не удалось загрузить историю") : ex.getMessage();
                         loading = false;
                     }
                 });
@@ -113,24 +113,24 @@ public final class DraftPlusHistoryScreen extends Screen {
         Ui.backdrop(g, width, height);
         Ui.panel(g, panel.x(), panel.y(), panel.w(), panel.h());
         Icons.draw(g, Icons.GEAR, panel.x() + 14, panel.y() + 10, 2, Ui.GOLD);
-        Ui.bold(g, "История Draft+", panel.x() + 36, panel.y() + 9, Ui.GOLD);
-        Gfx.text(g, "Последние 50 матчей", panel.x() + 14, panel.y() + 27, Ui.MUTED);
+        Ui.bold(g, Tr.t("friendrun.draft_plus.history.title", "История Draft+"), panel.x() + 36, panel.y() + 9, Ui.GOLD);
+        Gfx.text(g, Tr.t("friendrun.draft_plus.history.last50", "Последние 50 матчей"), panel.x() + 14, panel.y() + 27, Ui.MUTED);
 
         super.extractRenderState(g, mx, my, delta);
         Ui.button(g, ffaRect, ffaRect.in(mx, my), true, team ? Ui.Kind.NORMAL : Ui.Kind.GREEN);
         Gfx.centered(g, "FFA", ffaRect.x() + ffaRect.w() / 2, ffaRect.cy() - 4, team ? Ui.TEXT : Ui.GREEN);
         Ui.button(g, teamRect, teamRect.in(mx, my), true, team ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
-        Gfx.centered(g, "Команды", teamRect.x() + teamRect.w() / 2, teamRect.cy() - 4, team ? Ui.GREEN : Ui.TEXT);
+        Gfx.centered(g, Tr.t("friendrun.draft_plus.history.teams", "Команды"), teamRect.x() + teamRect.w() / 2, teamRect.cy() - 4, team ? Ui.GREEN : Ui.TEXT);
         Ui.button(g, refreshRect, refreshRect.in(mx, my), !loading, Ui.Kind.NORMAL);
-        Gfx.centered(g, "Обновить", refreshRect.x() + refreshRect.w() / 2, refreshRect.cy() - 4, Ui.TEXT);
+        Gfx.centered(g, Tr.t("friendrun.ui.refresh", "Обновить"), refreshRect.x() + refreshRect.w() / 2, refreshRect.cy() - 4, Ui.TEXT);
 
         Ui.frame(g, listRect.x(), listRect.y(), listRect.w(), listRect.h(), Ui.SECTION, Ui.LINE);
         if (loading) {
-            Gfx.centered(g, "Загрузка истории…", listRect.x() + listRect.w() / 2, listRect.y() + 30, Ui.MUTED);
+            Gfx.centered(g, Tr.t("friendrun.ui.loading", "Загрузка…"), listRect.x() + listRect.w() / 2, listRect.y() + 30, Ui.MUTED);
         } else if (!error.isBlank()) {
             Gfx.centered(g, Ui.trunc(error, listRect.w() - 20), listRect.x() + listRect.w() / 2, listRect.y() + 30, Ui.RED);
         } else if (rows.isEmpty()) {
-            Gfx.centered(g, "Пока нет сохранённых матчей", listRect.x() + listRect.w() / 2, listRect.y() + 30, Ui.MUTED);
+            Gfx.centered(g, Tr.t("friendrun.draft_plus.history.empty", "Пока нет сохранённых матчей"), listRect.x() + listRect.w() / 2, listRect.y() + 30, Ui.MUTED);
         } else {
             int visible = Math.min(rowButtons.length, rows.size() - scroll);
             for (int i = 0; i < rowButtons.length; i++) {
@@ -141,8 +141,10 @@ public final class DraftPlusHistoryScreen extends Screen {
                 if (!available) continue;
                 Lobby.DraftPlusHistoryEntry entry = rows.get(scroll + i);
                 String date = new SimpleDateFormat("dd.MM HH:mm").format(new Date(entry.timestamp()));
-                String mode = Lobby.bool(entry.data(), "cancelled") ? "Отменён"
-                    : entry.rated() ? "Rated" : "Training";
+                String mode = Lobby.bool(entry.data(), "cancelled")
+                    ? Tr.t("friendrun.draft_plus.history.cancelled", "Отменён")
+                    : entry.rated() ? Tr.t("friendrun.draft_plus.history.rated", "Рейтинговый")
+                        : Tr.t("friendrun.draft_plus.history.training", "Тренировочный");
                 String winner = entry.winnerName().isBlank() ? "—" : entry.winnerName();
                 String left = (scroll + i + 1) + ". " + date + " · " + mode + " · " + winner;
                 Gfx.text(g, Ui.trunc(left, rect.w() - 120), rect.x() + 7, rect.y() + 6, Ui.TEXT);
@@ -152,7 +154,7 @@ public final class DraftPlusHistoryScreen extends Screen {
         }
 
         Ui.button(g, backRect, backRect.in(mx, my), true, Ui.Kind.NORMAL);
-        Gfx.centered(g, "Назад", backRect.x() + backRect.w() / 2, backRect.cy() - 4, Ui.TEXT);
+        Gfx.centered(g, Tr.t("friendrun.ui.back", "Назад"), backRect.x() + backRect.w() / 2, backRect.cy() - 4, Ui.TEXT);
         ffaButton.active = teamButton.active = backButton.active = true;
         refreshButton.active = !loading;
     }
