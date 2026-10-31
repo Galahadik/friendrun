@@ -171,9 +171,21 @@ public final class FriendRunClient implements ClientModInitializer {
         s.draftPlusTeamNameA = Lobby.str(doc, "draftPlusTeamNameA").isBlank() ? "Команда A" : Lobby.str(doc, "draftPlusTeamNameA");
         s.draftPlusTeamNameB = Lobby.str(doc, "draftPlusTeamNameB").isBlank() ? "Команда B" : Lobby.str(doc, "draftPlusTeamNameB");
         JsonObject draftPlusJson = Lobby.obj(doc, "draftPlusState");
-        try { s.draftPlusState = draftPlusJson.isEmpty() ? null : DraftPlusCodec.decode(draftPlusJson); }
-        catch (RuntimeException ex) { s.draftPlusState = null; LOG.warn("FRun: could not read Draft+ state", ex); }
+        DraftPlusFlow.State previousDraftPlus = s.draftPlusState;
+        DraftPlusFlow.State nextDraftPlus;
+        try { nextDraftPlus = draftPlusJson.isEmpty() ? null : DraftPlusCodec.decode(draftPlusJson); }
+        catch (RuntimeException ex) { nextDraftPlus = null; LOG.warn("FRun: could not read Draft+ state", ex); }
+        if (!java.util.Objects.equals(previousDraftPlus, nextDraftPlus)) s.draftPlusScreenDismissed = false;
+        s.draftPlusState = nextDraftPlus;
         s.draftPlusStartError = Lobby.str(doc, "draftPlusStartError");
+        if (previousDraftPlus != null && previousDraftPlus.phase() != DraftPlusFlow.Phase.COMPLETE
+            && nextDraftPlus != null && nextDraftPlus.phase() == DraftPlusFlow.Phase.COMPLETE) {
+            String winner = nextDraftPlus.winner();
+            if (winner.isBlank()) chat("Draft+ завершён: ничья.");
+            else if (winner.startsWith("player:")) chat("Draft+ победил: " + winner.substring("player:".length()));
+            else if (winner.equals("team:0")) chat("Draft+ победила команда " + s.draftPlusTeamNameA + ".");
+            else if (winner.equals("team:1")) chat("Draft+ победила команда " + s.draftPlusTeamNameB + ".");
+        }
         s.draftActive = Lobby.bool(doc, "draftActive");
         s.draftComplete = Lobby.bool(doc, "draftComplete");
         s.draftPickCount = (int) Lobby.num(doc, "draftPickCount");
@@ -572,6 +584,11 @@ public final class FriendRunClient implements ClientModInitializer {
         lobby.chooseDraft(choice, STATE.draftPickCount);
     }
 
+    public static void dismissDraftPlusScreen() {
+        if (STATE.draftPlusState != null && STATE.draftPlusState.phase() == DraftPlusFlow.Phase.COMPLETE)
+            STATE.draftPlusScreenDismissed = true;
+    }
+
     public static void submitDraftPlusBan(String goalId) {
         DraftPlusFlow.State state = STATE.draftPlusState;
         if (lobby == null || state == null || state.phase() != DraftPlusFlow.Phase.BANS
@@ -774,9 +791,11 @@ public final class FriendRunClient implements ClientModInitializer {
         RunState s = STATE;
         if (lobby == null) return;
         boolean showDraftPlus = s.gameMode == Game.DRAFT_PLUS && s.launched
-            && (s.draftPlusState != null || !s.draftPlusStartError.isBlank());
+            && ((s.draftPlusState != null && (s.draftPlusState.phase() != DraftPlusFlow.Phase.COMPLETE
+                || !s.draftPlusScreenDismissed)) || !s.draftPlusStartError.isBlank());
         if (showDraftPlus && !(Mc.currentScreen() instanceof DraftPlusScreen)) Mc.setScreen(new DraftPlusScreen());
-        else if (!showDraftPlus && Mc.currentScreen() instanceof DraftPlusScreen) Mc.setScreen(null);
+        else if ((s.gameMode != Game.DRAFT_PLUS || s.draftPlusState == null)
+            && Mc.currentScreen() instanceof DraftPlusScreen) Mc.setScreen(null);
         if (s.launched && s.draftActive && !(Mc.currentScreen() instanceof DraftScreen)) Mc.setScreen(new DraftScreen());
         else if ((!s.launched || !s.draftActive) && Mc.currentScreen() instanceof DraftScreen) Mc.setScreen(null);
 
