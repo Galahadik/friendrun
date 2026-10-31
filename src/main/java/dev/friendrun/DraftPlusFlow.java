@@ -154,10 +154,27 @@ public final class DraftPlusFlow {
         owners.set(cellIndex, actorId);
         var winner = DraftPlusRules.winner(state.format(), state.players(), owners);
         boolean full = owners.stream().noneMatch("-"::equals);
+        String winnerId = winner.orElse("");
+        if (full && winnerId.isEmpty() && state.format() == DraftPlusRules.Format.FFA) {
+            long best = -1;
+            String leader = "";
+            boolean tied = false;
+            for (DraftPlusRules.Player player : state.players()) {
+                long owned = owners.stream().filter(player.id()::equals).count();
+                if (owned > best) {
+                    best = owned;
+                    leader = player.id();
+                    tied = false;
+                } else if (owned == best) {
+                    tied = true;
+                }
+            }
+            if (!tied) winnerId = "player:" + leader;
+        }
         Phase nextPhase = winner.isPresent() || full ? Phase.COMPLETE : Phase.PLAY;
         return new State(state.format(), state.players(), state.availableGoals(), state.bannedGoals(),
             state.boardGoals(), owners, nextPhase, state.banIndex(), state.firstBanActor(),
-            state.firstDraftActor(), state.pickIndex(), "", "", "", winner.orElse(""));
+            state.firstDraftActor(), state.pickIndex(), "", "", "", winnerId);
     }
 
     private static State beginDraft(
