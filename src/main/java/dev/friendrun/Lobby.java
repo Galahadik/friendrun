@@ -584,6 +584,15 @@ public final class Lobby {
         request.addProperty("draftPlusActionSeed", matchSeed);
         patch("/players/" + me, request);
     }
+
+    /** Publishes this client's completed advancement IDs for the upcoming Draft+ match. */
+    public void setDraftPlusCompletedAdvancements(String csv, long targetRound) {
+        if (closed || targetRound <= 0) return;
+        JsonObject report = new JsonObject();
+        report.addProperty("draftPlusCompletedAdvancements", csv == null ? "" : csv);
+        report.addProperty("draftPlusAdvancementsRound", targetRound);
+        patch("/players/" + me, report);
+    }
     public void setLanAddress(String addr) { JsonObject o = new JsonObject(); o.addProperty("lanAddress", addr); patch("", o); }
     /** Хост сообщает, находится ли он в игровом мире; это позволяет снизить частоту опроса в меню. */
     public void setHostInGame(boolean inGame) { if (!host) return; JsonObject o = new JsonObject(); o.addProperty("hostInGame", inGame); patch("", o); }
