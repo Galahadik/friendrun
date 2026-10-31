@@ -24,6 +24,7 @@ public final class RunState {
     public int draftPlusTeamSize = 1;
     public boolean draftPlusBansEnabled = true;
     public DraftPlusFlow.State draftPlusState;
+    public String draftPlusMatchSeed = "";
     public String draftPlusStartError = "";
     public boolean draftPlusScreenDismissed;
     public String draftPlusTeamNameA = "Команда A", draftPlusTeamNameB = "Команда B";
@@ -125,7 +126,7 @@ public final class RunState {
         amHost = false;
         chaos = false;
         gameMode = 0;
-        draftPlusFormat = 0; draftPlusTeamSize = 1; draftPlusState = null; draftPlusStartError = ""; draftPlusScreenDismissed = false; draftPlusTeamNameA = "Команда A"; draftPlusTeamNameB = "Команда B";
+        draftPlusFormat = 0; draftPlusTeamSize = 1; draftPlusState = null; draftPlusMatchSeed = ""; draftPlusStartError = ""; draftPlusScreenDismissed = false; draftPlusTeamNameA = "Команда A"; draftPlusTeamNameB = "Команда B";
         convTotalMin = 20; convSlotMin = 3; chainLen = 5; bingoSize = 3; draftSize = cfgDraftSize = 5; draftType = cfgDraftType = 3; bingoFull = false; waveSec = 45; waveDiff = 1; manRunners = 1; manMin = 15;
         resultUntilNanos = 0;
         mode = Mode.SEPARATE_WORLDS;
