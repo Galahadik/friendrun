@@ -1247,6 +1247,7 @@ public final class FriendRunClient implements ClientModInitializer {
         if (s.phase == RunState.Phase.RUNNING && mc.player != null && s.roundGame != Game.SINGLE_SPEEDRUN
             && (s.target != null || s.roundGame == Game.DRAFT_PLUS)) roundTick(mc, s);
         DraftPlusRoles.publish(s);
+        DraftPlusChaos.publish(s);
     }
 
     /** Собрана ли линия (строка, столбец или диагональ) на карточке n×n; в режиме full — вся карточка. */
