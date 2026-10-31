@@ -152,6 +152,57 @@ final class DraftPlusHostMigrationTest {
         assertFalse(Lobby.isValidDraftPlusHostMigration(doc, "bob", transfer));
     }
 
+
+    @Test
+    void repeatedHostMigrationPreservesFrozenMatchStateAndSettlementEvidence() {
+        JsonObject doc = ratedMatch();
+        doc.addProperty("host", "alice");
+        doc.addProperty("hostSeen", 1_000);
+        doc.addProperty("hostEpoch", 7);
+
+        JsonObject state = new JsonObject();
+        state.addProperty("phase", "COMPLETE");
+        state.addProperty("pickIndex", 25);
+        doc.add("draftPlusState", state);
+
+        JsonObject frozen = new JsonObject();
+        frozen.addProperty("rated", true);
+        frozen.addProperty("rolesEnabled", true);
+        frozen.addProperty("chaosEnabled", true);
+        doc.add("draftPlusFrozenSettings", frozen);
+
+        JsonObject roles = new JsonObject();
+        roles.addProperty("alice", "miner");
+        roles.addProperty("bob", "guardian");
+        doc.add("draftPlusRoles", roles);
+        doc.addProperty("draftPlusSeed", "match-seed-42");
+        doc.addProperty("draftPlusSettledSeed", "match-seed-42");
+
+        JsonObject marker = new JsonObject();
+        marker.addProperty("deltas", "alice +12");
+        JsonObject ledger = new JsonObject();
+        ledger.add("match-history-id", marker);
+        doc.add("settlementEvidence", ledger);
+
+        JsonObject transfer = new JsonObject();
+        transfer.addProperty("host", "bob");
+        transfer.addProperty("hostSeen", 20_000);
+        transfer.addProperty("hostEpoch", 8);
+        Lobby.applyFirebasePatch(doc, transfer);
+
+        assertEquals("bob", Lobby.str(doc, "host"));
+        assertEquals(8, Lobby.num(doc, "hostEpoch"));
+        assertEquals("COMPLETE", Lobby.str(Lobby.obj(doc, "draftPlusState"), "phase"));
+        assertEquals(25, Lobby.num(Lobby.obj(doc, "draftPlusState"), "pickIndex"));
+        assertTrue(Lobby.bool(Lobby.obj(doc, "draftPlusFrozenSettings"), "rated"));
+        assertTrue(Lobby.bool(Lobby.obj(doc, "draftPlusFrozenSettings"), "rolesEnabled"));
+        assertEquals("miner", Lobby.str(Lobby.obj(doc, "draftPlusRoles"), "alice"));
+        assertEquals("guardian", Lobby.str(Lobby.obj(doc, "draftPlusRoles"), "bob"));
+        assertEquals("match-seed-42", Lobby.str(doc, "draftPlusSettledSeed"));
+        assertTrue(Lobby.obj(Lobby.obj(doc, "settlementEvidence"), "match-history-id").has("deltas"));
+    }
+
+
     @Test
     void staleReturningClientMustRefreshHeartbeatBeforeHostElection() {
         JsonObject doc = ratedMatch();
