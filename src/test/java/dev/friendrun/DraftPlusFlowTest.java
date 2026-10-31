@@ -164,7 +164,7 @@ final class DraftPlusFlowTest {
     @Test
     void forfeitedPlayerCannotClaimAnotherCell() {
         DraftPlusFlow.State state = boardState(DraftPlusRules.Format.FFA, FFA_PLAYERS,
-            new ArrayList<>(java.util.Collections.nCopies(24, "-")));
+            new ArrayList<>(java.util.Collections.nCopies(25, "-")));
         state = DraftPlusFlow.forfeit(state, "alice");
         DraftPlusFlow.State forfeited = state;
         assertThrows(IllegalArgumentException.class, () -> DraftPlusFlow.claim(forfeited, "alice", 0));
