@@ -24,10 +24,14 @@ public final class DraftPlusContribution {
         "trial_key", "ominous_trial_key", "recovery_compass", "conduit"
     );
 
-    public record Metrics(Set<String> acquiredItems, int cellsCaptured) {
+    public record Metrics(Set<String> acquiredItems, int cellsCaptured, int successfulDraftPicks) {
+        public Metrics(Set<String> acquiredItems, int cellsCaptured) {
+            this(acquiredItems, cellsCaptured, 0);
+        }
         public Metrics {
             acquiredItems = acquiredItems == null ? Set.of() : Set.copyOf(acquiredItems);
             cellsCaptured = Math.max(0, Math.min(DraftPlusRules.CELL_COUNT, cellsCaptured));
+            successfulDraftPicks = Math.max(0, Math.min(DraftPlusRules.CELL_COUNT, successfulDraftPicks));
         }
     }
 
@@ -40,14 +44,17 @@ public final class DraftPlusContribution {
         return Set.copyOf(ids);
     }
 
-    /** One point per distinct rare resource, two per distinct key item, one per captured cell. */
+    /**
+     * Equal-weight initial model: one point per captured cell, successful own-side
+     * draft pick, and distinct rare/key item. Repeated stacks of the same item
+     * cannot be farmed for additional contribution.
+     */
     public static int score(Metrics metrics) {
-        int score = metrics.cellsCaptured();
+        int score = metrics.cellsCaptured() + metrics.successfulDraftPicks();
         Set<String> counted = new HashSet<>();
         for (String id : metrics.acquiredItems()) {
             if (id == null || id.isBlank() || !counted.add(id)) continue;
-            if (KEY_ITEMS.contains(id)) score += 2;
-            else if (RARE_RESOURCES.contains(id) || ItemPicker.isHard(id)) score += 1;
+            if (KEY_ITEMS.contains(id) || RARE_RESOURCES.contains(id) || ItemPicker.isHard(id)) score++;
         }
         return score;
     }
