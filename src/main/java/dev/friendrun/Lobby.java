@@ -480,7 +480,7 @@ public final class Lobby {
     public static long orDef(long v, long def) { return v > 0 ? v : def; }
     public void setNum(String key, long v) { JsonObject o = new JsonObject(); o.addProperty(key, v); patch("", o); }
     public void setFlag(String key, boolean v) { JsonObject o = new JsonObject(); o.addProperty(key, v); patch("", o); }
-    private static boolean draftPlusEditable(JsonObject doc) {
+    static boolean draftPlusEditable(JsonObject doc) {
         if (doc == null || !bool(doc, "launched")) return true;
         return str(obj(doc, "draftPlusState"), "phase").equals(DraftPlusFlow.Phase.COMPLETE.name());
     }
@@ -1039,12 +1039,16 @@ public final class Lobby {
         return true;
     }
 
-    private static boolean isRatedDraftPlus(JsonObject doc) {
+    static boolean isRatedDraftPlus(JsonObject doc) {
         if (!bool(doc, "launched") || num(doc, "gameMode") != Game.DRAFT_PLUS) return false;
         boolean complete = str(obj(doc, "draftPlusState"), "phase")
             .equals(DraftPlusFlow.Phase.COMPLETE.name());
         JsonObject frozen = obj(doc, "draftPlusFrozenSettings");
-        return complete || frozen.isEmpty() ? bool(doc, "draftPlusRated") : bool(frozen, "rated");
+        // While settlement is pending, the frozen setting belongs to the match being
+        // settled. Lobby settings for the next match must not disable its host fencing.
+        if (complete && !draftPlusSettlementConfirmed(doc))
+            return frozen.isEmpty() ? bool(doc, "draftPlusRated") : bool(frozen, "rated");
+        return frozen.isEmpty() || complete ? bool(doc, "draftPlusRated") : bool(frozen, "rated");
     }
 
     /** Deterministic election: the oldest currently connected participant takes over. */
