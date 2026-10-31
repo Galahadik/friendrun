@@ -924,7 +924,8 @@ public final class Lobby {
             JsonObject timeout = new JsonObject();
             timeout.addProperty("draftPlusAllDisconnectedTimeout", true);
             timeout.addProperty("hostSeen", nowMs);
-            request("PATCH", "", timeout.toString());
+            try { request("PATCH", "", timeout.toString()); }
+            catch (IOException ex) { fail(ex); }
             nextDelay = 1000;
             return; // The returning host finalizes the persisted board after the five-minute global timeout.
         }
