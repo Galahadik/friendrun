@@ -27,6 +27,7 @@ public final class DraftPlusCodec {
         out.add("banned", strings(state.bannedGoals()));
         out.add("board", strings(state.boardGoals()));
         out.add("owners", strings(state.owners()));
+        out.add("forfeited", strings(state.forfeitedPlayers()));
         out.addProperty("phase", state.phase().name());
         out.addProperty("banIndex", state.banIndex());
         out.addProperty("firstBanActor", state.firstBanActor());
@@ -51,7 +52,7 @@ public final class DraftPlusCodec {
         }
         return new DraftPlusFlow.State(format, players, readStrings(json, "available"),
             readStrings(json, "banned"), readStrings(json, "board"), readStrings(json, "owners"),
-            DraftPlusFlow.Phase.valueOf(json.get("phase").getAsString()),
+            readStrings(json, "forfeited"), DraftPlusFlow.Phase.valueOf(json.get("phase").getAsString()),
             integer(json, "banIndex"), integer(json, "firstBanActor"), integer(json, "firstDraftActor"),
             integer(json, "pickIndex"), string(json, "currentActor"), string(json, "offerA"),
             string(json, "offerB"), string(json, "winner"));
