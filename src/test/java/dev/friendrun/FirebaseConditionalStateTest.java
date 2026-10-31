@@ -76,6 +76,38 @@ final class FirebaseConditionalStateTest {
         assertEquals(2, transport.requests.size());
     }
     @Test
+    void deletesOnlyWhenSnapshotMatchesAndUsesIfMatch() throws Exception {
+        JsonObject current = new JsonObject();
+        current.addProperty("host", "alice");
+        FakeTransport transport = new FakeTransport()
+            .response(200, current.toString(), "\"etag-1\"")
+            .response(200, "null", "\"etag-null\"");
+
+        assertTrue(FirebaseConditionalState.deleteIfUnchanged(transport, NODE, current));
+        assertEquals(2, transport.requests.size());
+        assertEquals("true", transport.requests.get(0).headers().firstValue("X-Firebase-ETag").orElseThrow());
+        assertEquals("\"etag-1\"", transport.requests.get(1).headers().firstValue("If-Match").orElseThrow());
+        assertEquals("DELETE", transport.requests.get(1).method());
+    }
+
+    @Test
+    void staleSnapshotOrEtagConflictPreventsConditionalDelete() throws Exception {
+        JsonObject expected = new JsonObject();
+        expected.addProperty("hostSeen", 1);
+        JsonObject actual = new JsonObject();
+        actual.addProperty("hostSeen", 2);
+        FakeTransport changedBeforeDelete = new FakeTransport()
+            .response(200, actual.toString(), "\"etag-2\"");
+        assertFalse(FirebaseConditionalState.deleteIfUnchanged(changedBeforeDelete, NODE, expected));
+        assertEquals(1, changedBeforeDelete.requests.size());
+
+        FakeTransport changedDuringDelete = new FakeTransport()
+            .response(200, expected.toString(), "\"etag-1\"")
+            .response(412, actual.toString(), "\"etag-2\"");
+        assertFalse(FirebaseConditionalState.deleteIfUnchanged(changedDuringDelete, NODE, expected));
+    }
+
+    @Test
     void canCreateAnAbsentHistoryNodeWithFirebaseNullEtag() throws Exception {
         JsonObject history = new JsonObject();
         history.addProperty("id", "match-1");
