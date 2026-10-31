@@ -36,6 +36,7 @@ public final class DraftPlusChaos {
     private static final Identifier MOB_DAMAGE = Identifier.fromNamespaceAndPath("friendrun", "draft_plus_chaos_damage");
     private static volatile Snapshot snapshot = Snapshot.EMPTY;
     private static Snapshot lastServerSnapshot = Snapshot.EMPTY;
+    private static MinecraftServer trackedServer;
 
     private record Snapshot(boolean active, List<String> modifiers, int difficulty) {
         private static final Snapshot EMPTY = new Snapshot(false, List.of(), 0);
@@ -116,12 +117,13 @@ public final class DraftPlusChaos {
                                         BlockState state, net.minecraft.world.level.block.entity.BlockEntity blockEntity) {
         Snapshot current = snapshot;
         if (!current.has("rich_harvest") || !(level instanceof ServerLevel serverLevel)
-            || player.isSpectator() || !(state.getBlock() instanceof CropBlock)) return;
-        if (!state.hasProperty(CropBlock.AGE) || state.getValue(CropBlock.AGE) < CropBlock.MAX_AGE) return;
+            || player.isSpectator() || !(state.getBlock() instanceof CropBlock crop)) return;
+        if (crop.getAge(state) < crop.getMaxAge()) return;
 
         net.minecraft.world.item.Item produce = state.is(Blocks.WHEAT) ? Items.WHEAT
             : state.is(Blocks.CARROTS) ? Items.CARROT
-            : state.is(Blocks.POTATOES) ? Items.POTATO : null;
+            : state.is(Blocks.POTATOES) ? Items.POTATO
+            : state.is(Blocks.BEETROOTS) ? Items.BEETROOT : null;
         if (produce == null) return;
         spawnDrop(serverLevel, pos, new ItemStack(produce, levelBonus(current)));
     }
@@ -183,6 +185,10 @@ public final class DraftPlusChaos {
 
     private static void syncLoadedMobs(MinecraftServer server) {
         Snapshot current = snapshot;
+        if (trackedServer != server) {
+            trackedServer = server;
+            lastServerSnapshot = Snapshot.EMPTY;
+        }
         if (current.equals(lastServerSnapshot)) return;
         for (ServerLevel level : server.getAllLevels()) {
             for (Entity entity : level.getAllEntities()) syncHostileMob(entity, current);
