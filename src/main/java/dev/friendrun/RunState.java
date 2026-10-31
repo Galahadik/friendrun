@@ -23,6 +23,11 @@ public final class RunState {
     public int draftPlusFormat;       // 0 = FFA, 1 = команды
     public int draftPlusTeamSize = 1;
     public boolean draftPlusBansEnabled = true;
+    public boolean draftPlusRolesEnabled = true;
+    public boolean draftPlusRated;
+    public boolean draftPlusChaosEnabled = true;
+    public int draftPlusChaosCount = 1; // 1, 2, 3, or 4 = random 1–3
+    public int draftPlusChaosDifficulty; // 0 = easy, 1 = medium, 2 = hard
     public java.util.Map<String, String> draftPlusMatchRoles = java.util.Map.of();
     public DraftPlusFlow.State draftPlusState;
     public String draftPlusMatchSeed = "";
@@ -136,7 +141,9 @@ public final class RunState {
         amHost = false;
         chaos = false;
         gameMode = 0;
-        draftPlusFormat = 0; draftPlusTeamSize = 1; draftPlusMatchRoles = java.util.Map.of(); draftPlusState = null; draftPlusMatchSeed = ""; draftPlusStartError = ""; draftPlusScreenDismissed = false; draftPlusTeamNameA = "Команда A"; draftPlusTeamNameB = "Команда B";
+        draftPlusFormat = 0; draftPlusTeamSize = 1; draftPlusBansEnabled = true;
+        draftPlusRolesEnabled = true; draftPlusRated = false; draftPlusChaosEnabled = true;
+        draftPlusChaosCount = 1; draftPlusChaosDifficulty = 0; draftPlusMatchRoles = java.util.Map.of(); draftPlusState = null; draftPlusMatchSeed = ""; draftPlusStartError = ""; draftPlusScreenDismissed = false; draftPlusTeamNameA = "Команда A"; draftPlusTeamNameB = "Команда B";
         convTotalMin = 20; convSlotMin = 3; chainLen = 5; bingoSize = 3; draftSize = cfgDraftSize = 5; draftType = cfgDraftType = 3; bingoFull = false; waveSec = 45; waveDiff = 1; manRunners = 1; manMin = 15;
         resultUntilNanos = 0;
         mode = Mode.SEPARATE_WORLDS;
