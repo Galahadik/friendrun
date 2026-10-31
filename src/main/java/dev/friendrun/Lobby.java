@@ -1349,12 +1349,26 @@ public final class Lobby {
             updates.addProperty("draftPlusOwnersIds", String.join(",", state.owners()));
         }
         if (state.phase() == DraftPlusFlow.Phase.COMPLETE) {
+            String winnerToken = state.winner();
+            String winnerName = "—";
+            if (winnerToken.startsWith("player:")) winnerName = winnerToken.substring("player:".length());
+            else if (winnerToken.equals("team:0")) winnerName = str(doc, "draftPlusTeamNameA").isBlank() ? "Команда A" : str(doc, "draftPlusTeamNameA");
+            else if (winnerToken.equals("team:1")) winnerName = str(doc, "draftPlusTeamNameB").isBlank() ? "Команда B" : str(doc, "draftPlusTeamNameB");
+            updates.addProperty("winner/name", winnerName);
+            updates.addProperty("winner/ms", Math.max(0, nowForDraftClaims() - startAt));
+            updates.addProperty("winner/score", winnerToken.isBlank() ? 0 : DraftPlusRules.WIN_CELLS);
+            updates.addProperty("winner/mode", Game.DRAFT_PLUS);
+            updates.addProperty("winner/deltas", "");
+            updates.addProperty("winner/round", roundId);
             updates.addProperty("startAt", 0);
             updates.addProperty("prepareRound", 0);
             updates.addProperty("draftPlusPrepared", false);
             for (String id : players.keySet()) {
                 updates.addProperty("players/" + id + "/ready", false);
                 updates.addProperty("players/" + id + "/preparedRound", 0);
+                updates.addProperty("players/" + id + "/draftClaim", -1);
+                updates.addProperty("players/" + id + "/draftClaimRound", 0);
+                updates.addProperty("players/" + id + "/draftClaimAt", 0);
             }
         }
     }
