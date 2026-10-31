@@ -168,6 +168,9 @@ public final class FriendRunClient implements ClientModInitializer {
         s.draftPlusTeamSize = (int) Math.max(1, Math.min(5, Lobby.orDef(Lobby.num(doc, "draftPlusTeamSize"), 1)));
         s.draftPlusTeamNameA = Lobby.str(doc, "draftPlusTeamNameA").isBlank() ? "Команда A" : Lobby.str(doc, "draftPlusTeamNameA");
         s.draftPlusTeamNameB = Lobby.str(doc, "draftPlusTeamNameB").isBlank() ? "Команда B" : Lobby.str(doc, "draftPlusTeamNameB");
+        JsonObject draftPlusJson = Lobby.obj(doc, "draftPlusState");
+        try { s.draftPlusState = draftPlusJson.isEmpty() ? null : DraftPlusCodec.decode(draftPlusJson); }
+        catch (RuntimeException ex) { s.draftPlusState = null; LOG.warn("FRun: could not read Draft+ state", ex); }
         s.draftActive = Lobby.bool(doc, "draftActive");
         s.draftComplete = Lobby.bool(doc, "draftComplete");
         s.draftPickCount = (int) Lobby.num(doc, "draftPickCount");
@@ -566,6 +569,21 @@ public final class FriendRunClient implements ClientModInitializer {
         lobby.chooseDraft(choice, STATE.draftPickCount);
     }
 
+    public static void submitDraftPlusBan(String goalId) {
+        DraftPlusFlow.State state = STATE.draftPlusState;
+        if (lobby == null || state == null || state.phase() != DraftPlusFlow.Phase.BANS
+            || !myName().equals(state.currentActor()) || goalId == null
+            || !state.availableGoals().contains(goalId)) return;
+        lobby.submitDraftPlusAction("BAN", goalId, -1);
+    }
+
+    public static void submitDraftPlusPick(int choice) {
+        DraftPlusFlow.State state = STATE.draftPlusState;
+        if (lobby == null || state == null || state.phase() != DraftPlusFlow.Phase.DRAFT
+            || !myName().equals(state.currentActor()) || (choice != 0 && choice != 1)) return;
+        lobby.submitDraftPlusAction("PICK", "", choice);
+    }
+
     public static void setDraftPlusConfig(int format, int teamSize) {
         if (lobby == null || !STATE.amHost || STATE.phase != RunState.Phase.IDLE) return;
         STATE.draftPlusFormat = Math.max(0, Math.min(1, format));
@@ -630,7 +648,18 @@ public final class FriendRunClient implements ClientModInitializer {
     }
 
     public static void launch() {
-        if (STATE.gameMode == Game.DRAFT_PLUS) { chat("Draft+ ещё не подключён к игровому циклу — запуск временно закрыт."); return; }
+        if (STATE.gameMode == Game.DRAFT_PLUS) {
+            if (STATE.draftPlusFormat == 0 && (STATE.players.isEmpty() || STATE.players.size() > 10)) {
+                chat("Draft+ FFA: нужно от 1 до 10 игроков."); return;
+            }
+            if (STATE.draftPlusFormat == 1) {
+                List<DraftPlusTeams.Member> members = new ArrayList<>();
+                for (RunState.PlayerInfo p : STATE.players) members.add(new DraftPlusTeams.Member(p.name(), p.joinedAt(), p.draftPlusTeam()));
+                if (!DraftPlusTeams.isReady(members, STATE.draftPlusTeamSize)) {
+                    chat("Draft+ Команды: заполните обе команды до выбранного размера."); return;
+                }
+            }
+        }
         if (STATE.gameMode == Game.SINGLE_SPEEDRUN && STATE.players.size() != 1) { chat("Одиночный спидран требует ровно одного игрока в этом лобби."); return; }
         if (STATE.gameMode == Game.PILLARS && (STATE.mode != RunState.Mode.HOST_WORLD || STATE.players.size() < 2)) {
             chat("Столбы: для запуска нужен общий мир хоста и минимум 2 игрока в лобби.");
@@ -741,6 +770,10 @@ public final class FriendRunClient implements ClientModInitializer {
         WorldLauncher.tick(mc);
         RunState s = STATE;
         if (lobby == null) return;
+        if (s.gameMode == Game.DRAFT_PLUS && s.draftPlusState != null
+            && !(Mc.currentScreen() instanceof DraftPlusScreen)) Mc.setScreen(new DraftPlusScreen());
+        else if ((s.gameMode != Game.DRAFT_PLUS || s.draftPlusState == null)
+            && Mc.currentScreen() instanceof DraftPlusScreen) Mc.setScreen(null);
         if (s.launched && s.draftActive && !(Mc.currentScreen() instanceof DraftScreen)) Mc.setScreen(new DraftScreen());
         else if ((!s.launched || !s.draftActive) && Mc.currentScreen() instanceof DraftScreen) Mc.setScreen(null);
 
