@@ -17,6 +17,11 @@ final class DraftPlusFlowTest {
         new DraftPlusRules.Player("cara", -1, false, 2)
     );
 
+    private static final List<DraftPlusRules.Player> TEAM_PLAYERS = List.of(
+        new DraftPlusRules.Player("alice", DraftPlusTeams.TEAM_A, false, 0),
+        new DraftPlusRules.Player("bob", DraftPlusTeams.TEAM_B, false, 1)
+    );
+
     private static List<String> goals(int count) {
         List<String> result = new ArrayList<>();
         for (int i = 0; i < count; i++) result.add("item:test_" + i);
