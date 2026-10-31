@@ -37,6 +37,25 @@ public final class DraftPlusContribution {
 
     private DraftPlusContribution() {}
 
+    /** Successful picks are credited only when the picker or their team later captures that cell. */
+    public static Map<String, Integer> successfulDraftPicks(DraftPlusFlow.State state) {
+        if (state == null) return Map.of();
+        Map<String, DraftPlusRules.Player> roster = new HashMap<>();
+        for (DraftPlusRules.Player player : state.players()) roster.put(player.id(), player);
+        Map<String, Integer> result = new HashMap<>();
+        for (int i = 0; i < Math.min(state.pickers().size(), state.owners().size()); i++) {
+            String pickerId = state.pickers().get(i);
+            String ownerId = state.owners().get(i);
+            DraftPlusRules.Player picker = roster.get(pickerId);
+            DraftPlusRules.Player owner = roster.get(ownerId);
+            if (picker == null || owner == null) continue;
+            boolean successful = state.format() == DraftPlusRules.Format.FFA
+                ? pickerId.equals(ownerId) : picker.teamIndex() == owner.teamIndex();
+            if (successful) result.merge(pickerId, 1, Integer::sum);
+        }
+        return Map.copyOf(result);
+    }
+
     /** IDs that should be included in the client's match-long inventory baseline. */
     public static Set<String> trackedItemIds() {
         Set<String> ids = new HashSet<>(RARE_RESOURCES);
