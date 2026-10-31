@@ -1399,6 +1399,13 @@ public final class Lobby {
                 }
             }
         }
+        if (updates.has("draftPlusState")) {
+            JsonElement nextState = updates.remove("draftPlusState");
+            if (!commitDraftPlusState(doc.get("draftPlusState"), nextState)) {
+                FriendRunClient.LOG.debug("FRun: concurrent Draft+ state update detected; retrying from fresh snapshot");
+                return;
+            }
+        }
         if (updates.size() > 0) {
             request("PATCH", "", updates.toString());
             if (updates.has("startAt") && num(updates, "startAt") > 0) {
@@ -2264,6 +2271,25 @@ public final class Lobby {
     private void fail(IOException e) { FriendRunClient.LOG.warn("lobby write failed", e); }
 
     // ---------- HTTP ----------
+    /**
+     * Commits a Draft+ state transition only if the persisted state still matches the
+     * snapshot used by hostLogic. This prevents a stale host (including one racing a
+     * host migration) from overwriting another host's accepted action or cell claim.
+     */
+    private boolean commitDraftPlusState(JsonElement expected, JsonElement replacement) throws IOException {
+        URI stateUri = URI.create(base + "/draftPlusState.json");
+        return FirebaseConditionalState.putIfUnchanged(request -> {
+            try {
+                HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+                return new FirebaseConditionalState.Response(response.statusCode(), response.body(),
+                    response.headers().firstValue("ETag").orElse(null));
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Firebase conditional write interrupted", interrupted);
+            }
+        }, stateUri, expected, replacement);
+    }
+
     private JsonElement request(String method, String path, String body) throws IOException {
         return send(method, base + path, body);
     }
