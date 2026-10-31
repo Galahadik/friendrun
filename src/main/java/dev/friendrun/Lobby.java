@@ -33,6 +33,9 @@ public final class Lobby {
     }
 
     private static final HttpClient HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3)).build();
+    // Firebase may redirect SSE endpoints with HTTP 307; the stream client must preserve GET and follow it.
+    static final HttpClient STREAM_HTTP = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(3))
+        .followRedirects(HttpClient.Redirect.NORMAL).build();
     private static final Random RNG = new Random();
 
     public final String name;
@@ -1169,7 +1172,7 @@ public final class Lobby {
                     .header("Accept", "text/event-stream")
                     .header("Cache-Control", "no-cache")
                     .timeout(Duration.ofSeconds(65)).GET().build();
-                HttpResponse<InputStream> response = HTTP.send(req, HttpResponse.BodyHandlers.ofInputStream());
+                HttpResponse<InputStream> response = STREAM_HTTP.send(req, HttpResponse.BodyHandlers.ofInputStream());
                 if (response.statusCode() == 401 || response.statusCode() == 403)
                     throw new IOException("Firebase отклонил SSE-подключение (проверьте правила базы)");
                 if (response.statusCode() / 100 != 2) throw new IOException("SSE HTTP " + response.statusCode());
