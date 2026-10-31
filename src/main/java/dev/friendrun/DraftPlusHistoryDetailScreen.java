@@ -83,8 +83,15 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
             + " · " + (Lobby.bool(data, "cancelled") ? "Отменён" : entry.rated() ? "Рейтинговый" : "Тренировочный"),
             panel.x() + 14, panel.y() + 28, Ui.MUTED);
         Gfx.text(g, Ui.trunc(title, panel.w() - 28), panel.x() + 14, panel.y() + 46, Ui.TEXT);
-        if (!entry.deltas().isBlank())
-            Gfx.text(g, Ui.trunc(entry.deltas(), panel.w() - 28), panel.x() + 14, panel.y() + 62, Ui.GOLD);
+        JsonArray chaos = data.has("chaosModifiers") && data.get("chaosModifiers").isJsonArray()
+            ? data.getAsJsonArray("chaosModifiers") : new JsonArray();
+        String chaosText = chaos.isEmpty() ? "Хаос-моды: выключены"
+            : "Хаос: " + java.util.stream.StreamSupport.stream(chaos.spliterator(), false)
+                .map(value -> DraftPlusChaos.displayName(value.getAsString()))
+                .collect(java.util.stream.Collectors.joining(", "));
+        String summary = entry.deltas().isBlank() ? chaosText : entry.deltas() + " · " + chaosText;
+        Gfx.text(g, Ui.trunc(summary, panel.w() - 28), panel.x() + 14, panel.y() + 62,
+            entry.deltas().isBlank() ? Ui.MUTED : Ui.GOLD);
 
         super.extractRenderState(g, mx, my, delta);
         int tableY = panel.y() + 84;
