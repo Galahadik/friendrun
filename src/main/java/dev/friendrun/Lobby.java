@@ -1429,6 +1429,7 @@ public final class Lobby {
                 updates.addProperty("draftPlusStartError", "");
                 updates.addProperty("draftPlusPrepared", false);
                 for (String id : ids) {
+                    updates.addProperty("players/" + id + "/ready", false);
                     updates.add("players/" + id + "/draftPlusActionId", JsonNull.INSTANCE);
                     updates.add("players/" + id + "/draftPlusAction", JsonNull.INSTANCE);
                     updates.add("players/" + id + "/draftPlusGoal", JsonNull.INSTANCE);
