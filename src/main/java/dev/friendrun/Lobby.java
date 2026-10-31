@@ -320,6 +320,8 @@ public final class Lobby {
         doc.addProperty("gameMode", 0);
         doc.addProperty("draftPlusFormat", 0);
         doc.addProperty("draftPlusTeamSize", 1);
+        doc.addProperty("draftPlusTeamNameA", "Команда A");
+        doc.addProperty("draftPlusTeamNameB", "Команда B");
         doc.addProperty("soloLock", false);
         doc.addProperty("convTotal", 20);
         doc.addProperty("convSlot", 3);
@@ -418,6 +420,37 @@ public final class Lobby {
         o.addProperty("draftPlusFormat", Math.max(0, Math.min(1, format)));
         o.addProperty("draftPlusTeamSize", Math.max(1, Math.min(5, teamSize)));
         patch("", o);
+    }
+
+    public void setDraftPlusTeam(int teamIndex) {
+        if (closed || teamIndex < DraftPlusTeams.NO_TEAM || teamIndex > DraftPlusTeams.TEAM_B) return;
+        JsonObject o = new JsonObject();
+        o.addProperty("draftPlusTeam", teamIndex);
+        patch("/players/" + me, o);
+    }
+
+    /** Host-side random assignment; only the host chooses and publishes the result. */
+    public boolean randomizeDraftPlusTeams(int teamSize) {
+        if (!host || closed || teamSize < 1 || teamSize > 5) return false;
+        JsonObject doc = latestSnapshot();
+        if (doc == null) return false;
+        JsonObject players = obj(doc, "players");
+        List<DraftPlusTeams.Member> roster = new ArrayList<>();
+        for (String id : players.keySet()) {
+            JsonObject p = obj(players, id);
+            roster.add(new DraftPlusTeams.Member(id, num(p, "joinedAt"), (int) num(p, "draftPlusTeam")));
+        }
+        try {
+            List<DraftPlusTeams.Member> assigned = DraftPlusTeams.randomAssignment(roster, teamSize, RNG);
+            JsonObject updates = new JsonObject();
+            for (DraftPlusTeams.Member member : assigned)
+                updates.addProperty("players/" + member.id() + "/draftPlusTeam", member.teamIndex());
+            patch("", updates);
+            return true;
+        } catch (IllegalArgumentException e) {
+            FriendRunClient.LOG.warn("FRun: Draft+ team randomization rejected: {}", e.getMessage());
+            return false;
+        }
     }
 
     public void setGameMode(int g) {
@@ -783,6 +816,11 @@ public final class Lobby {
         JsonObject players = obj(doc, "players");
         JsonObject updates = new JsonObject();
 
+        if (!bool(doc, "launched") && num(doc, "gameMode") == Game.DRAFT_PLUS
+            && num(doc, "draftPlusFormat") == 1) {
+            reconcileDraftPlusTeams(players, (int) orDef(num(doc, "draftPlusTeamSize"), 1), updates);
+        }
+
         // Одиночный спидран: хост — единственный участник. Удаляем только игроков ЭТОГО лобби.
         boolean solo = bool(doc, "soloLock") || num(doc, "gameMode") == Game.SINGLE_SPEEDRUN;
         if (solo) {
@@ -913,6 +951,22 @@ public final class Lobby {
             if (updates.has("startAt") && num(updates, "startAt") > 0) {
                 scheduledStartRound = num(doc, "prepareRound");
             }
+        }
+    }
+
+    /** Keeps simultaneous client joins within the configured team capacity. */
+    private static void reconcileDraftPlusTeams(JsonObject players, int teamSize, JsonObject updates) {
+        if (teamSize < 1 || teamSize > 5) teamSize = 1;
+        for (int team = DraftPlusTeams.TEAM_A; team <= DraftPlusTeams.TEAM_B; team++) {
+            final int teamIndex = team;
+            List<String> members = new ArrayList<>();
+            for (String id : players.keySet())
+                if (num(obj(players, id), "draftPlusTeam") == teamIndex) members.add(id);
+            members.sort(java.util.Comparator
+                .comparingLong((String id) -> num(obj(players, id), "joinedAt"))
+                .thenComparing(id -> id));
+            for (int i = teamSize; i < members.size(); i++)
+                updates.addProperty("players/" + members.get(i) + "/draftPlusTeam", DraftPlusTeams.NO_TEAM);
         }
     }
 
