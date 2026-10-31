@@ -137,16 +137,16 @@ public record DraftGoal(Type type, String id) {
             "end/find_end_city", "adventure/root", "adventure/kill_a_mob", "adventure/trade",
             "adventure/ol_betsy", "adventure/voluntary_exile", "adventure/hero_of_the_village", "adventure/totem_of_undying",
             "adventure/arbalistic", "adventure/sniper_duel", "adventure/very_very_frightening", "adventure/two_birds_one_arrow",
-            "adventure/whos_the_pillager_now", "adventure/kill_all_mobs", "adventure/postmortal", "adventure/adventuring_time",
-            "adventure/sleep_in_bed", "adventure/lightning_rod", "adventure/spyglass_at_parrot", "adventure/avoid_vibration",
+            "adventure/whos_the_pillager_now", "adventure/kill_all_mobs", "adventure/adventuring_time",
+            "adventure/sleep_in_bed", "adventure/spyglass_at_parrot", "adventure/avoid_vibration",
             "adventure/throw_trident", "adventure/trim_with_any_armor_pattern", "adventure/read_power_of_chiseled_bookshelf", "adventure/brush_armadillo",
             "adventure/walk_on_powder_snow_with_leather_boots", "adventure/summon_iron_golem", "adventure/shoot_arrow", "adventure/kill_mob_near_sculk_catalyst",
             "husbandry/root", "husbandry/breed_an_animal", "husbandry/tame_an_animal", "husbandry/balanced_diet",
             "husbandry/plant_seed", "husbandry/fishy_business", "husbandry/tactical_fishing", "husbandry/complete_catalogue",
-            "husbandry/bred_all_animals", "husbandry/froglights", "husbandry/two_by_two", "husbandry/a_seedy_place",
+            "husbandry/bred_all_animals", "husbandry/froglights",
             "husbandry/obtain_sniffer_egg", "husbandry/plant_any_sniffer_seed", "husbandry/wax_on", "husbandry/wax_off",
-            "husbandry/silk_touch_nest", "husbandry/axolotl_in_a_bucket", "husbandry/ride_a_boat_with_a_goat", "husbandry/smells_interesting",
-            "husbandry/little_sniffs", "husbandry/planting_the_past"
+            "husbandry/silk_touch_nest", "husbandry/axolotl_in_a_bucket", "husbandry/ride_a_boat_with_a_goat",
+
         };
         public static boolean isKnown(String id) { for (String value : IDS) if (value.equals(id)) return true; return false; }
         public static String name(String id) {
