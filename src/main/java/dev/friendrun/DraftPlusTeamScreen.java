@@ -45,7 +45,7 @@ public final class DraftPlusTeamScreen extends Screen {
     @Override
     protected void init() {
         pw = Math.min(width - 20, 470);
-        ph = Math.min(height - 16, 280);
+        ph = Math.min(height - 16, 300);
         px = (width - pw) / 2;
         py = (height - ph) / 2;
         panel = new Ui.R(px, py, pw, ph);
@@ -58,7 +58,7 @@ public final class DraftPlusTeamScreen extends Screen {
         random = new Ui.R(px + 12, py + 122, inner, 22);
         nameBox = new Ui.R(px + 12, py + 174, inner - 82, 22);
         rename = new Ui.R(nameBox.x() + nameBox.w() + 6, nameBox.y(), 76, 22);
-        back = new Ui.R(px + 12, py + ph - 34, inner, 22);
+        back = new Ui.R(px + 12, py + ph - 28, inner, 22);
 
         joinAButton = make(joinA, () -> FriendRunClient.setDraftPlusTeam(DraftPlusTeams.TEAM_A));
         joinBButton = make(joinB, () -> FriendRunClient.setDraftPlusTeam(DraftPlusTeams.TEAM_B));
@@ -137,7 +137,7 @@ public final class DraftPlusTeamScreen extends Screen {
         Gfx.text(g, canRename ? "Имя команды (только капитан)" : "Имя команды (доступно капитану)",
             nameBox.x(), nameBox.y() - 12, Ui.MUTED);
 
-        int listY = py + 204;
+        int listY = py + 198;
         Gfx.text(g, "Игроки:", px + 14, listY, Ui.MUTED);
         int row = 0;
         for (RunState.PlayerInfo p : s.players) {
@@ -145,8 +145,8 @@ public final class DraftPlusTeamScreen extends Screen {
                 : p.draftPlusTeam() == DraftPlusTeams.TEAM_B ? "B" : "—";
             boolean captain = p.draftPlusTeam() >= 0
                 && DraftPlusTeams.isCaptain(members, p.name(), p.draftPlusTeam());
-            int x = px + 14 + (row / 3) * ((pw - 28) / 2);
-            int y = listY + 14 + (row % 3) * 12;
+            int x = px + 14 + (row / 5) * ((pw - 28) / 2);
+            int y = listY + 14 + (row % 5) * 10;
             String label = p.name() + (captain ? " ★" : "") + "  [" + team + "]";
             Gfx.text(g, Ui.trunc(label, (pw - 36) / 2), x, y, p.name().equals(FriendRunClient.accountName()) ? Ui.GOLD : Ui.TEXT);
             row++;
