@@ -390,6 +390,8 @@ public final class Lobby {
     private static JsonObject player() {
         JsonObject p = new JsonObject();
         p.addProperty("ready", false);
+        p.addProperty("joinedAt", System.currentTimeMillis());
+        p.addProperty("draftPlusTeam", DraftPlusTeams.NO_TEAM);
         p.addProperty("lastSeen", System.currentTimeMillis());
         p.addProperty("draftChoice", -1);
         p.addProperty("draftChoicePick", -1);
