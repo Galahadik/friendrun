@@ -136,5 +136,19 @@
   "friendrun.draft_plus.turn.pick": "Your turn — choose a goal for the board",
   "friendrun.draft_plus.turn.current": "Picking now: %s",
   "friendrun.draft_plus.no_more_choices": "No more choices",
-  "friendrun.draft_plus.chaos.prefix": "Chaos: "
+  "friendrun.draft_plus.chaos.prefix": "Chaos: ",
+  "friendrun.draft_plus.settings.title": "Draft+ Settings",
+  "friendrun.draft_plus.settings.host_only": "Only the host can change match settings",
+  "friendrun.draft_plus.settings.roles": "Roles: %s",
+  "friendrun.draft_plus.settings.enabled": "ON",
+  "friendrun.draft_plus.settings.disabled": "OFF",
+  "friendrun.draft_plus.settings.rating_on": "Rated: ON",
+  "friendrun.draft_plus.settings.training": "Training",
+  "friendrun.draft_plus.settings.chaos": "Chaos: %s",
+  "friendrun.draft_plus.settings.count": "Count: %s",
+  "friendrun.draft_plus.settings.difficulty.easy": "Easy",
+  "friendrun.draft_plus.settings.difficulty.medium": "Medium",
+  "friendrun.draft_plus.settings.difficulty.hard": "Hard",
+  "friendrun.draft_plus.settings.count.random": "Random 1–3",
+  "friendrun.draft_plus.settings.roles_off_note": "Roles are disabled — bonuses do not apply"
 }
