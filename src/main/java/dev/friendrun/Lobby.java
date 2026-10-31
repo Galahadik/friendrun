@@ -543,6 +543,7 @@ public final class Lobby {
             o.add("draftPlusState", JsonNull.INSTANCE);
             o.addProperty("draftPlusLastActionId", "");
             o.addProperty("draftPlusStartError", "");
+            o.addProperty("draftPlusPrepared", false);
             JsonObject currentPlayers = obj(current, "players");
             for (String id : currentPlayers.keySet()) {
                 o.add("players/" + id + "/draftPlusActionId", JsonNull.INSTANCE);
@@ -586,6 +587,7 @@ public final class Lobby {
         o.add("draftPlusState", JsonNull.INSTANCE);
         o.addProperty("draftPlusLastActionId", "");
         o.addProperty("draftPlusStartError", "");
+        o.addProperty("draftPlusPrepared", false);
         o.addProperty("draftPickCount", 0);
         o.addProperty("draftTurn", "");
         o.addProperty("draftSeed", "0");
@@ -984,6 +986,8 @@ public final class Lobby {
                 }
             } else if (roundGame == Game.DRAFT) {
                 processDraftClaims(updates, doc, players, startAt, roundId);
+            } else if (roundGame == Game.DRAFT_PLUS) {
+                processDraftPlusClaims(updates, doc, players, startAt, roundId);
             } else {
                 // спидран / цепочка: побеждает первый (по времени у себя) закончивший
                 String best = null; long bestMs = Long.MAX_VALUE;
@@ -1080,6 +1084,25 @@ public final class Lobby {
                 updates.addProperty("draftPlusLastActionId", actionId);
                 FriendRunClient.LOG.warn("FRun: rejected Draft+ action from {}: {}", id, ex.getMessage());
                 break;
+            }
+        }
+
+        // Once all 25 goals have been drafted, reuse the existing synchronized round countdown.
+        if (state.phase() == DraftPlusFlow.Phase.PLAY && !bool(doc, "draftPlusPrepared")
+            && num(doc, "prepareRound") == 0) {
+            long nextRound = num(doc, "roundId") + 1;
+            updates.addProperty("draftPlusPrepared", true);
+            updates.addProperty("prepareRound", nextRound);
+            updates.addProperty("roundId", nextRound);
+            updates.addProperty("roundSeed", str(doc, "worldSeed"));
+            updates.addProperty("roundGame", Game.DRAFT_PLUS);
+            updates.addProperty("rDraftSize", DraftPlusRules.BOARD_SIZE);
+            updates.addProperty("rDraftType", 3);
+            for (String id : players.keySet()) {
+                updates.addProperty("players/" + id + "/score", 0);
+                updates.addProperty("players/" + id + "/draftClaim", -1);
+                updates.addProperty("players/" + id + "/draftClaimRound", 0);
+                updates.addProperty("players/" + id + "/draftClaimAt", 0);
             }
         }
     }
@@ -1280,6 +1303,59 @@ public final class Lobby {
             finishRound(updates, doc, players, winner, winnerMs, num(obj(players, winner), "score"), Game.DRAFT, roundId);
             updates.addProperty("winner/deltas", settleOnce(Game.DRAFT, roundId,
                 () -> settleScores(players, Game.DRAFT, false, true)));
+        }
+    }
+
+    /** Resolves Draft+ objective claims and stops the match when a side owns 13 cells. */
+    private void processDraftPlusClaims(JsonObject updates, JsonObject doc, JsonObject players,
+                                        long startAt, long roundId) {
+        JsonObject encoded = obj(doc, "draftPlusState");
+        DraftPlusFlow.State state;
+        try { state = DraftPlusCodec.decode(encoded); }
+        catch (RuntimeException ex) {
+            FriendRunClient.LOG.warn("FRun: cannot resolve Draft+ claims from invalid state", ex);
+            return;
+        }
+        if (state == null || state.phase() != DraftPlusFlow.Phase.PLAY) return;
+
+        List<String> names = new ArrayList<>(players.keySet());
+        names.sort((a, b) -> {
+            long ta = num(obj(players, a), "draftClaimAt");
+            long tb = num(obj(players, b), "draftClaimAt");
+            return ta == tb ? a.compareTo(b) : Long.compare(ta, tb);
+        });
+        boolean changed = false;
+        for (String name : names) {
+            JsonObject player = obj(players, name);
+            int index = (int) num(player, "draftClaim");
+            long claimAt = num(player, "draftClaimAt");
+            if (num(player, "draftClaimRound") != roundId || index < 0 || index >= DraftPlusRules.CELL_COUNT
+                || claimAt <= 0 || nowForDraftClaims() - claimAt < DRAFT_CLAIM_SETTLE_MS) continue;
+            if (index < state.owners().size() && "-".equals(state.owners().get(index))) {
+                try {
+                    state = DraftPlusFlow.claim(state, name, index);
+                    changed = true;
+                } catch (RuntimeException ex) {
+                    FriendRunClient.LOG.warn("FRun: rejected Draft+ cell claim from {}: {}", name, ex.getMessage());
+                }
+            }
+            updates.addProperty("players/" + name + "/draftClaim", -1);
+            updates.addProperty("players/" + name + "/draftClaimRound", 0);
+            updates.addProperty("players/" + name + "/draftClaimAt", 0);
+            if (state.phase() == DraftPlusFlow.Phase.COMPLETE) break;
+        }
+        if (changed) {
+            updates.add("draftPlusState", DraftPlusCodec.encode(state));
+            updates.addProperty("draftPlusOwnersIds", String.join(",", state.owners()));
+        }
+        if (state.phase() == DraftPlusFlow.Phase.COMPLETE) {
+            updates.addProperty("startAt", 0);
+            updates.addProperty("prepareRound", 0);
+            updates.addProperty("draftPlusPrepared", false);
+            for (String id : players.keySet()) {
+                updates.addProperty("players/" + id + "/ready", false);
+                updates.addProperty("players/" + id + "/preparedRound", 0);
+            }
         }
     }
 
