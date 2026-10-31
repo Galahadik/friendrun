@@ -196,11 +196,13 @@ public final class LobbyRoomScreen extends Screen {
         // лобби закрылось (хост вышел / обрыв) — вернуться в меню
         if (!FriendRunClient.inLobby()) { Mc.setScreen(parent); return; }
 
-        boolean host = s.amHost, open = host && !s.launched;
+        boolean draftPlusComplete = s.gameMode == Game.DRAFT_PLUS && s.draftPlusState != null
+            && s.draftPlusState.phase() == DraftPlusFlow.Phase.COMPLETE;
+        boolean host = s.amHost, open = host && (!s.launched || draftPlusComplete);
         boolean speed = s.gameMode == Game.SPEEDRUN;
         boolean soloSpeedrun = s.gameMode == Game.SINGLE_SPEEDRUN;
         boolean canRollItem = open && speed && !Roulette.running();
-        boolean canSet = host && !s.launched && s.phase == RunState.Phase.IDLE;
+        boolean canSet = host && (!s.launched || draftPlusComplete) && s.phase == RunState.Phase.IDLE;
         boolean draftPlusReady;
         if (s.draftPlusFormat == 0) draftPlusReady = !s.players.isEmpty() && s.players.size() <= 10
             && (!s.draftPlusRated || s.players.size() >= 2);
@@ -213,8 +215,6 @@ public final class LobbyRoomScreen extends Screen {
         }
         boolean draftPlusRolesReady = !s.draftPlusRolesEnabled || (!s.players.isEmpty()
             && s.players.stream().allMatch(p -> DraftPlusRole.byId(p.draftPlusRole()) != null));
-        boolean draftPlusComplete = s.gameMode == Game.DRAFT_PLUS && s.draftPlusState != null
-            && s.draftPlusState.phase() == DraftPlusFlow.Phase.COMPLETE;
         boolean canStart = draftPlusComplete ? !s.myReady
             : open && (!soloSpeedrun || s.players.size() == 1)
             && (s.gameMode != Game.DRAFT_PLUS || (draftPlusReady && draftPlusRolesReady))
@@ -225,9 +225,9 @@ public final class LobbyRoomScreen extends Screen {
         bSetB.visible = (!speed && !soloSpeedrun && s.gameMode != Game.CHAIN && s.gameMode != Game.PILLARS)
             || s.gameMode == Game.DRAFT_PLUS;
         bSetA.active = s.gameMode == Game.DRAFT_PLUS && s.draftPlusFormat == 1
-            ? !s.launched && s.phase == RunState.Phase.IDLE : canSet;
+            ? (!s.launched || draftPlusComplete) && s.phase == RunState.Phase.IDLE : canSet;
         bSetB.active = s.gameMode == Game.DRAFT_PLUS
-            ? host && !s.launched && s.phase == RunState.Phase.IDLE : canSet;
+            ? host && (!s.launched || draftPlusComplete) && s.phase == RunState.Phase.IDLE : canSet;
         boolean pillars = s.gameMode == Game.PILLARS;
         boolean canRollChaos = host && !pillars && !soloSpeedrun && s.chaos && !ChaosRoll.running();
         bGame.active = host;
@@ -236,7 +236,8 @@ public final class LobbyRoomScreen extends Screen {
         bRollChaos.active = canRollChaos && !soloSpeedrun && s.gameMode != Game.DRAFT_PLUS;
         bToggle.active = host && !pillars && !soloSpeedrun && s.gameMode != Game.DRAFT_PLUS;
         bRole.visible = s.gameMode == Game.DRAFT_PLUS;
-        bRole.active = s.gameMode == Game.DRAFT_PLUS && !s.launched && s.phase == RunState.Phase.IDLE;
+        bRole.active = s.gameMode == Game.DRAFT_PLUS && (!s.launched || draftPlusComplete)
+            && s.phase == RunState.Phase.IDLE;
         bStart.active = canStart;
 
         int lcx = lx + lw / 2;
