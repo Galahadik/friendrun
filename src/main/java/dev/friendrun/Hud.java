@@ -151,11 +151,143 @@ public final class Hud {
         }
     }
 
+    private static final int[] DRAFT_PLUS_PLAYER_COLORS = {
+        0xFF4D9BFF, 0xFFFF6B6B, 0xFF54D69A, 0xFFFFC857, 0xFFB58CFF,
+        0xFFFF8A4C, 0xFF48D6D6, 0xFFFF78B8, 0xFFB7D65C, 0xFF9AA7B8
+    };
+
+    private static int draftPlusOwnerColor(RunState s, String owner) {
+        if (owner == null || owner.isBlank() || owner.equals("-")) return Ui.LINE;
+        DraftPlusFlow.State state = s.draftPlusState;
+        if (state == null) return DRAFT_PLUS_PLAYER_COLORS[Math.floorMod(owner.hashCode(), DRAFT_PLUS_PLAYER_COLORS.length)];
+        for (int i = 0; i < state.players().size(); i++) {
+            DraftPlusRules.Player player = state.players().get(i);
+            if (!player.id().equals(owner)) continue;
+            if (state.format() == DraftPlusRules.Format.TEAM)
+                return player.teamIndex() == 0 ? 0xFF4D9BFF : 0xFFFF6B6B;
+            return DRAFT_PLUS_PLAYER_COLORS[i % DRAFT_PLUS_PLAYER_COLORS.length];
+        }
+        return DRAFT_PLUS_PLAYER_COLORS[Math.floorMod(owner.hashCode(), DRAFT_PLUS_PLAYER_COLORS.length)];
+    }
+
+    private static int draftPlusOwnedByMe(RunState s) {
+        String me = FriendRunClient.myName();
+        int myTeam = -1;
+        if (s.draftPlusState != null && s.draftPlusState.format() == DraftPlusRules.Format.TEAM) {
+            for (DraftPlusRules.Player player : s.draftPlusState.players())
+                if (player.id().equals(me)) { myTeam = player.teamIndex(); break; }
+        }
+        int count = 0;
+        for (String owner : s.draftOwners) {
+            if (owner == null || owner.equals("-")) continue;
+            if (owner.equals(me)) count++;
+            else if (myTeam >= 0 && s.draftPlusState != null) {
+                for (DraftPlusRules.Player player : s.draftPlusState.players())
+                    if (player.id().equals(owner) && player.teamIndex() == myTeam) { count++; break; }
+            }
+        }
+        return count;
+    }
+
+    /** Draws the shared 5x5 Draft+ board. Each client supplies its own personalized goal list. */
+    private static void drawDraftPlusBoard(GuiGraphicsExtractor g, RunState s, int x, int y,
+                                           int cell, int gap, int mouseX, int mouseY) {
+        int total = DraftPlusRules.BOARD_SIZE * cell + (DraftPlusRules.BOARD_SIZE - 1) * gap;
+        Gfx.rect(g, x - 4, y - 4, x + total + 4, y + total + 4, 0xC9101A2B);
+        for (int i = 0; i < DraftPlusRules.CELL_COUNT && i < s.draftGoals.size(); i++) {
+            int cx = x + (i % DraftPlusRules.BOARD_SIZE) * (cell + gap);
+            int cy = y + (i / DraftPlusRules.BOARD_SIZE) * (cell + gap);
+            String owner = i < s.draftOwners.length ? s.draftOwners[i] : "-";
+            boolean claimed = owner != null && !owner.isBlank() && !owner.equals("-");
+            boolean mine = owner != null && owner.equals(FriendRunClient.myName());
+            int ownerColor = claimed ? draftPlusOwnerColor(s, owner) : Ui.LINE;
+            int fill = claimed ? ((ownerColor & 0x00FFFFFF) | 0xA0000000) : 0xCC101A2B;
+            int border = claimed ? ownerColor : Ui.LINE;
+            if (i == s.draftPlusClaimPendingIndex) border = Ui.GOLD;
+            Ui.frame(g, cx, cy, cell, cell, fill, border);
+
+            var icon = s.draftGoals.get(i).icon();
+            if (icon != null) {
+                ItemStack stack = ItemInfo.stack(icon);
+                int iconOffset = Math.max(1, (cell - 16) / 2);
+                if (stack != null) Gfx.item(g, stack, cx + iconOffset, cy + iconOffset);
+            }
+            if (claimed) {
+                int markColor = mine ? 0xFFFFFFFF : 0xFFE8EEF8;
+                Icons.draw(g, Icons.CHECK, cx + cell - 8, cy + 1, 1, markColor);
+            }
+        }
+        if (mouseX >= x && mouseX < x + total && mouseY >= y && mouseY < y + total) {
+            int col = (mouseX - x) / (cell + gap);
+            int row = (mouseY - y) / (cell + gap);
+            int index = row * DraftPlusRules.BOARD_SIZE + col;
+            int inCellX = (mouseX - x) % (cell + gap);
+            int inCellY = (mouseY - y) % (cell + gap);
+            if (inCellX < cell && inCellY < cell && index >= 0 && index < s.draftGoals.size())
+                drawDraftPlusTooltip(g, s.draftGoals.get(index).displayName(), mouseX, mouseY);
+        }
+    }
+
+    private static void drawDraftPlusTooltip(GuiGraphicsExtractor g, String name, int mouseX, int mouseY) {
+        int maxWidth = Math.max(80, Math.min(230, Gfx.guiWidth(g) - 16));
+        java.util.List<String> lines = new java.util.ArrayList<>();
+        StringBuilder line = new StringBuilder();
+        for (String word : name.split("\\s+")) {
+            String candidate = line.isEmpty() ? word : line + " " + word;
+            if (!line.isEmpty() && Minecraft.getInstance().font.width(candidate) > maxWidth - 12) {
+                lines.add(line.toString());
+                line = new StringBuilder(word);
+            } else line = new StringBuilder(candidate);
+        }
+        if (!line.isEmpty()) lines.add(line.toString());
+        if (lines.isEmpty()) return;
+        int width = 0;
+        for (String part : lines) width = Math.max(width, Minecraft.getInstance().font.width(part));
+        width += 12;
+        int height = lines.size() * 10 + 6;
+        int tx = Math.min(mouseX + 10, Gfx.guiWidth(g) - width - 4);
+        int ty = Math.min(mouseY + 10, Gfx.guiHeight(g) - height - 4);
+        Gfx.rect(g, tx, ty, tx + width, ty + height, 0xF0100010);
+        Gfx.rect(g, tx, ty, tx + width, ty + 1, Ui.GOLD_D);
+        for (int i = 0; i < lines.size(); i++)
+            Gfx.text(g, lines.get(i), tx + 6, ty + 4 + i * 10, 0xFFFFFFFF);
+    }
+
+    private static void drawDraftPlusHud(GuiGraphicsExtractor g, RunState s, int x, int y) {
+        Gfx.text(g, "DRAFT+", x, y, Ui.GOLD);
+        Gfx.text(g, RunState.formatTime(s.elapsedMs()) + "  ·  " + draftPlusOwnedByMe(s) + "/13", x, y + 12, 0xFF55FF55);
+        if (!(Mc.currentScreen() instanceof InventoryScreen) && s.draftGoals.size() == DraftPlusRules.CELL_COUNT) {
+            double scale = Minecraft.getInstance().getWindow().getGuiScale();
+            int mouseX = scale > 0 ? (int) (Minecraft.getInstance().mouseHandler.xpos() / scale) : -1;
+            int mouseY = scale > 0 ? (int) (Minecraft.getInstance().mouseHandler.ypos() / scale) : -1;
+            drawDraftPlusBoard(g, s, x, y + 28, 18, 2, mouseX, mouseY);
+        }
+    }
+
+    private static void drawDraftPlusInventoryBoard(GuiGraphicsExtractor g, RunState s, int mouseX, int mouseY) {
+        if (s.draftGoals.size() != DraftPlusRules.CELL_COUNT) return;
+        int cell = 24, gap = 3;
+        int total = DraftPlusRules.BOARD_SIZE * cell + (DraftPlusRules.BOARD_SIZE - 1) * gap;
+        int x = Math.max(6, (Gfx.guiWidth(g) - total) / 2);
+        int y = Math.max(8, (Gfx.guiHeight(g) - total) / 2);
+        g.nextStratum();
+        Gfx.rect(g, x - 8, y - 24, x + total + 8, y + total + 8, 0xF0101A2B);
+        Gfx.rect(g, x - 8, y - 24, x + total + 8, y - 23, Ui.GOLD);
+        Gfx.text(g, "DRAFT+  ·  СЕТКА 5×5", x, y - 17, Ui.GOLD);
+        Gfx.text(g, "Захвачено: " + draftPlusOwnedByMe(s) + "/13", x + total - 82, y - 17, 0xFF55FF55);
+        drawDraftPlusBoard(g, s, x, y, cell, gap, mouseX, mouseY);
+    }
+
     /** Draw Bingo/Draft grids after the inventory and its dim layer. */
     private static void renderGridOverInventory(GuiGraphicsExtractor g, int mouseX, int mouseY) {
         Minecraft mc = Minecraft.getInstance();
         RunState s = FriendRunClient.STATE;
         if (!FriendRunClient.inLobby() || mc.player == null || s.phase == RunState.Phase.IDLE) return;
+        if (s.roundGame == Game.DRAFT_PLUS) {
+            if (s.phase == RunState.Phase.IDLE) return;
+            drawDraftPlusInventoryBoard(g, s, mouseX, mouseY);
+            return;
+        }
         if (s.roundGame != Game.BINGO && s.roundGame != Game.DRAFT) return;
 
         // Force a fresh top stratum so inventory widgets and their dimmed background stay underneath.
@@ -251,6 +383,10 @@ public final class Hud {
         // У одиночного спидрана нет предметной цели: не пропускаем его HUD из-за target == null.
         if (s.roundGame == Game.SINGLE_SPEEDRUN) {
             drawSingleSpeedrun(g, s, x, y);
+            return;
+        }
+        if (s.roundGame == Game.DRAFT_PLUS) {
+            drawDraftPlusHud(g, s, x, y);
             return;
         }
         boolean gridMode = s.roundGame == Game.BINGO || s.roundGame == Game.DRAFT;
