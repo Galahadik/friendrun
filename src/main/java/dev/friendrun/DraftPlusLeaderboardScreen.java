@@ -19,7 +19,7 @@ public final class DraftPlusLeaderboardScreen extends Screen {
     private int scroll;
 
     public DraftPlusLeaderboardScreen(Screen parent) {
-        super(Component.literal("FriendRun — Рейтинг Draft+"));
+        super(Component.literal(Tr.t("friendrun.draft_plus.leaderboard.title", "Рейтинг Draft+")));
         this.parent = parent;
     }
 
@@ -49,7 +49,7 @@ public final class DraftPlusLeaderboardScreen extends Screen {
             } catch (Exception ex) {
                 Minecraft.getInstance().execute(() -> {
                     if (team == requestedTeam) {
-                        error = ex.getMessage() == null ? "Не удалось загрузить рейтинг" : ex.getMessage();
+                        error = ex.getMessage() == null ? Tr.t("friendrun.draft_plus.leaderboard.error", "Не удалось загрузить рейтинг") : ex.getMessage();
                         loading = false;
                     }
                 });
@@ -101,35 +101,35 @@ public final class DraftPlusLeaderboardScreen extends Screen {
         Ui.backdrop(g, width, height);
         Ui.panel(g, panel.x(), panel.y(), panel.w(), panel.h());
         Icons.draw(g, Icons.CROWN, panel.x() + 14, panel.y() + 10, 2, Ui.GOLD);
-        Ui.bold(g, "Рейтинг Draft+", panel.x() + 36, panel.y() + 9, Ui.GOLD);
-        Gfx.text(g, "Отдельный рейтинг · старт 1000 MMR · K = 32",
+        Ui.bold(g, Tr.t("friendrun.draft_plus.leaderboard.title", "Рейтинг Draft+"), panel.x() + 36, panel.y() + 9, Ui.GOLD);
+        Gfx.text(g, Tr.t("friendrun.draft_plus.leaderboard.summary", "Отдельный рейтинг · старт 1000 MMR · K = 32"),
             panel.x() + 14, panel.y() + 27, Ui.MUTED);
 
         super.extractRenderState(g, mx, my, delta);
         Ui.button(g, ffaRect, ffaRect.in(mx, my), true, team ? Ui.Kind.NORMAL : Ui.Kind.GREEN);
         Gfx.centered(g, "FFA", ffaRect.x() + ffaRect.w() / 2, ffaRect.cy() - 4, team ? Ui.TEXT : Ui.GREEN);
         Ui.button(g, teamRect, teamRect.in(mx, my), true, team ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
-        Gfx.centered(g, "Команды", teamRect.x() + teamRect.w() / 2, teamRect.cy() - 4, team ? Ui.GREEN : Ui.TEXT);
+        Gfx.centered(g, Tr.t("friendrun.draft_plus.leaderboard.teams", "Команды"), teamRect.x() + teamRect.w() / 2, teamRect.cy() - 4, team ? Ui.GREEN : Ui.TEXT);
         Ui.button(g, historyRect, historyRect.in(mx, my), true, Ui.Kind.NORMAL);
-        Gfx.centered(g, "История", historyRect.x() + historyRect.w() / 2, historyRect.cy() - 4, Ui.TEXT);
+        Gfx.centered(g, Tr.t("friendrun.draft_plus.leaderboard.history", "История"), historyRect.x() + historyRect.w() / 2, historyRect.cy() - 4, Ui.TEXT);
         Ui.button(g, refreshRect, refreshRect.in(mx, my), !loading, Ui.Kind.NORMAL);
-        Gfx.centered(g, "Обновить", refreshRect.x() + refreshRect.w() / 2, refreshRect.cy() - 4, Ui.TEXT);
+        Gfx.centered(g, Tr.t("friendrun.ui.refresh", "Обновить"), refreshRect.x() + refreshRect.w() / 2, refreshRect.cy() - 4, Ui.TEXT);
 
         Ui.frame(g, listRect.x(), listRect.y(), listRect.w(), listRect.h(), Ui.SECTION, Ui.LINE);
         if (loading) {
-            Gfx.centered(g, "Загрузка рейтинга…", listRect.x() + listRect.w() / 2,
+            Gfx.centered(g, Tr.t("friendrun.ui.loading", "Загрузка…"), listRect.x() + listRect.w() / 2,
                 listRect.y() + 30, Ui.MUTED);
         } else if (!error.isBlank()) {
             Gfx.centered(g, Ui.trunc(error, listRect.w() - 20), listRect.x() + listRect.w() / 2,
                 listRect.y() + 30, Ui.RED);
         } else if (rows.isEmpty()) {
-            Gfx.centered(g, "Пока нет рейтинговых матчей", listRect.x() + listRect.w() / 2,
+            Gfx.centered(g, Tr.t("friendrun.draft_plus.leaderboard.empty", "Пока нет рейтинговых матчей"), listRect.x() + listRect.w() / 2,
                 listRect.y() + 30, Ui.MUTED);
         } else {
             int rowY = listRect.y() + 7;
             Gfx.text(g, "#", listRect.x() + 8, rowY, Ui.MUTED);
-            Gfx.text(g, "Игрок", listRect.x() + 34, rowY, Ui.MUTED);
-            Ui.right(g, "Победы / матчи", listRect.x() + listRect.w() - 76, rowY, Ui.MUTED);
+            Gfx.text(g, Tr.t("friendrun.draft_plus.leaderboard.player", "Игрок"), listRect.x() + 34, rowY, Ui.MUTED);
+            Ui.right(g, Tr.t("friendrun.draft_plus.leaderboard.wins_matches", "Победы / матчи"), listRect.x() + listRect.w() - 76, rowY, Ui.MUTED);
             Ui.right(g, "MMR", listRect.x() + listRect.w() - 8, rowY, Ui.GOLD);
             rowY += 17;
             int visible = Math.min(8, rows.size() - scroll);
@@ -146,7 +146,7 @@ public final class DraftPlusLeaderboardScreen extends Screen {
         }
 
         Ui.button(g, backRect, backRect.in(mx, my), true, Ui.Kind.NORMAL);
-        Gfx.centered(g, "Назад", backRect.x() + backRect.w() / 2, backRect.cy() - 4, Ui.TEXT);
+        Gfx.centered(g, Tr.t("friendrun.ui.back", "Назад"), backRect.x() + backRect.w() / 2, backRect.cy() - 4, Ui.TEXT);
         ffaButton.active = teamButton.active = historyButton.active = backButton.active = true;
         refreshButton.active = !loading;
     }
