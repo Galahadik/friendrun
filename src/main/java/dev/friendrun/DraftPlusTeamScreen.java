@@ -74,6 +74,9 @@ public final class DraftPlusTeamScreen extends Screen {
         teamNameBox = new EditBox(font, nameBox.x() + 7, nameBox.y() + 6, nameBox.w() - 14, 12,
             Component.literal("Название команды"));
         teamNameBox.setMaxLength(DraftPlusTeams.MAX_TEAM_NAME_LENGTH);
+        int initialTeam = myTeam(FriendRunClient.STATE);
+        if (initialTeam == DraftPlusTeams.TEAM_A) teamNameBox.setValue(FriendRunClient.STATE.draftPlusTeamNameA);
+        else if (initialTeam == DraftPlusTeams.TEAM_B) teamNameBox.setValue(FriendRunClient.STATE.draftPlusTeamNameB);
         Ui.noBorder(teamNameBox);
         addRenderableWidget(teamNameBox);
     }
@@ -128,9 +131,6 @@ public final class DraftPlusTeamScreen extends Screen {
         Gfx.centered(g, s.amHost ? "Случайно распределить игроков" : "Случайное распределение — только хост",
             random.x() + random.w() / 2, random.cy() - 4, canRandomize ? Ui.TEXT : Ui.MUTED);
 
-        String ownTeamName = mine == DraftPlusTeams.TEAM_A ? s.draftPlusTeamNameA
-            : mine == DraftPlusTeams.TEAM_B ? s.draftPlusTeamNameB : "";
-        if (teamNameBox.getValue().isBlank() && !ownTeamName.isBlank()) teamNameBox.setValue(ownTeamName);
         Ui.frame(g, nameBox.x(), nameBox.y(), nameBox.w(), nameBox.h(), Ui.SECTION, Ui.LINE);
         Ui.button(g, rename, rename.in(mx, my), canRename, Ui.Kind.NORMAL);
         Gfx.centered(g, "Переименовать", rename.x() + rename.w() / 2, rename.cy() - 4, canRename ? Ui.TEXT : Ui.MUTED);
