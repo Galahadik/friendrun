@@ -73,7 +73,10 @@ public final class FriendRunClient implements ClientModInitializer {
         if (s.phase != RunState.Phase.RUNNING || s.roundGame != Game.DRAFT_PLUS) return;
         String id = ItemPicker.idOf(stack.getItem());
         synchronized (s.draftPlusPickupPending) {
-            s.draftPlusPickupPending.merge(id, stack.getCount(), Integer::sum);
+            if (s.draftPlusLastInventory.containsKey(id))
+                s.draftPlusPickupPending.merge(id, stack.getCount(), Integer::sum);
+            else
+                s.draftPlusAcquired.merge(id, stack.getCount(), Integer::sum);
         }
     }
 
@@ -126,6 +129,13 @@ public final class FriendRunClient implements ClientModInitializer {
             s.draftPlusLastInventory.put(id, Inv.count(mc.player, item));
             s.draftPlusAcquired.put(id, 0);
         }
+        for (String id : DraftPlusContribution.trackedItemIds()) {
+            if (s.draftPlusLastInventory.containsKey(id)) continue;
+            Item item = ItemPicker.byId(id);
+            if (item == null) continue;
+            s.draftPlusLastInventory.put(id, Inv.count(mc.player, item));
+            s.draftPlusAcquired.putIfAbsent(id, 0);
+        }
     }
 
     private static void updateDraftPlusAcquisitions(Minecraft mc, RunState s) {
@@ -144,6 +154,18 @@ public final class FriendRunClient implements ClientModInitializer {
             int gained = Math.max(inventoryGain, pickedUp);
             if (gained > 0) s.draftPlusAcquired.merge(id, gained, Integer::sum);
             s.draftPlusLastInventory.put(id, current);
+        }
+        java.util.TreeMap<String, Integer> sorted = new java.util.TreeMap<>(s.draftPlusAcquired);
+        StringBuilder signature = new StringBuilder();
+        for (var entry : sorted.entrySet()) {
+            if (entry.getValue() <= 0) continue;
+            if (signature.length() > 0) signature.append(',');
+            signature.append(entry.getKey()).append('=').append(entry.getValue());
+        }
+        String currentSignature = signature.toString();
+        if (!currentSignature.equals(s.draftPlusStatsSignature)) {
+            s.draftPlusStatsSignature = currentSignature;
+            if (lobby != null) lobby.setDraftPlusAcquired(s.draftPlusAcquired);
         }
     }
 
