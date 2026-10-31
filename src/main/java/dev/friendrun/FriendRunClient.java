@@ -773,10 +773,10 @@ public final class FriendRunClient implements ClientModInitializer {
         WorldLauncher.tick(mc);
         RunState s = STATE;
         if (lobby == null) return;
-        if (s.gameMode == Game.DRAFT_PLUS && s.draftPlusState != null
-            && !(Mc.currentScreen() instanceof DraftPlusScreen)) Mc.setScreen(new DraftPlusScreen());
-        else if ((s.gameMode != Game.DRAFT_PLUS || s.draftPlusState == null)
-            && Mc.currentScreen() instanceof DraftPlusScreen) Mc.setScreen(null);
+        boolean showDraftPlus = s.gameMode == Game.DRAFT_PLUS && s.launched
+            && (s.draftPlusState != null || !s.draftPlusStartError.isBlank());
+        if (showDraftPlus && !(Mc.currentScreen() instanceof DraftPlusScreen)) Mc.setScreen(new DraftPlusScreen());
+        else if (!showDraftPlus && Mc.currentScreen() instanceof DraftPlusScreen) Mc.setScreen(null);
         if (s.launched && s.draftActive && !(Mc.currentScreen() instanceof DraftScreen)) Mc.setScreen(new DraftScreen());
         else if ((!s.launched || !s.draftActive) && Mc.currentScreen() instanceof DraftScreen) Mc.setScreen(null);
 
