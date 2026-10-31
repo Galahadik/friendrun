@@ -1502,10 +1502,26 @@ public final class Lobby {
         }
     }
 
+    private static JsonObject freezeDraftPlusSettings(JsonObject current) {
+        JsonObject frozen = new JsonObject();
+        frozen.addProperty("format", (int) num(current, "draftPlusFormat"));
+        frozen.addProperty("teamSize", Math.max(1, Math.min(5, (int) orDef(num(current, "draftPlusTeamSize"), 1))));
+        frozen.addProperty("teamNameA", str(current, "draftPlusTeamNameA"));
+        frozen.addProperty("teamNameB", str(current, "draftPlusTeamNameB"));
+        frozen.addProperty("bansEnabled", !current.has("draftPlusBansEnabled") || bool(current, "draftPlusBansEnabled"));
+        frozen.addProperty("rolesEnabled", !current.has("draftPlusRolesEnabled") || bool(current, "draftPlusRolesEnabled"));
+        frozen.addProperty("rated", bool(current, "draftPlusRated"));
+        frozen.addProperty("chaosEnabled", !current.has("draftPlusChaosEnabled") || bool(current, "draftPlusChaosEnabled"));
+        frozen.addProperty("chaosCount", Math.max(1, Math.min(4, (int) orDef(num(current, "draftPlusChaosCount"), 1))));
+        frozen.addProperty("chaosDifficulty", Math.max(0, Math.min(2, (int) num(current, "draftPlusChaosDifficulty"))));
+        return frozen;
+    }
+
     /** Host-authoritative Draft+ state machine. Requests and state are committed in one PATCH. */
     private void advanceDraftPlus(JsonObject doc, JsonObject players, JsonObject updates, long now) {
         JsonElement stored = doc.get("draftPlusState");
         DraftPlusFlow.State state = null;
+        boolean rematchStarting = false;
         if (stored != null && stored.isJsonObject()) {
             try { state = DraftPlusCodec.decode(stored.getAsJsonObject()); }
             catch (RuntimeException ex) { FriendRunClient.LOG.warn("FRun: invalid Draft+ state in lobby", ex); return; }
@@ -1568,7 +1584,7 @@ public final class Lobby {
                 if (!bool(p, "ready")) { readyAgain = false; break; }
                 readyAgain = true;
             }
-            if (readyAgain) state = null;
+            if (readyAgain) { state = null; rematchStarting = true; }
         }
         if (state == null) {
             List<String> activeIds = new ArrayList<>();
@@ -1593,10 +1609,22 @@ public final class Lobby {
                     int team = p.has("draftPlusTeam") ? (int) num(p, "draftPlusTeam") : DraftPlusTeams.NO_TEAM;
                     members.add(new DraftPlusTeams.Member(id, joinedAt, team));
                 }
-                JsonObject frozen = obj(doc, "draftPlusFrozenSettings");
+                JsonObject frozen = rematchStarting ? freezeDraftPlusSettings(doc) : obj(doc, "draftPlusFrozenSettings");
+                if (rematchStarting) updates.add("draftPlusFrozenSettings", frozen);
                 JsonObject matchSettings = frozen.isEmpty() ? doc : frozen;
                 DraftPlusRules.Format format = num(matchSettings, frozen.isEmpty() ? "draftPlusFormat" : "format") == 1
                     ? DraftPlusRules.Format.TEAM : DraftPlusRules.Format.FFA;
+                int teamSize = Math.max(1, Math.min(5, (int) orDef(
+                    num(matchSettings, frozen.isEmpty() ? "draftPlusTeamSize" : "teamSize"), 1)));
+                boolean rated = bool(matchSettings, frozen.isEmpty() ? "draftPlusRated" : "rated");
+                if (format == DraftPlusRules.Format.FFA && rated && ids.size() < 2)
+                    throw new IllegalArgumentException("Для рейтингового FFA нужно минимум 2 активных игрока.");
+                if (format == DraftPlusRules.Format.TEAM) {
+                    if (rated && teamSize < 2)
+                        throw new IllegalArgumentException("Для рейтингового Team нужно минимум 2 игрока в каждой команде.");
+                    if (!DraftPlusTeams.isReady(members, teamSize))
+                        throw new IllegalArgumentException("Перед рематчем заполните обе команды до выбранного размера.");
+                }
                 for (int i = 0; i < members.size(); i++) {
                     DraftPlusTeams.Member member = members.get(i);
                     boolean captain = format == DraftPlusRules.Format.TEAM && DraftPlusTeams.isCaptain(members, member.id(), member.teamIndex());
