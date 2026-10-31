@@ -37,7 +37,7 @@ public final class DraftPlusRoles {
     /** Called on the client thread after Firebase state or local match phase changes. */
     public static void publish(RunState state) {
         boolean active = state.launched && state.gameMode == Game.DRAFT_PLUS
-            && state.roundGame == Game.DRAFT_PLUS
+            && state.roundGame == Game.DRAFT_PLUS && state.draftPlusRolesEnabled
             && (state.phase == RunState.Phase.COUNTDOWN || state.phase == RunState.Phase.RUNNING);
         Map<String, String> roles = new HashMap<>();
         if (active) {
