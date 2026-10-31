@@ -108,6 +108,28 @@ final class DraftPlusHostMigrationTest {
     }
 
     @Test
+    void candidateCannotTakeOverWhileCurrentHostLeaseIsStillLive() {
+        JsonObject doc = ratedMatch();
+        doc.addProperty("host", "alice");
+        doc.addProperty("hostSeen", 20_000);
+        doc.addProperty("hostEpoch", 2);
+        JsonObject players = new JsonObject();
+        JsonObject bob = new JsonObject();
+        bob.addProperty("joinedAt", 1);
+        bob.addProperty("lastSeen", 30_000);
+        players.add("bob", bob);
+        doc.add("players", players);
+
+        JsonObject transfer = new JsonObject();
+        transfer.addProperty("host", "bob");
+        transfer.addProperty("hostSeen", 31_000);
+        transfer.addProperty("hostMigrationAt", 31_000);
+        transfer.addProperty("hostEpoch", 3);
+
+        assertFalse(Lobby.isValidDraftPlusHostMigration(doc, "bob", transfer));
+    }
+
+    @Test
     void expiredOrNonElectedCandidateCannotClaimLease() {
         JsonObject doc = ratedMatch();
         doc.addProperty("host", "alice");
