@@ -45,6 +45,48 @@ final class DraftPlusRematchTest {
         assertTrue(Lobby.draftPlusRematchReady(true, players, 100_000));
     }
 
+    @Test
+    void pendingRatedSettlementKeepsHostFencingEvenIfNextMatchSettingIsTraining() {
+        JsonObject doc = completedMatch(true, false);
+
+        assertTrue(Lobby.isRatedDraftPlus(doc));
+        assertFalse(Lobby.draftPlusSettlementConfirmed(doc));
+        assertFalse(Lobby.draftPlusEditable(doc));
+    }
+
+    @Test
+    void confirmedSettlementAllowsNextMatchSettingsWithoutKeepingOldRatedLease() {
+        JsonObject doc = completedMatch(true, false);
+        doc.addProperty("draftPlusSettledSeed", "match-42");
+
+        assertTrue(Lobby.draftPlusSettlementConfirmed(doc));
+        assertFalse(Lobby.isRatedDraftPlus(doc));
+        assertTrue(Lobby.draftPlusEditable(doc));
+    }
+
+    @Test
+    void pendingTrainingSettlementDoesNotBecomeRatedFromNextMatchSetting() {
+        JsonObject doc = completedMatch(false, true);
+
+        assertFalse(Lobby.isRatedDraftPlus(doc));
+        assertFalse(Lobby.draftPlusEditable(doc));
+    }
+
+    private static JsonObject completedMatch(boolean frozenRated, boolean nextMatchRated) {
+        JsonObject doc = new JsonObject();
+        doc.addProperty("launched", true);
+        doc.addProperty("gameMode", Game.DRAFT_PLUS);
+        doc.addProperty("draftPlusRated", nextMatchRated);
+        doc.addProperty("draftPlusSeed", "match-42");
+        JsonObject state = new JsonObject();
+        state.addProperty("phase", DraftPlusFlow.Phase.COMPLETE.name());
+        doc.add("draftPlusState", state);
+        JsonObject frozen = new JsonObject();
+        frozen.addProperty("rated", frozenRated);
+        doc.add("draftPlusFrozenSettings", frozen);
+        return doc;
+    }
+
     private static JsonObject players(boolean aliceReady, boolean bobReady) {
         JsonObject players = new JsonObject();
         JsonObject alice = new JsonObject();
