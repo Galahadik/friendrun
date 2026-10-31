@@ -92,6 +92,8 @@ public final class RunState {
     public long countdownEndNanos;
     public long startNanos;
     public boolean myReady;
+    public final java.util.Set<String> draftPlusDisconnectedPlayers = new java.util.HashSet<>();
+    public final java.util.Set<String> draftPlusForfeitedPlayers = new java.util.HashSet<>();
     public boolean singleSpeedrunRecordSaved;
     public long singleSpeedrunFinalMs;
 
