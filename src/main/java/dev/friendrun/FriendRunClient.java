@@ -258,6 +258,9 @@ public final class FriendRunClient implements ClientModInitializer {
                     : "Конвейер завершён. Победитель: " + wn + " — предметов: " + Lobby.num(w, "score"));
             } else if (wm == Game.DRAFT) {
                 chat("Драфт завершён. Победитель: " + wn + " — захвачено целей: " + Lobby.num(w, "score"));
+            } else if (wm == Game.DRAFT_PLUS) {
+                chat(wn.equals("—") ? "Draft+ завершён: ничья."
+                    : "Draft+ завершён. Победитель: " + wn + " — захвачено клеток: " + Lobby.num(w, "score"));
             } else {
                 chat("Победитель: " + wn + " — " + RunState.formatTime(Lobby.num(w, "ms")));
             }
@@ -297,7 +300,7 @@ public final class FriendRunClient implements ClientModInitializer {
                 s.resetRound();
                 // Draft is a complete match, not a normal round. Do not immediately
                 // prompt everyone to /go again after its winner is announced.
-                if (wm != Game.DRAFT) {
+                if (wm != Game.DRAFT && wm != Game.DRAFT_PLUS) {
                     chat("Напишите /go, когда готовы к следующему раунду.");
                 }
             }
@@ -795,10 +798,12 @@ public final class FriendRunClient implements ClientModInitializer {
         RunState s = STATE;
         if (lobby == null) return;
         boolean showDraftPlus = s.gameMode == Game.DRAFT_PLUS && s.launched
-            && ((s.draftPlusState != null && (s.draftPlusState.phase() != DraftPlusFlow.Phase.COMPLETE
-                || !s.draftPlusScreenDismissed)) || !s.draftPlusStartError.isBlank());
+            && ((s.draftPlusState != null && s.draftPlusState.phase() != DraftPlusFlow.Phase.PLAY
+                && (s.draftPlusState.phase() != DraftPlusFlow.Phase.COMPLETE || !s.draftPlusScreenDismissed))
+                || !s.draftPlusStartError.isBlank());
         if (showDraftPlus && !(Mc.currentScreen() instanceof DraftPlusScreen)) Mc.setScreen(new DraftPlusScreen());
-        else if ((s.gameMode != Game.DRAFT_PLUS || s.draftPlusState == null)
+        else if ((s.gameMode != Game.DRAFT_PLUS || s.draftPlusState == null
+            || s.draftPlusState.phase() == DraftPlusFlow.Phase.PLAY)
             && Mc.currentScreen() instanceof DraftPlusScreen) Mc.setScreen(null);
         if (s.launched && s.draftActive && !(Mc.currentScreen() instanceof DraftScreen)) Mc.setScreen(new DraftScreen());
         else if ((!s.launched || !s.draftActive) && Mc.currentScreen() instanceof DraftScreen) Mc.setScreen(null);
@@ -933,6 +938,25 @@ public final class FriendRunClient implements ClientModInitializer {
     /** Печатает карточку бинго в чат (/rr card). */
     public static void printCard() {
         RunState s = STATE;
+        if (s.gameMode == Game.DRAFT_PLUS && s.draftPlusState != null
+            && s.draftPlusState.phase() != DraftPlusFlow.Phase.BANS
+            && s.draftPlusState.phase() != DraftPlusFlow.Phase.DRAFT) {
+            DraftPlusFlow.State state = s.draftPlusState;
+            for (int row = 0; row < DraftPlusRules.BOARD_SIZE; row++) {
+                StringBuilder line = new StringBuilder();
+                for (int col = 0; col < DraftPlusRules.BOARD_SIZE; col++) {
+                    int index = row * DraftPlusRules.BOARD_SIZE + col;
+                    String owner = index < state.owners().size() ? state.owners().get(index) : "-";
+                    String marker = owner.equals("-") ? "[ ] " : "[x] ";
+                    String goal = index < state.boardGoals().size() ? DraftGoal.parse(state.boardGoals().get(index)).displayName() : "—";
+                    line.append(marker).append(goal);
+                    if (!owner.equals("-")) line.append(" (").append(owner).append(")");
+                    if (col < DraftPlusRules.BOARD_SIZE - 1) line.append(" | ");
+                }
+                chat(line.toString());
+            }
+            return;
+        }
         int n = s.cfgBingoSize;
         if (s.roundGame != Game.BINGO || s.chain.size() < n * n) { chat("Карточка есть только в раунде «Бинго»."); return; }
         for (int r = 0; r < n; r++) {
@@ -1013,6 +1037,19 @@ public final class FriendRunClient implements ClientModInitializer {
                     if (bingoLine(s.bingoDone, n, s.cfgBingoFull)) {
                         s.phase = RunState.Phase.WAITING_RESULT;
                         lobby.reportWin(s.roundId, s.elapsedMs());
+                    }
+                }
+            }
+            case Game.DRAFT_PLUS -> {
+                if (s.draftGoals.size() != DraftPlusRules.CELL_COUNT) return;
+                for (int i = 0; i < DraftPlusRules.CELL_COUNT; i++) {
+                    if (!"-".equals(s.draftOwners[i]) || s.draftClaimPending[i]) continue;
+                    int progress = s.draftGoals.get(i).progressValue(mc);
+                    if (progress < s.draftBase[i]) s.draftBase[i] = progress;
+                    else if (progress > s.draftBase[i]) {
+                        s.draftClaimPending[i] = true;
+                        lobby.claimDraftGoal(i, s.roundId, System.currentTimeMillis() - hostClockOffsetMs);
+                        break;
                     }
                 }
             }
