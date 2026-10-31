@@ -577,14 +577,14 @@ public final class FriendRunClient implements ClientModInitializer {
         if (lobby == null || state == null || state.phase() != DraftPlusFlow.Phase.BANS
             || !myName().equals(state.currentActor()) || goalId == null
             || !state.availableGoals().contains(goalId)) return;
-        lobby.submitDraftPlusAction("BAN", goalId, -1);
+        lobby.submitDraftPlusAction("BAN", goalId, -1, state.banIndex());
     }
 
     public static void submitDraftPlusPick(int choice) {
         DraftPlusFlow.State state = STATE.draftPlusState;
         if (lobby == null || state == null || state.phase() != DraftPlusFlow.Phase.DRAFT
             || !myName().equals(state.currentActor()) || (choice != 0 && choice != 1)) return;
-        lobby.submitDraftPlusAction("PICK", "", choice);
+        lobby.submitDraftPlusAction("PICK", "", choice, state.pickIndex());
     }
 
     public static void setDraftPlusConfig(int format, int teamSize) {
