@@ -117,6 +117,43 @@ final class DraftPlusRatingTest {
     }
 
     @Test
+    void forfeitedFfaPlayerLosesRegardlessOfTheirCellCount() {
+        List<DraftPlusRating.Delta> deltas = DraftPlusRating.calculateFfa(List.of(
+            new DraftPlusRating.PlayerResult("alice", 1000, 20, 5),
+            new DraftPlusRating.PlayerResult("bob", 1000, 5, 5)
+        ), Set.of("alice"));
+        Map<String, DraftPlusRating.Delta> byId = deltas.stream()
+            .collect(Collectors.toMap(DraftPlusRating.Delta::playerId, Function.identity()));
+
+        assertTrue(byId.get("alice").baseDelta() < 0);
+        assertEquals(0, byId.get("alice").contributionDelta());
+        assertTrue(byId.get("bob").baseDelta() > 0);
+    }
+
+    @Test
+    void forfeitedTeamMemberGetsIndividualLossWhileTeammatesGetTeamResult() {
+        List<DraftPlusRating.Delta> deltas = DraftPlusRating.calculateTeam(
+            List.of(
+                new DraftPlusRating.PlayerResult("a1", 1000, 13, 5),
+                new DraftPlusRating.PlayerResult("a2", 1000, 0, 5)
+            ),
+            List.of(
+                new DraftPlusRating.PlayerResult("b1", 1000, 12, 0),
+                new DraftPlusRating.PlayerResult("b2", 1000, 0, 0)
+            ),
+            DraftPlusRating.TeamResult.A_WIN,
+            Set.of("a1")
+        );
+        Map<String, DraftPlusRating.Delta> byId = deltas.stream()
+            .collect(Collectors.toMap(DraftPlusRating.Delta::playerId, Function.identity()));
+
+        assertTrue(byId.get("a1").delta() < 0);
+        assertEquals(0, byId.get("a1").contributionDelta());
+        assertTrue(byId.get("a2").delta() > 0);
+        assertTrue(byId.get("b1").delta() < 0);
+    }
+
+    @Test
     void mmrNeverFallsBelowZero() {
         List<DraftPlusRating.Delta> deltas = DraftPlusRating.calculateFfa(List.of(
             new DraftPlusRating.PlayerResult("winner", 1000, 20, 0),
