@@ -57,7 +57,7 @@ public final class DraftPlusScreen extends Screen {
         Ui.button(g, rect, hover, enabled, enabled ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
         DraftGoal goal = DraftGoal.parse(encoded);
         if (goal == null) {
-            Gfx.centered(g, "Цель недоступна", rect.x() + rect.w() / 2, rect.y() + 82, Ui.MUTED);
+            Gfx.centered(g, Tr.t("friendrun.draft_plus.goal_unavailable", "Цель недоступна"), rect.x() + rect.w() / 2, rect.y() + 82, Ui.MUTED);
             return;
         }
         var icon = goal.icon();
@@ -68,13 +68,13 @@ public final class DraftPlusScreen extends Screen {
             else Gfx.itemTexture(g, icon, ix + 4, rect.y() + 22, 16);
         }
         String category = switch (goal.type()) {
-            case ITEM -> "ПРЕДМЕТ";
-            case QUEST -> "ЗАДАНИЕ";
-            case ADVANCEMENT -> "ДОСТИЖЕНИЕ";
+            case ITEM -> Tr.t("friendrun.draft_plus.category.item", "ПРЕДМЕТ");
+            case QUEST -> Tr.t("friendrun.draft_plus.category.quest", "ЗАДАНИЕ");
+            case ADVANCEMENT -> Tr.t("friendrun.draft_plus.category.advancement", "ДОСТИЖЕНИЕ");
         };
         Gfx.centered(g, category, rect.x() + rect.w() / 2, rect.y() + 52, Ui.MUTED);
         Gfx.fitted(g, goal.displayName(), rect.x() + rect.w() / 2, rect.y() + 78, rect.w() - 12, Ui.TEXT);
-        Gfx.centered(g, ban ? "ЗАБАНИТЬ " + (index + 1) : "ВЫБРАТЬ " + (index + 1),
+        Gfx.centered(g, Tr.t(ban ? "friendrun.draft_plus.action.ban" : "friendrun.draft_plus.action.pick", ban ? "ЗАБАНИТЬ %s" : "ВЫБРАТЬ %s", index + 1),
             rect.x() + rect.w() / 2, rect.y() + 151, enabled ? Ui.GOLD : Ui.MUTED);
     }
 
@@ -127,15 +127,15 @@ public final class DraftPlusScreen extends Screen {
             return;
         }
 
-        String format = state.format() == DraftPlusRules.Format.FFA ? "FFA" : "КОМАНДЫ";
+        String format = Tr.t(state.format() == DraftPlusRules.Format.FFA ? "friendrun.draft_plus.format.ffa" : "friendrun.draft_plus.format.team", state.format() == DraftPlusRules.Format.FFA ? "FFA" : "Команды");
         String phase = switch (state.phase()) {
-            case BANS -> "БАНЫ";
-            case DRAFT -> "ДРАФТ";
-            case PLAY -> "ИГРА";
-            case COMPLETE -> "ЗАВЕРШЕНО";
+            case BANS -> Tr.t("friendrun.draft_plus.phase.bans", "БАНЫ");
+            case DRAFT -> Tr.t("friendrun.draft_plus.phase.draft", "ДРАФТ");
+            case PLAY -> Tr.t("friendrun.draft_plus.phase.play", "ИГРА");
+            case COMPLETE -> Tr.t("friendrun.draft_plus.phase.complete", "ЗАВЕРШЕНО");
         };
         Gfx.centered(g, "DRAFT+ · " + format + " · " + phase, width / 2, panel.y() + 10, Ui.GOLD);
-        String chaos = FriendRunClient.STATE.draftPlusChaosModifiers.isEmpty() ? "Хаос: выкл"
+        String chaos = FriendRunClient.STATE.draftPlusChaosModifiers.isEmpty() ? Tr.t("friendrun.draft_plus.chaos.off", "Хаос: выкл")
             : "Хаос: " + FriendRunClient.STATE.draftPlusChaosModifiers.stream()
                 .map(DraftPlusChaos::displayName).collect(java.util.stream.Collectors.joining(", "));
         String progress = "Поле 5×5 · выбрано " + state.boardGoals().size() + " / 25 · банов "
@@ -147,13 +147,15 @@ public final class DraftPlusScreen extends Screen {
         String status;
         if (state.phase() == DraftPlusFlow.Phase.COMPLETE) {
             if (state.winner().isBlank()) status = "Поле заполнено — победитель не определён";
-            else if (state.winner().startsWith("player:")) status = "Победитель: " + state.winner().substring("player:".length());
-            else status = "Победитель: " + (state.winner().equals("team:0")
+            else if (state.winner().startsWith("player:")) status = Tr.t("friendrun.draft_plus.winner.player", "Победитель: %s", state.winner().substring("player:".length()));
+            else status = Tr.t("friendrun.draft_plus.winner.team", "Победитель: %s", state.winner().equals("team:0")
                 ? FriendRunClient.STATE.draftPlusTeamNameA : FriendRunClient.STATE.draftPlusTeamNameB);
         } else {
             status = myTurn
-                ? (state.phase() == DraftPlusFlow.Phase.BANS ? "Твой ход — выбери цель для бана" : "Твой ход — выбери цель на поле")
-                : "Сейчас выбирает: " + state.currentActor();
+                ? (state.phase() == DraftPlusFlow.Phase.BANS
+                    ? Tr.t("friendrun.draft_plus.turn.ban", "Твой ход — выбери цель для бана")
+                    : Tr.t("friendrun.draft_plus.turn.pick", "Твой ход — выбери цель на поле"))
+                : Tr.t("friendrun.draft_plus.turn.current", "Сейчас выбирает: %s", state.currentActor());
         }
         Gfx.centered(g, status, width / 2, panel.y() + 46, active ? Ui.GREEN : Ui.MUTED);
         int lastPick = -1;
@@ -169,15 +171,15 @@ public final class DraftPlusScreen extends Screen {
                 : first.id();
         }
         DraftGoal lastGoal = lastPick < 0 ? null : DraftGoal.parse(state.boardGoals().get(lastPick));
-        String lastSelection = "🪙 Монетка: начинает " + coinWinner
-            + (lastPick < 0 ? "" : " · " + state.pickers().get(lastPick) + " выбрал: "
-                + (lastGoal == null ? state.boardGoals().get(lastPick) : lastGoal.displayName()));
+        String lastSelection = Tr.t("friendrun.draft_plus.coin.starts", "🪙 Монетка: начинает %s", coinWinner)
+            + (lastPick < 0 ? "" : Tr.t("friendrun.draft_plus.last_pick", " · %s выбрал: %s",
+                state.pickers().get(lastPick), lastGoal == null ? state.boardGoals().get(lastPick) : lastGoal.displayName()));
         Gfx.centered(g, Ui.trunc(lastSelection, panel.w() - 32), width / 2, panel.y() + 63, Ui.MUTED);
         drawBoard(g, state, FriendRunClient.STATE.draftGoals, panel.x() + 18, panel.y() + 82);
 
         boolean ban = state.phase() == DraftPlusFlow.Phase.BANS;
         if (state.phase() == DraftPlusFlow.Phase.COMPLETE) {
-            Gfx.centered(g, "Больше выборов нет", leftRect.x() + (rightRect.x() + rightRect.w() - leftRect.x()) / 2,
+            Gfx.centered(g, Tr.t("friendrun.draft_plus.no_more_choices", "Больше выборов нет"), leftRect.x() + (rightRect.x() + rightRect.w() - leftRect.x()) / 2,
                 panel.y() + 170, Ui.MUTED);
         } else {
             drawGoal(g, leftRect, state.offerA(), leftRect.in(mx, my), active, 0, ban);
