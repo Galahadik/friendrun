@@ -74,6 +74,16 @@ final class LobbyJoinTest {
     }
 
     @Test
+    void staleLobbyInstanceCannotDeleteAReplacementPlayerEntry() {
+        JsonObject replacement = new JsonObject();
+        replacement.addProperty("joinNonce", "new-session");
+        assertFalse(Lobby.isOwnedPlayerEntry(replacement, "old-session"));
+        assertTrue(Lobby.isOwnedPlayerEntry(replacement, "new-session"));
+        assertFalse(Lobby.isOwnedPlayerEntry(replacement, ""));
+        assertFalse(Lobby.isOwnedPlayerEntry(null, "new-session"));
+    }
+
+    @Test
     void supportsLegacySessionsWithoutSessionIdUsingHostLeaseFingerprint() {
         JsonObject original = lobby();
         original.remove("sessionId");
