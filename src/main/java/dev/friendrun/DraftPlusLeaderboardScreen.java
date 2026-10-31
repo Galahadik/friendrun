@@ -10,8 +10,8 @@ import net.minecraft.network.chat.Component;
 /** Separate Draft+ FFA and Team leaderboards, backed by isolated Firebase nodes. */
 public final class DraftPlusLeaderboardScreen extends Screen {
     private final Screen parent;
-    private Ui.R panel, ffaRect, teamRect, refreshRect, listRect, backRect;
-    private Button ffaButton, teamButton, refreshButton, backButton;
+    private Ui.R panel, ffaRect, teamRect, historyRect, refreshRect, listRect, backRect;
+    private Button ffaButton, teamButton, historyButton, refreshButton, backButton;
     private List<Lobby.DraftPlusRank> rows = List.of();
     private boolean team;
     private boolean loading;
@@ -69,6 +69,7 @@ public final class DraftPlusLeaderboardScreen extends Screen {
         int tabW = (w - 32 - 6) / 2;
         ffaRect = new Ui.R(x + 12, y + 42, tabW, 22);
         teamRect = new Ui.R(x + 18 + tabW, y + 42, tabW, 22);
+        historyRect = new Ui.R(x + w - 132, y + 70, 60, 20);
         refreshRect = new Ui.R(x + w - 66, y + 70, 54, 20);
         listRect = new Ui.R(x + 12, y + 94, w - 24, h - 130);
         backRect = new Ui.R(x + 12, y + h - 28, w - 24, 20);
@@ -78,6 +79,7 @@ public final class DraftPlusLeaderboardScreen extends Screen {
         teamButton = make(teamRect, () -> {
             if (!team) { team = true; scroll = 0; load(); }
         });
+        historyButton = make(historyRect, () -> Mc.setScreen(new DraftPlusHistoryScreen(this, team)));
         refreshButton = make(refreshRect, this::load);
         backButton = make(backRect, () -> Mc.setScreen(parent));
         load();
@@ -108,6 +110,8 @@ public final class DraftPlusLeaderboardScreen extends Screen {
         Gfx.centered(g, "FFA", ffaRect.x() + ffaRect.w() / 2, ffaRect.cy() - 4, team ? Ui.TEXT : Ui.GREEN);
         Ui.button(g, teamRect, teamRect.in(mx, my), true, team ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
         Gfx.centered(g, "Команды", teamRect.x() + teamRect.w() / 2, teamRect.cy() - 4, team ? Ui.GREEN : Ui.TEXT);
+        Ui.button(g, historyRect, historyRect.in(mx, my), true, Ui.Kind.NORMAL);
+        Gfx.centered(g, "История", historyRect.x() + historyRect.w() / 2, historyRect.cy() - 4, Ui.TEXT);
         Ui.button(g, refreshRect, refreshRect.in(mx, my), !loading, Ui.Kind.NORMAL);
         Gfx.centered(g, "Обновить", refreshRect.x() + refreshRect.w() / 2, refreshRect.cy() - 4, Ui.TEXT);
 
@@ -143,7 +147,7 @@ public final class DraftPlusLeaderboardScreen extends Screen {
 
         Ui.button(g, backRect, backRect.in(mx, my), true, Ui.Kind.NORMAL);
         Gfx.centered(g, "Назад", backRect.x() + backRect.w() / 2, backRect.cy() - 4, Ui.TEXT);
-        ffaButton.active = teamButton.active = backButton.active = true;
+        ffaButton.active = teamButton.active = historyButton.active = backButton.active = true;
         refreshButton.active = !loading;
     }
 }
