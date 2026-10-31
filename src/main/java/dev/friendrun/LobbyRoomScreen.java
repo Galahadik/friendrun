@@ -195,15 +195,17 @@ public final class LobbyRoomScreen extends Screen {
         boolean canRollItem = open && speed && !Roulette.running();
         boolean canSet = host && !s.launched && s.phase == RunState.Phase.IDLE;
         boolean draftPlusReady;
-        if (s.draftPlusFormat == 0) draftPlusReady = !s.players.isEmpty() && s.players.size() <= 10;
+        if (s.draftPlusFormat == 0) draftPlusReady = !s.players.isEmpty() && s.players.size() <= 10
+            && (!s.draftPlusRated || s.players.size() >= 2);
         else {
             java.util.List<DraftPlusTeams.Member> members = new java.util.ArrayList<>();
             for (RunState.PlayerInfo p : s.players)
                 members.add(new DraftPlusTeams.Member(p.name(), p.joinedAt(), p.draftPlusTeam()));
-            draftPlusReady = DraftPlusTeams.isReady(members, s.draftPlusTeamSize);
+            draftPlusReady = DraftPlusTeams.isReady(members, s.draftPlusTeamSize)
+                && (!s.draftPlusRated || s.draftPlusTeamSize >= 2);
         }
-        boolean draftPlusRolesReady = !s.players.isEmpty()
-            && s.players.stream().allMatch(p -> DraftPlusRole.byId(p.draftPlusRole()) != null);
+        boolean draftPlusRolesReady = !s.draftPlusRolesEnabled || (!s.players.isEmpty()
+            && s.players.stream().allMatch(p -> DraftPlusRole.byId(p.draftPlusRole()) != null));
         boolean canStart = open && (!soloSpeedrun || s.players.size() == 1)
             && (s.gameMode != Game.DRAFT_PLUS || (draftPlusReady && draftPlusRolesReady))
             && (s.gameMode != Game.MANHUNT || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2))
