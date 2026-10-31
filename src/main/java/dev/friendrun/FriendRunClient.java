@@ -902,6 +902,7 @@ public final class FriendRunClient implements ClientModInitializer {
         pendingPublish = false; domainDeadline = 0; addressSent = false;
         hostGameStateSent = false; lastHostGameState = false; hostWorldJoinLocked = false;
         lastJoinTry = 0; joinAttempts = 0; rouletteInit = false; chaosInit = false; lastChaosRollAt = 0; lastRollAt = 0; lastStartAt = 0; lastPreparedAckRound = 0; lastHostSeenValue = Long.MIN_VALUE; hostClockOffsetMs = 0; lastWinnerRound = Long.MAX_VALUE;
+        lastDraftPlusAdvancementReport = "";
         STATE.resetAll();
         Settings.clearLobby();
     }
