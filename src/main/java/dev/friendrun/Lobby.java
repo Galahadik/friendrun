@@ -1057,6 +1057,21 @@ public final class Lobby {
         }
     }
 
+    private static java.util.Map<String, java.util.Set<String>> completedAdvancementsFor(
+            JsonObject players, long targetRound) {
+        java.util.Map<String, java.util.Set<String>> result = new java.util.HashMap<>();
+        for (String id : players.keySet()) {
+            JsonObject player = obj(players, id);
+            if (num(player, "draftPlusAdvancementsRound") != targetRound) return null;
+            java.util.Set<String> completed = new java.util.HashSet<>();
+            for (String value : str(player, "draftPlusCompletedAdvancements").split(",")) {
+                if (!value.isBlank() && DraftGoal.Advancement.isKnown(value)) completed.add(value);
+            }
+            result.put(id, java.util.Set.copyOf(completed));
+        }
+        return java.util.Map.copyOf(result);
+    }
+
     /** Host-authoritative Draft+ state machine. Requests and state are committed in one PATCH. */
     private void advanceDraftPlus(JsonObject doc, JsonObject players, JsonObject updates, long now) {
         JsonElement stored = doc.get("draftPlusState");
@@ -1080,6 +1095,10 @@ public final class Lobby {
                 if (now - num(p, "lastSeen") > 20_000 || !bool(p, "ready")) { allReady = false; break; }
             }
             if (!allReady) return;
+            long targetRound = num(doc, "roundId") + 1;
+            java.util.Map<String, java.util.Set<String>> completedAdvancements =
+                completedAdvancementsFor(players, targetRound);
+            if (completedAdvancements == null) return; // wait until every client has reported its own baseline
             try {
                 List<String> ids = new ArrayList<>();
                 for (String id : players.keySet()) if (now - num(obj(players, id), "lastSeen") <= 20_000) ids.add(id);
@@ -1109,7 +1128,7 @@ public final class Lobby {
                     seed = new Random(prior ^ (0x9E3779B97F4A7C15L * (num(doc, "roundId") + 1L))).nextLong();
                 }
                 boolean bansEnabled = !doc.has("draftPlusBansEnabled") || bool(doc, "draftPlusBansEnabled");
-                state = DraftPlusFlow.start(format, roster, DraftPlusPool.build(), bansEnabled, new Random(seed));
+                state = DraftPlusFlow.start(format, roster, DraftPlusPool.build(), bansEnabled, completedAdvancements, new Random(seed));
                 updates.addProperty("draftPlusSeed", Long.toString(seed));
                 updates.add("draftPlusState", DraftPlusCodec.encode(state));
                 updates.addProperty("draftPlusLastActionId", "");
@@ -1128,6 +1147,9 @@ public final class Lobby {
             }
             return;
         }
+        java.util.Map<String, java.util.Set<String>> completedAdvancements =
+            completedAdvancementsFor(players, num(doc, "roundId") + 1);
+        if (completedAdvancements == null) return;
         String lastActionId = str(doc, "draftPlusLastActionId");
         for (String id : players.keySet()) {
             JsonObject player = obj(players, id);
@@ -1153,9 +1175,9 @@ public final class Lobby {
             Random actionRandom = new Random(actionId.hashCode() * 0x9E3779B97F4A7C15L);
             try {
                 if (state.phase() == DraftPlusFlow.Phase.BANS && action.equals("BAN"))
-                    state = DraftPlusFlow.ban(state, id, str(player, "draftPlusGoal"), actionRandom);
+                    state = DraftPlusFlow.ban(state, id, str(player, "draftPlusGoal"), completedAdvancements, actionRandom);
                 else if (state.phase() == DraftPlusFlow.Phase.DRAFT && action.equals("PICK"))
-                    state = DraftPlusFlow.pick(state, id, (int) num(player, "draftPlusChoice"), actionRandom);
+                    state = DraftPlusFlow.pick(state, id, (int) num(player, "draftPlusChoice"), completedAdvancements, actionRandom);
                 else continue;
                 updates.add("draftPlusState", DraftPlusCodec.encode(state));
                 updates.addProperty("draftPlusLastActionId", actionId);
