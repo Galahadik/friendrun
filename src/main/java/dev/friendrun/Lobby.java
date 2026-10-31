@@ -485,7 +485,7 @@ public final class Lobby {
         o.addProperty("gameMode", g);
         boolean solo = g == Game.SINGLE_SPEEDRUN;
         o.addProperty("soloLock", solo);
-        if (solo) { o.addProperty("chaos", false); o.addProperty("roundMod", -1); }
+        if (solo || g == Game.DRAFT_PLUS) { o.addProperty("chaos", false); o.addProperty("roundMod", -1); }
         if (solo) {
             JsonObject current = latestSnapshot();
             JsonObject players = current == null ? new JsonObject() : obj(current, "players");
