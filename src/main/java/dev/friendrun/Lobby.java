@@ -97,6 +97,30 @@ public final class Lobby {
         return Ranking.parse(send("GET", rootOf(dbUrl) + "/_mmr", null));
     }
 
+    /** One row in a Draft+-only leaderboard; never mixed with the classic MMR table. */
+    public record DraftPlusRank(String name, int mmr, int wins, int games) {}
+
+    public static java.util.List<DraftPlusRank> fetchDraftPlusLeaderboard(String dbUrl, boolean team) throws IOException {
+        String node = team ? "/_draft_plus_team" : "/_draft_plus_ffa";
+        JsonElement raw = send("GET", rootOf(dbUrl) + node, null);
+        java.util.List<DraftPlusRank> rows = new java.util.ArrayList<>();
+        if (raw != null && raw.isJsonObject()) {
+            JsonObject profiles = raw.getAsJsonObject();
+            for (String id : profiles.keySet()) {
+                JsonObject profile = obj(profiles, id);
+                String playerName = str(profile, "name");
+                if (playerName.isBlank()) playerName = id;
+                int mmr = profile.has("mmr") ? (int) num(profile, "mmr") : DraftPlusRating.START_MMR;
+                rows.add(new DraftPlusRank(playerName, Math.max(0, mmr),
+                    (int) num(profile, "wins"), (int) num(profile, "games")));
+            }
+        }
+        rows.sort(java.util.Comparator.comparingInt(DraftPlusRank::mmr).reversed()
+            .thenComparing(java.util.Comparator.comparingInt(DraftPlusRank::wins).reversed())
+            .thenComparing(DraftPlusRank::name, String.CASE_INSENSITIVE_ORDER));
+        return java.util.List.copyOf(rows);
+    }
+
     /** Читает таблицу, считает раунд, записывает обратно. Возвращает строку изменений для документа лобби или "" (сбой сети). */
     private String settle(java.util.function.Function<java.util.Map<String, Ranking.Profile>, Ranking.Outcome> round) {
         try {
