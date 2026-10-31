@@ -326,7 +326,7 @@ public final class FriendRunClient implements ClientModInitializer {
         s.draftPlusRated = Lobby.bool(draftPlusSettings, frozen ? "rated" : "draftPlusRated");
         s.draftPlusChaosEnabled = !draftPlusSettings.has(frozen ? "chaosEnabled" : "draftPlusChaosEnabled")
             || Lobby.bool(draftPlusSettings, frozen ? "chaosEnabled" : "draftPlusChaosEnabled");
-        s.draftPlusChaosCount = Math.max(1, Math.min(4, (int) Lobby.orDef(
+        s.draftPlusChaosCount = Math.max(1, Math.min(3, (int) Lobby.orDef(
             Lobby.num(draftPlusSettings, frozen ? "chaosCount" : "draftPlusChaosCount"), 1)));
         s.draftPlusChaosDifficulty = Math.max(0, Math.min(2,
             (int) Lobby.num(draftPlusSettings, frozen ? "chaosDifficulty" : "draftPlusChaosDifficulty")));
