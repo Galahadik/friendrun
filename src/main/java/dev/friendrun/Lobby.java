@@ -917,6 +917,15 @@ public final class Lobby {
         }
         long nowMs = System.currentTimeMillis();
         host = str(doc, "host").equals(me);
+        if (host && isRatedDraftPlus(doc) && nowMs - num(doc, "hostSeen") >= 300_000
+            && !bool(doc, "draftPlusAllDisconnectedTimeout")) {
+            JsonObject timeout = new JsonObject();
+            timeout.addProperty("draftPlusAllDisconnectedTimeout", true);
+            timeout.addProperty("hostSeen", nowMs);
+            request("PATCH", "", timeout.toString());
+            nextDelay = 1000;
+            return; // The returning host finalizes the persisted board after the five-minute global timeout.
+        }
         long hostTimeout = isRatedDraftPlus(doc) ? 12_000 : 20_000;
         if (!host && nowMs - num(doc, "hostSeen") > hostTimeout) {
             if (isRatedDraftPlus(doc)) {
@@ -1176,11 +1185,19 @@ public final class Lobby {
         // Draft+ keeps disconnected participants in the frozen roster for five minutes.
         // Other game modes retain the existing short stale-player cleanup.
         boolean draftPlusLaunched = bool(doc, "launched") && num(doc, "gameMode") == Game.DRAFT_PLUS;
+        boolean allOfflineTimeout = bool(doc, "draftPlusAllDisconnectedTimeout");
         for (String p : new ArrayList<>(players.keySet())) {
-            if (p.equals(me)) continue;
+            if (p.equals(me) && !allOfflineTimeout) continue;
             JsonObject player = obj(players, p);
             long staleMs = now - num(player, "lastSeen");
-            if (solo) {
+            if (allOfflineTimeout && draftPlusLaunched) {
+                player.addProperty("draftPlusForfeit", true);
+                player.addProperty("draftPlusDisconnected", true);
+                player.addProperty("draftPlusForfeitAt", now);
+                updates.addProperty("players/" + p + "/draftPlusForfeit", true);
+                updates.addProperty("players/" + p + "/draftPlusDisconnected", true);
+                updates.addProperty("players/" + p + "/draftPlusForfeitAt", now);
+            } else if (solo) {
                 players.remove(p);
                 updates.add("players/" + p, JsonNull.INSTANCE);
             } else if (draftPlusLaunched) {
@@ -1698,6 +1715,7 @@ public final class Lobby {
                     updates.addProperty("players/" + id + "/draftPlusForfeit", false);
                     updates.addProperty("players/" + id + "/draftPlusDisconnected", false);
                     updates.add("players/" + id + "/draftPlusForfeitAt", JsonNull.INSTANCE);
+                    updates.addProperty("draftPlusAllDisconnectedTimeout", false);
                     updates.add("players/" + id + "/draftPlusAcquired", new JsonObject());
                     updates.add("players/" + id + "/draftPlusActionId", JsonNull.INSTANCE);
                     updates.add("players/" + id + "/draftPlusAction", JsonNull.INSTANCE);
