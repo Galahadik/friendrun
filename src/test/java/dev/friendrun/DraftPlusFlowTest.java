@@ -37,7 +37,7 @@ final class DraftPlusFlowTest {
             DraftPlusRules.Format format, List<DraftPlusRules.Player> players, List<String> owners) {
         List<String> board = new ArrayList<>();
         for (int i = 0; i < DraftPlusRules.CELL_COUNT; i++) board.add("item:board_" + i);
-        return new DraftPlusFlow.State(format, players, List.of(), List.of(), board, owners, List.of(),
+        return new DraftPlusFlow.State(format, players, List.of(), List.of(), board, List.of(), owners, List.of(),
             DraftPlusFlow.Phase.PLAY, 0, 0, 0, DraftPlusRules.CELL_COUNT, "", "", "", "");
     }
 
