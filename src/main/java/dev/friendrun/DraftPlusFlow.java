@@ -230,6 +230,28 @@ public final class DraftPlusFlow {
         return resolveForfeitOutcome(updated);
     }
 
+    /**
+     * Deterministically advances any ban/draft turns owned by players who have
+     * already forfeited. The host can safely replay this after reconnect because
+     * each turn derives its Random seed from the stable match seed and turn index.
+     */
+    public static State skipForfeitedActors(
+        State state, Map<String, Set<String>> completedAdvancements, long matchSeed
+    ) {
+        if (state == null) return null;
+        while ((state.phase() == Phase.BANS || state.phase() == Phase.DRAFT)
+            && state.forfeitedPlayers().contains(state.currentActor())) {
+            long turnIndex = state.phase() == Phase.BANS ? state.banIndex() + 1L : state.pickIndex() + 1L;
+            long salt = state.phase() == Phase.BANS ? 0x9E3779B97F4A7C15L : 0xC2B2AE3D27D4EB4FL;
+            Random autoRandom = new Random(matchSeed ^ (salt * turnIndex));
+            if (state.phase() == Phase.BANS)
+                state = ban(state, state.currentActor(), state.offerA(), completedAdvancements, autoRandom);
+            else
+                state = pick(state, state.currentActor(), 0, completedAdvancements, autoRandom);
+        }
+        return state;
+    }
+
     /** Resolves automatic wins after the remaining active roster changes. */
     public static State resolveForfeitOutcome(State state) {
         if (state == null || state.phase() != Phase.PLAY) return state;
