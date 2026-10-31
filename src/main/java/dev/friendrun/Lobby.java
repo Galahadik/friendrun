@@ -1634,10 +1634,15 @@ public final class Lobby {
             catch (RuntimeException ex) { FriendRunClient.LOG.warn("FRun: invalid Draft+ state in lobby", ex); return; }
         }
         if (state != null && state.phase() != DraftPlusFlow.Phase.COMPLETE) {
-            for (String id : players.keySet()) {
-                if (bool(obj(players, id), "draftPlusForfeit") && !state.forfeitedPlayers().contains(id)) {
-                    state = DraftPlusFlow.forfeit(state, id);
-                    updates.add("draftPlusState", DraftPlusCodec.encode(state));
+            if (bool(doc, "draftPlusAllDisconnectedTimeout")) {
+                state = DraftPlusFlow.completeAfterGlobalTimeout(state);
+                updates.add("draftPlusState", DraftPlusCodec.encode(state));
+            } else {
+                for (String id : players.keySet()) {
+                    if (bool(obj(players, id), "draftPlusForfeit") && !state.forfeitedPlayers().contains(id)) {
+                        state = DraftPlusFlow.forfeit(state, id);
+                        updates.add("draftPlusState", DraftPlusCodec.encode(state));
+                    }
                 }
             }
             if (state.phase() == DraftPlusFlow.Phase.COMPLETE
