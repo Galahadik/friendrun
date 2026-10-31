@@ -8,13 +8,19 @@ import org.junit.jupiter.api.Test;
 
 final class DraftPlusContributionTest {
     @Test
-    void distinctRareAndKeyItemsHaveDifferentWeights() {
+    void distinctRareAndKeyItemsHaveEqualInitialWeight() {
         assertEquals(1, DraftPlusContribution.score(new DraftPlusContribution.Metrics(
             Set.of("diamond"), 0)));
-        assertEquals(2, DraftPlusContribution.score(new DraftPlusContribution.Metrics(
+        assertEquals(1, DraftPlusContribution.score(new DraftPlusContribution.Metrics(
             Set.of("blaze_rod"), 0)));
-        assertEquals(3, DraftPlusContribution.score(new DraftPlusContribution.Metrics(
+        assertEquals(2, DraftPlusContribution.score(new DraftPlusContribution.Metrics(
             Set.of("diamond", "blaze_rod"), 0)));
+    }
+
+    @Test
+    void successfulDraftPicksContributeToPersonalScore() {
+        assertEquals(5, DraftPlusContribution.score(
+            new DraftPlusContribution.Metrics(Set.of(), 2, 3)));
     }
 
     @Test
