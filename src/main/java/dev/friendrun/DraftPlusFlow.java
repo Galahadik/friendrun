@@ -15,7 +15,7 @@ import java.util.Set;
  * This class does not depend on Firebase, Minecraft worlds, UI, or ratings.
  */
 public final class DraftPlusFlow {
-    public enum Phase { BANS, DRAFT, COMPLETE }
+    public enum Phase { BANS, DRAFT, PLAY, COMPLETE }
 
     public record State(
         DraftPlusRules.Format format,
@@ -120,13 +120,12 @@ public final class DraftPlusFlow {
         List<String> board = new ArrayList<>(state.boardGoals());
         board.add(selected);
         List<String> owners = new ArrayList<>(state.owners());
-        owners.add(actorId);
+        owners.add("-");
 
-        var winner = DraftPlusRules.winner(state.format(), state.players(), owners);
-        if (winner.isPresent() || board.size() >= DraftPlusRules.CELL_COUNT) {
+        if (board.size() >= DraftPlusRules.CELL_COUNT) {
             return new State(state.format(), state.players(), available, state.bannedGoals(),
-                board, owners, Phase.COMPLETE, state.banIndex(), state.firstBanActor(),
-                state.firstDraftActor(), board.size(), "", "", "", winner.orElse(""));
+                board, owners, Phase.PLAY, state.banIndex(), state.firstBanActor(),
+                state.firstDraftActor(), board.size(), "", "", "", "");
         }
 
         int nextPick = board.size();
@@ -136,6 +135,27 @@ public final class DraftPlusFlow {
         return new State(state.format(), state.players(), available, state.bannedGoals(),
             board, owners, Phase.DRAFT, state.banIndex(), state.firstBanActor(),
             state.firstDraftActor(), nextPick, next.id(), offers[0], offers[1], "");
+    }
+
+    /** Claims a drafted board cell after its goal has been completed in the world. */
+    public static State claim(State state, String actorId, int cellIndex) {
+        requirePhase(state, Phase.PLAY);
+        if (actorId == null || state.players().stream().noneMatch(p -> p.id().equals(actorId)))
+            throw new IllegalArgumentException("Unknown Draft+ player");
+        if (cellIndex < 0 || cellIndex >= state.boardGoals().size()
+            || cellIndex >= state.owners().size())
+            throw new IllegalArgumentException("Invalid Draft+ board cell");
+        if (!"-".equals(state.owners().get(cellIndex)))
+            throw new IllegalArgumentException("Draft+ board cell is already claimed");
+
+        List<String> owners = new ArrayList<>(state.owners());
+        owners.set(cellIndex, actorId);
+        var winner = DraftPlusRules.winner(state.format(), state.players(), owners);
+        boolean full = owners.stream().noneMatch("-"::equals);
+        Phase nextPhase = winner.isPresent() || full ? Phase.COMPLETE : Phase.PLAY;
+        return new State(state.format(), state.players(), state.availableGoals(), state.bannedGoals(),
+            state.boardGoals(), owners, nextPhase, state.banIndex(), state.firstBanActor(),
+            state.firstDraftActor(), state.pickIndex(), "", "", "", winner.orElse(""));
     }
 
     private static State beginDraft(
