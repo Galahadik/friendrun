@@ -62,6 +62,18 @@ final class LobbyJoinTest {
     }
 
     @Test
+    void lobbyNameIsTakenOnlyWhileItsHostLeaseIsRecent() {
+        JsonObject live = lobby();
+        live.addProperty("hostSeen", 95_000L);
+        assertTrue(Lobby.isLobbyNameTaken(live, 100_000L));
+
+        JsonObject stale = lobby();
+        stale.addProperty("hostSeen", 1L);
+        assertFalse(Lobby.isLobbyNameTaken(stale, 100_000L));
+        assertFalse(Lobby.isLobbyNameTaken(null, 100_000L));
+    }
+
+    @Test
     void supportsLegacySessionsWithoutSessionIdUsingHostLeaseFingerprint() {
         JsonObject original = lobby();
         original.remove("sessionId");
