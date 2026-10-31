@@ -176,8 +176,11 @@ public final class FriendRunClient implements ClientModInitializer {
         try { nextDraftPlus = draftPlusJson.isEmpty() ? null : DraftPlusCodec.decode(draftPlusJson); }
         catch (RuntimeException ex) { nextDraftPlus = null; LOG.warn("FRun: could not read Draft+ state", ex); }
         if (!java.util.Objects.equals(previousDraftPlus, nextDraftPlus)) s.draftPlusScreenDismissed = false;
+        String previousDraftPlusError = s.draftPlusStartError;
+        String nextDraftPlusError = Lobby.str(doc, "draftPlusStartError");
+        if (!previousDraftPlusError.equals(nextDraftPlusError)) s.draftPlusScreenDismissed = false;
         s.draftPlusState = nextDraftPlus;
-        s.draftPlusStartError = Lobby.str(doc, "draftPlusStartError");
+        s.draftPlusStartError = nextDraftPlusError;
         s.draftActive = Lobby.bool(doc, "draftActive");
         s.draftComplete = Lobby.bool(doc, "draftComplete");
         s.draftPickCount = (int) Lobby.num(doc, "draftPickCount");
@@ -595,7 +598,8 @@ public final class FriendRunClient implements ClientModInitializer {
     }
 
     public static void dismissDraftPlusScreen() {
-        if (STATE.draftPlusState != null && STATE.draftPlusState.phase() == DraftPlusFlow.Phase.COMPLETE)
+        if ((STATE.draftPlusState != null && STATE.draftPlusState.phase() == DraftPlusFlow.Phase.COMPLETE)
+            || !STATE.draftPlusStartError.isBlank())
             STATE.draftPlusScreenDismissed = true;
     }
 
@@ -804,7 +808,7 @@ public final class FriendRunClient implements ClientModInitializer {
         boolean showDraftPlus = s.gameMode == Game.DRAFT_PLUS && s.launched
             && ((s.draftPlusState != null && s.draftPlusState.phase() != DraftPlusFlow.Phase.PLAY
                 && (s.draftPlusState.phase() != DraftPlusFlow.Phase.COMPLETE || !s.draftPlusScreenDismissed))
-                || !s.draftPlusStartError.isBlank());
+                || (!s.draftPlusStartError.isBlank() && !s.draftPlusScreenDismissed));
         if (showDraftPlus && !(Mc.currentScreen() instanceof DraftPlusScreen)) Mc.setScreen(new DraftPlusScreen());
         else if ((s.gameMode != Game.DRAFT_PLUS || s.draftPlusState == null
             || s.draftPlusState.phase() == DraftPlusFlow.Phase.PLAY)
