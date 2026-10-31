@@ -1203,6 +1203,7 @@ public final class Lobby {
     private void streamLoop() {
         int reconnects = 0;
         while (!closed) {
+            long connectedAtNanos = 0L;
             HttpRequest req;
             try {
                 req = HttpRequest.newBuilder(URI.create(base + ".json"))
@@ -1213,7 +1214,7 @@ public final class Lobby {
                 if (response.statusCode() == 401 || response.statusCode() == 403)
                     throw new IOException("Firebase отклонил SSE-подключение (проверьте правила базы)");
                 if (response.statusCode() / 100 != 2) throw new IOException("SSE HTTP " + response.statusCode());
-                reconnects = 0;
+                connectedAtNanos = System.nanoTime();
                 try (InputStream in = response.body(); BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
                     String event = "message";
                     StringBuilder data = new StringBuilder();
@@ -1237,12 +1238,22 @@ public final class Lobby {
             } catch (IOException | RuntimeException e) {
                 if (!closed) FriendRunClient.LOG.warn("FRun: SSE connection interrupted: {}", e.toString());
             }
+            if (shouldResetSseReconnectBackoff(connectedAtNanos, System.nanoTime())) reconnects = 0;
             if (!closed) {
                 reconnects++;
-                try { Thread.sleep(Math.min(10_000L, 500L * (1L << Math.min(reconnects - 1, 4)))); }
+                try { Thread.sleep(sseReconnectDelayMillis(reconnects)); }
                 catch (InterruptedException e) { Thread.currentThread().interrupt(); return; }
             }
         }
+    }
+
+    static long sseReconnectDelayMillis(int reconnects) {
+        int attempt = Math.max(0, reconnects - 1);
+        return Math.min(10_000L, 500L * (1L << Math.min(attempt, 4)));
+    }
+
+    static boolean shouldResetSseReconnectBackoff(long connectedAtNanos, long nowNanos) {
+        return connectedAtNanos > 0L && nowNanos - connectedAtNanos >= Duration.ofSeconds(30).toNanos();
     }
 
     private void handleSse(String event, String raw) {
