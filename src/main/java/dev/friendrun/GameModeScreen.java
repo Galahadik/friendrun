@@ -50,6 +50,7 @@ public final class GameModeScreen extends Screen {
             Ui.R r = new Ui.R(startX + col * (cardW + gap), startY + row * (cardH + gap), cardW, cardH);
             cards.add(r);
             cardButtons.add(make(r, () -> {
+                if (mode == Game.DRAFT_PLUS) { Mc.setScreen(new DraftPlusSetupScreen(this)); return; }
                 RunState s = FriendRunClient.STATE;
                 if (!s.amHost || s.phase != RunState.Phase.IDLE) return;
                 FriendRunClient.setGameMode(mode);

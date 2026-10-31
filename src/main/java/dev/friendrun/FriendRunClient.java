@@ -158,6 +158,8 @@ public final class FriendRunClient implements ClientModInitializer {
         // настройки
         s.mode = Lobby.num(doc, "mode") == 1 ? RunState.Mode.HOST_WORLD : RunState.Mode.SEPARATE_WORLDS;
         s.gameMode = (int) Lobby.num(doc, "gameMode");
+        s.draftPlusFormat = (int) Lobby.orDef(Lobby.num(doc, "draftPlusFormat"), 0);
+        s.draftPlusTeamSize = (int) Math.max(1, Math.min(5, Lobby.orDef(Lobby.num(doc, "draftPlusTeamSize"), 1)));
         s.draftActive = Lobby.bool(doc, "draftActive");
         s.draftComplete = Lobby.bool(doc, "draftComplete");
         s.draftPickCount = (int) Lobby.num(doc, "draftPickCount");
@@ -556,6 +558,13 @@ public final class FriendRunClient implements ClientModInitializer {
         lobby.chooseDraft(choice, STATE.draftPickCount);
     }
 
+    public static void setDraftPlusConfig(int format, int teamSize) {
+        if (lobby == null || !STATE.amHost || STATE.phase != RunState.Phase.IDLE) return;
+        STATE.draftPlusFormat = Math.max(0, Math.min(1, format));
+        STATE.draftPlusTeamSize = Math.max(1, Math.min(5, teamSize));
+        lobby.setDraftPlusConfig(STATE.draftPlusFormat, STATE.draftPlusTeamSize);
+    }
+
     public static void setGameMode(int g) {
         if (lobby == null || !STATE.amHost) { chat("Режим игры выбирает только хост лобби."); return; }
         if (STATE.phase != RunState.Phase.IDLE) { chat("Дождитесь конца раунда."); return; }
@@ -581,6 +590,7 @@ public final class FriendRunClient implements ClientModInitializer {
     }
 
     public static void launch() {
+        if (STATE.gameMode == Game.DRAFT_PLUS) { chat("Draft+ ещё не подключён к игровому циклу — запуск временно закрыт."); return; }
         if (STATE.gameMode == Game.SINGLE_SPEEDRUN && STATE.players.size() != 1) { chat("Одиночный спидран требует ровно одного игрока в этом лобби."); return; }
         if (STATE.gameMode == Game.PILLARS && (STATE.mode != RunState.Mode.HOST_WORLD || STATE.players.size() < 2)) {
             chat("Столбы: для запуска нужен общий мир хоста и минимум 2 игрока в лобби.");

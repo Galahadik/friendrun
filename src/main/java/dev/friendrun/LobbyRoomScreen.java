@@ -125,6 +125,7 @@ public final class LobbyRoomScreen extends Screen {
             case Game.WAVES -> { a = Tr.t("friendrun.ui.wave_sec", "Интервал волн: %s сек", s.waveSec + ""); b = Tr.t("friendrun.ui.wave_diff", "Сложность: %s", RunState.diffName(s.waveDiff)); }
             case Game.BINGO -> { a = Tr.t("friendrun.ui.bingo_size", "Размер карточки: %s", s.bingoSize + "×" + s.bingoSize); b = Tr.t("friendrun.ui.bingo_win", "Победа: %s", s.bingoFull ? Tr.t("friendrun.ui.bingo_full", "вся карточка") : Tr.t("friendrun.ui.bingo_line", "линия")); }
             case Game.DRAFT -> { a = Tr.t("friendrun.ui.draft_type", "Тип драфта: %s", DraftGoal.draftTypeName(s.draftType)); b = Tr.t("friendrun.ui.draft_size", "Размер поля: %s", s.draftSize + "×" + s.draftSize); }
+            case Game.DRAFT_PLUS -> { a = s.draftPlusFormat == 0 ? "Draft+ · FFA" : "Draft+ · Команды " + s.draftPlusTeamSize + "×" + s.draftPlusTeamSize; b = "Поле 5×5 · победа на 13 клетках"; }
             default -> a = "";
         }
         Ui.button(g, rSetA, hv("setA", rSetA, mx, my, canSet), canSet, Ui.Kind.NORMAL);
@@ -157,7 +158,7 @@ public final class LobbyRoomScreen extends Screen {
         boolean soloSpeedrun = s.gameMode == Game.SINGLE_SPEEDRUN;
         boolean canRollItem = open && speed && !Roulette.running();
         boolean canSet = host && !s.launched && s.phase == RunState.Phase.IDLE;
-        boolean canStart = open && (!soloSpeedrun || s.players.size() == 1) && (s.gameMode != Game.MANHUNT || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2))
+        boolean canStart = open && s.gameMode != Game.DRAFT_PLUS && (!soloSpeedrun || s.players.size() == 1) && (s.gameMode != Game.MANHUNT || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2))
             && (s.gameMode != Game.PILLARS || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2));
         bSetA.visible = !speed && !soloSpeedrun && s.gameMode != Game.PILLARS;
         bSetB.visible = !speed && !soloSpeedrun && s.gameMode != Game.CHAIN && s.gameMode != Game.PILLARS;
@@ -338,7 +339,7 @@ public final class LobbyRoomScreen extends Screen {
         int sc = canStart ? 0xFF1A1200 : 0xFF8A7A50;
         Icons.draw(g, Icons.PLAY, rStart.x() + 8, rStart.cy() - 3, 1, sc);
         String startText = s.launched ? Tr.t("friendrun.ui.started", "Игра запущена")
-            : host ? (canStart ? Tr.t("friendrun.ui.start", "Старт (создать мир)") : soloSpeedrun ? Tr.t("friendrun.ui.need_solo", "Одиночный спидран: 1 игрок") : Tr.t("friendrun.ui.need_two", "Нужно 2+ игрока и мир хоста"))
+            : host ? (s.gameMode == Game.DRAFT_PLUS ? "Draft+ скоро будет доступен" : canStart ? Tr.t("friendrun.ui.start", "Старт (создать мир)") : soloSpeedrun ? Tr.t("friendrun.ui.need_solo", "Одиночный спидран: 1 игрок") : Tr.t("friendrun.ui.need_two", "Нужно 2+ игрока и мир хоста"))
             : Tr.t("friendrun.ui.waiting_host", "Ждём старт от хоста…");
         Gfx.text(g, Ui.trunc(startText, rStart.w() - 26), rStart.x() + 20, rStart.cy() - 4, sc);
 

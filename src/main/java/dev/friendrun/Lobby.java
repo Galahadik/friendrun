@@ -318,6 +318,8 @@ public final class Lobby {
         doc.addProperty("chaos", chaosOn);
         for (String k : settings.keySet()) doc.add(k, settings.get(k));   // настройки пула предметов и усложнений хоста
         doc.addProperty("gameMode", 0);
+        doc.addProperty("draftPlusFormat", 0);
+        doc.addProperty("draftPlusTeamSize", 1);
         doc.addProperty("soloLock", false);
         doc.addProperty("convTotal", 20);
         doc.addProperty("convSlot", 3);
@@ -408,6 +410,14 @@ public final class Lobby {
     public static long orDef(long v, long def) { return v > 0 ? v : def; }
     public void setNum(String key, long v) { JsonObject o = new JsonObject(); o.addProperty(key, v); patch("", o); }
     public void setFlag(String key, boolean v) { JsonObject o = new JsonObject(); o.addProperty(key, v); patch("", o); }
+    public void setDraftPlusConfig(int format, int teamSize) {
+        if (!host || closed) return;
+        JsonObject o = new JsonObject();
+        o.addProperty("draftPlusFormat", Math.max(0, Math.min(1, format)));
+        o.addProperty("draftPlusTeamSize", Math.max(1, Math.min(5, teamSize)));
+        patch("", o);
+    }
+
     public void setGameMode(int g) {
         if (!host || closed) return;
         JsonObject o = new JsonObject();
@@ -793,7 +803,7 @@ public final class Lobby {
             if (prepareRound == 0) {
                 boolean all = true;
                 for (String p : players.keySet()) if (!bool(obj(players, p), "ready")) { all = false; break; }
-                if (all && !(gmSel == Game.MANHUNT && players.size() < 2)) {
+                if (all && gmSel != Game.DRAFT_PLUS && !(gmSel == Game.MANHUNT && players.size() < 2)) {
                     if (gmSel == Game.DRAFT && !bool(doc, "draftComplete")) {
                         if (!bool(doc, "draftActive")) {
                             startDraft(updates, doc, players);

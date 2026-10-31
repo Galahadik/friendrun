@@ -20,6 +20,8 @@ public final class RunState {
     public int cfgChainLen = 5, cfgBingoSize = 3, cfgWaveSec = 45, cfgWaveDiff = 1, cfgManMin = 15;
     public boolean cfgBingoFull;
     public int gameMode;               // режим, выбранный в лобби
+    public int draftPlusFormat;       // 0 = FFA, 1 = команды
+    public int draftPlusTeamSize = 1;
     public int chaosMod;               // выпавшее в лобби усложнение (индекс)
     public boolean chaos;              // включено «случайное усложнение»
     public int roundMod = -1;          // номер усложнения текущего раунда
@@ -112,6 +114,7 @@ public final class RunState {
         amHost = false;
         chaos = false;
         gameMode = 0;
+        draftPlusFormat = 0; draftPlusTeamSize = 1;
         convTotalMin = 20; convSlotMin = 3; chainLen = 5; bingoSize = 3; draftSize = cfgDraftSize = 5; draftType = cfgDraftType = 3; bingoFull = false; waveSec = 45; waveDiff = 1; manRunners = 1; manMin = 15;
         resultUntilNanos = 0;
         mode = Mode.SEPARATE_WORLDS;
@@ -135,6 +138,7 @@ public final class RunState {
             case Game.PILLARS -> "готовая карта, общий мир";
             case Game.SINGLE_SPEEDRUN -> "один игрок, выживание, полный Minecraft-спидран";
             case Game.DRAFT -> "драфт 5×5, первый до 13 целей";
+            case Game.DRAFT_PLUS -> draftPlusFormat == 0 ? "FFA · до 10 игроков · поле 5×5" : "Команды " + draftPlusTeamSize + "×" + draftPlusTeamSize + " · поле 5×5";
             default -> "первый получивший побеждает";
         };
     }
