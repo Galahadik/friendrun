@@ -178,14 +178,6 @@ public final class FriendRunClient implements ClientModInitializer {
         if (!java.util.Objects.equals(previousDraftPlus, nextDraftPlus)) s.draftPlusScreenDismissed = false;
         s.draftPlusState = nextDraftPlus;
         s.draftPlusStartError = Lobby.str(doc, "draftPlusStartError");
-        if (previousDraftPlus != null && previousDraftPlus.phase() != DraftPlusFlow.Phase.COMPLETE
-            && nextDraftPlus != null && nextDraftPlus.phase() == DraftPlusFlow.Phase.COMPLETE) {
-            String winner = nextDraftPlus.winner();
-            if (winner.isBlank()) chat("Draft+ завершён: ничья.");
-            else if (winner.startsWith("player:")) chat("Draft+ победил: " + winner.substring("player:".length()));
-            else if (winner.equals("team:0")) chat("Draft+ победила команда " + s.draftPlusTeamNameA + ".");
-            else if (winner.equals("team:1")) chat("Draft+ победила команда " + s.draftPlusTeamNameB + ".");
-        }
         s.draftActive = Lobby.bool(doc, "draftActive");
         s.draftComplete = Lobby.bool(doc, "draftComplete");
         s.draftPickCount = (int) Lobby.num(doc, "draftPickCount");
@@ -197,6 +189,12 @@ public final class FriendRunClient implements ClientModInitializer {
         if (lastSubmittedDraftPick < s.draftPickCount) lastSubmittedDraftPick = -1;
         s.draftChoiceSent = lastSubmittedDraftPick == s.draftPickCount;
         s.draftOwners = parseDraftOwners(s.draftOwnersIds);
+        if (s.gameMode == Game.DRAFT_PLUS && nextDraftPlus != null) {
+            s.draftBoardIds = String.join(",", nextDraftPlus.boardGoals());
+            s.draftOwnersIds = String.join(",", nextDraftPlus.owners());
+            s.draftGoals = parseDraftGoals(s.draftBoardIds);
+            s.draftOwners = parseDraftOwners(s.draftOwnersIds);
+        }
         for (int i = 0; i < s.draftOwners.length; i++) if (!"-".equals(s.draftOwners[i])) s.draftClaimPending[i] = false;
         if (s.gameMode == Game.DRAFT && !s.draftBoardIds.isBlank()) s.draftGoals = parseDraftGoals(s.draftBoardIds);
         s.convTotalMin = (int) Lobby.orDef(Lobby.num(doc, "convTotal"), 20);
@@ -387,6 +385,12 @@ public final class FriendRunClient implements ClientModInitializer {
                         s.target = s.chain.isEmpty() ? ItemPicker.pick(seed) : s.chain.get(0);
                         s.draftBase = new int[49];
                         s.draftClaimPending = new boolean[49];
+                    } else if (s.roundGame == Game.DRAFT_PLUS) {
+                        s.draftGoals = s.draftPlusState == null ? new java.util.ArrayList<>() : parseDraftGoals(String.join(",", s.draftPlusState.boardGoals()));
+                        s.draftOwners = s.draftPlusState == null ? parseDraftOwners("") : parseDraftOwners(String.join(",", s.draftPlusState.owners()));
+                        s.draftBase = new int[49];
+                        s.draftClaimPending = new boolean[49];
+                        s.target = null;
                     } else if (s.roundGame == Game.WAVES || s.roundGame == Game.MANHUNT) {
                         s.target = ItemPicker.pick(seed);   // для волн цель не нужна, но поле должно быть заполнено
                     } else if (s.roundGame == Game.CONVEYOR) {
@@ -878,13 +882,14 @@ public final class FriendRunClient implements ClientModInitializer {
             Freeze.release();
             if (mc.player != null && s.target != null) s.baseline = Inv.count(mc.player, s.target);
             if (mc.player != null && s.roundGame == Game.BINGO && s.chain.size() == s.cfgBingoSize * s.cfgBingoSize) s.bingoBase = Inv.counts(mc.player, s.chain);
-            if (mc.player != null && s.roundGame == Game.DRAFT) {
+            if (mc.player != null && (s.roundGame == Game.DRAFT || s.roundGame == Game.DRAFT_PLUS)) {
                 s.draftBase = new int[49];
                 for (int i = 0; i < Math.min(s.cfgDraftSize * s.cfgDraftSize, s.draftGoals.size()); i++)
                     s.draftBase[i] = s.draftGoals.get(i).progressValue(mc);
             }
             if (s.roundGame == Game.BINGO) printCard();
             if (s.roundGame == Game.DRAFT) chat("Драфт начался: " + DraftGoal.draftTypeName(s.cfgDraftType) + ". Карточка " + s.cfgDraftSize + "×" + s.cfgDraftSize + "; для победы нужно " + (s.cfgDraftSize * s.cfgDraftSize / 2 + 1) + " целей.");
+            if (s.roundGame == Game.DRAFT_PLUS) chat("Draft+ начался! Выполняйте цели на доске 5×5. Первый игрок или команда, захватившие 13 клеток, побеждают. /rr card — показать доску.");
             if (s.roundGame == Game.WAVES) Waves.start(mc, s);
             if (s.roundGame == Game.MANHUNT) Manhunt.start(mc, s);
             Chaos.apply(s.roundMod);
@@ -900,7 +905,8 @@ public final class FriendRunClient implements ClientModInitializer {
             chat("Спидран завершён! Время: " + RunState.formatTime(elapsed) + ". Результат отправлен в отдельный топ; MMR не изменён.");
         }
         if (s.phase == RunState.Phase.RUNNING && s.roundMod >= 0 && ++reapplyTicks % 100 == 0) Chaos.apply(s.roundMod);
-        if (s.phase == RunState.Phase.RUNNING && mc.player != null && s.roundGame != Game.SINGLE_SPEEDRUN && s.target != null) roundTick(mc, s);
+        if (s.phase == RunState.Phase.RUNNING && mc.player != null && s.roundGame != Game.SINGLE_SPEEDRUN
+            && (s.target != null || s.roundGame == Game.DRAFT_PLUS)) roundTick(mc, s);
     }
 
     /** Собрана ли линия (строка, столбец или диагональ) на карточке n×n; в режиме full — вся карточка. */
