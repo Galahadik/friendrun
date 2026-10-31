@@ -150,9 +150,13 @@ public final class FriendRunClient implements ClientModInitializer {
         s.players.clear();
         for (String p : players.keySet()) {
             JsonObject playerDoc = Lobby.obj(players, p);
+            long joinedAt = playerDoc.has("joinedAt")
+                ? Lobby.num(playerDoc, "joinedAt") : Lobby.num(playerDoc, "lastSeen");
+            int draftPlusTeam = playerDoc.has("draftPlusTeam")
+                ? (int) Lobby.num(playerDoc, "draftPlusTeam") : DraftPlusTeams.NO_TEAM;
             s.players.add(new RunState.PlayerInfo(p, p.equals(hostName), Lobby.bool(playerDoc, "ready"),
                 (int) Lobby.num(playerDoc, "score"), Lobby.bool(playerDoc, "dead"),
-                Lobby.num(playerDoc, "joinedAt"), (int) Lobby.num(playerDoc, "draftPlusTeam")));
+                joinedAt, draftPlusTeam));
         }
         if (s.gameMode == Game.DRAFT || s.roundGame == Game.DRAFT)
             s.myScore = (int) Lobby.num(Lobby.obj(players, myName()), "score");
