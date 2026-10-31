@@ -61,6 +61,7 @@ public final class DraftPlusFlow {
         List<DraftPlusRules.Player> roster,
         List<String> candidateGoals,
         boolean bansEnabled,
+        Map<String, Set<String>> completedAdvancements,
         Random random
     ) {
         Objects.requireNonNull(random, "random");
@@ -74,15 +75,15 @@ public final class DraftPlusFlow {
             int firstBanActor = format == DraftPlusRules.Format.FFA
                 ? random.nextInt(players.size()) : random.nextInt(2);
             DraftPlusRules.Player actor = DraftPlusRules.banActor(format, players, firstBanActor, 0);
-            String[] offers = drawOffers(pool, random);
+            String[] offers = drawOffers(pool, excludedFor(completedAdvancements, actor.id()), random);
             return new State(format, players, pool, List.of(), List.of(), List.of(),
                 Phase.BANS, 0, firstBanActor, -1, 0, actor.id(), offers[0], offers[1], "");
         }
-        return beginDraft(format, players, pool, List.of(), random);
+        return beginDraft(format, players, pool, List.of(), completedAdvancements, random);
     }
 
     /** Applies one ban. Only the currently assigned actor may ban an available goal. */
-    public static State ban(State state, String actorId, String goalId, Random random) {
+    public static State ban(State state, String actorId, String goalId, Map<String, Set<String>> completedAdvancements, Random random) {
         requirePhase(state, Phase.BANS);
         Objects.requireNonNull(random, "random");
         requireActor(state, actorId);
@@ -96,18 +97,18 @@ public final class DraftPlusFlow {
         banned.add(goalId);
         int nextBan = state.banIndex() + 1;
         if (nextBan >= DraftPlusRules.defaultBanCount(state.format()))
-            return beginDraft(state.format(), state.players(), available, banned, random);
+            return beginDraft(state.format(), state.players(), available, banned, completedAdvancements, random);
 
         DraftPlusRules.Player next = DraftPlusRules.banActor(
             state.format(), state.players(), state.firstBanActor(), nextBan);
-        String[] offers = drawOffers(available, random);
+        String[] offers = drawOffers(available, excludedFor(completedAdvancements, next.id()), random);
         return new State(state.format(), state.players(), available, banned,
             state.boardGoals(), state.owners(), Phase.BANS, nextBan,
             state.firstBanActor(), -1, 0, next.id(), offers[0], offers[1], "");
     }
 
     /** Applies the current player's choice (0 = A, 1 = B). */
-    public static State pick(State state, String actorId, int choice, Random random) {
+    public static State pick(State state, String actorId, int choice, Map<String, Set<String>> completedAdvancements, Random random) {
         requirePhase(state, Phase.DRAFT);
         Objects.requireNonNull(random, "random");
         requireActor(state, actorId);
@@ -132,7 +133,7 @@ public final class DraftPlusFlow {
         int nextPick = board.size();
         DraftPlusRules.Player next = DraftPlusRules.drafter(
             state.format(), state.players(), state.firstDraftActor(), nextPick);
-        String[] offers = drawOffers(available, random);
+        String[] offers = drawOffers(available, excludedFor(completedAdvancements, next.id()), random);
         return new State(state.format(), state.players(), available, state.bannedGoals(),
             board, owners, Phase.DRAFT, state.banIndex(), state.firstBanActor(),
             state.firstDraftActor(), nextPick, next.id(), offers[0], offers[1], "");
@@ -164,25 +165,35 @@ public final class DraftPlusFlow {
         List<DraftPlusRules.Player> players,
         List<String> available,
         List<String> banned,
+        Map<String, Set<String>> completedAdvancements,
         Random random
     ) {
         int firstActor = format == DraftPlusRules.Format.FFA
             ? random.nextInt(players.size()) : random.nextInt(2);
         DraftPlusRules.Player first = DraftPlusRules.drafter(format, players, firstActor, 0);
-        String[] offers = drawOffers(available, random);
+        String[] offers = drawOffers(available, excludedFor(completedAdvancements, first.id()), random);
         return new State(format, players, available, banned, List.of(), List.of(),
             Phase.DRAFT, banned.size(), -1, firstActor, 0, first.id(),
             offers[0], offers[1], "");
     }
 
-    private static String[] drawOffers(List<String> available, Random random) {
-        if (available.size() < 2)
-            throw new IllegalStateException("Not enough goals remain to offer two choices");
-        int a = random.nextInt(available.size());
-        String first = available.get(a);
-        int b = random.nextInt(available.size() - 1);
+    private static Set<String> excludedFor(Map<String, Set<String>> completedAdvancements, String playerId) {
+        if (completedAdvancements == null) return Set.of();
+        return completedAdvancements.getOrDefault(playerId, Set.of());
+    }
+
+    private static String[] drawOffers(List<String> available, Set<String> completedAdvancements, Random random) {
+        List<String> eligible = available.stream()
+            .filter(goal -> !goal.startsWith("advancement:")
+                || !completedAdvancements.contains(goal.substring("advancement:".length())))
+            .toList();
+        if (eligible.size() < 2)
+            throw new IllegalStateException("Not enough uncompleted goals remain to offer two choices");
+        int a = random.nextInt(eligible.size());
+        String first = eligible.get(a);
+        int b = random.nextInt(eligible.size() - 1);
         if (b >= a) b++;
-        return new String[] { first, available.get(b) };
+        return new String[] { first, eligible.get(b) };
     }
 
     private static List<String> validatePool(List<String> goals) {
