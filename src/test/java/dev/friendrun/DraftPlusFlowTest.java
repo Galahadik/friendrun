@@ -153,7 +153,7 @@ final class DraftPlusFlowTest {
             new DraftPlusRules.Player("b2", 1, false, 3)
         );
         DraftPlusFlow.State state = boardState(DraftPlusRules.Format.TEAM, teams,
-            new ArrayList<>(java.util.Collections.nCopies(25, "a1")));
+            new ArrayList<>(java.util.Collections.nCopies(25, "-")));
         state = DraftPlusFlow.forfeit(state, "a1");
         assertEquals("", state.winner());
         state = DraftPlusFlow.forfeit(state, "a2");
