@@ -204,17 +204,21 @@ public final class LobbyRoomScreen extends Screen {
         boolean canRollItem = open && speed && !Roulette.running();
         boolean canSet = host && (!s.launched || draftPlusComplete) && s.phase == RunState.Phase.IDLE;
         boolean draftPlusReady;
-        if (s.draftPlusFormat == 0) draftPlusReady = !s.players.isEmpty() && s.players.size() <= 10
-            && (!s.draftPlusRated || s.players.size() >= 2);
+        java.util.List<RunState.PlayerInfo> activeDraftPlusPlayers = s.players.stream()
+            .filter(p -> !s.draftPlusDisconnectedPlayers.contains(p.name())
+                && !s.draftPlusForfeitedPlayers.contains(p.name())).toList();
+        if (s.draftPlusFormat == 0) draftPlusReady = !activeDraftPlusPlayers.isEmpty()
+            && activeDraftPlusPlayers.size() <= 10
+            && (!s.draftPlusRated || activeDraftPlusPlayers.size() >= 2);
         else {
             java.util.List<DraftPlusTeams.Member> members = new java.util.ArrayList<>();
-            for (RunState.PlayerInfo p : s.players)
+            for (RunState.PlayerInfo p : activeDraftPlusPlayers)
                 members.add(new DraftPlusTeams.Member(p.name(), p.joinedAt(), p.draftPlusTeam()));
             draftPlusReady = DraftPlusTeams.isReady(members, s.draftPlusTeamSize)
                 && (!s.draftPlusRated || s.draftPlusTeamSize >= 2);
         }
-        boolean draftPlusRolesReady = !s.draftPlusRolesEnabled || (!s.players.isEmpty()
-            && s.players.stream().allMatch(p -> DraftPlusRole.byId(p.draftPlusRole()) != null));
+        boolean draftPlusRolesReady = !s.draftPlusRolesEnabled || (!activeDraftPlusPlayers.isEmpty()
+            && activeDraftPlusPlayers.stream().allMatch(p -> DraftPlusRole.byId(p.draftPlusRole()) != null));
         boolean canStart = draftPlusComplete ? !s.myReady
             : open && (!soloSpeedrun || s.players.size() == 1)
             && (s.gameMode != Game.DRAFT_PLUS || (draftPlusReady && draftPlusRolesReady))
@@ -341,9 +345,13 @@ public final class LobbyRoomScreen extends Screen {
             if (p.host()) { Icons.draw(g, Icons.CROWN, nx, y + 5, 1, Ui.GOLD); nx += 12; }
 
             // готовность: цвет и значок меняются плавно
+            boolean forfeited = s.draftPlusForfeitedPlayers.contains(p.name());
+            boolean disconnected = s.draftPlusDisconnectedPlayers.contains(p.name());
             float rd = anim.to("rdy:" + p.name(), p.ready());
-            String readyText = rd > 0.5f ? Tr.t("friendrun.ui.ready", "Готов") : Tr.t("friendrun.ui.not_ready", "Не готов");
-            int readyColor = Ui.mix(Ui.MUTED, Ui.GREEN, rd);
+            String readyText = forfeited ? "Поражение"
+                : disconnected ? "Отключён · 5 мин"
+                : rd > 0.5f ? Tr.t("friendrun.ui.ready", "Готов") : Tr.t("friendrun.ui.not_ready", "Не готов");
+            int readyColor = forfeited ? Ui.RED : disconnected ? Ui.ORANGE : Ui.mix(Ui.MUTED, Ui.GREEN, rd);
             int xr = rx + rw - 12;
             Gfx.text(g, readyText, xr - Ui.w(readyText), y + 4, readyColor);
             Icons.draw(g, rd > 0.5f ? Icons.CHECK : Icons.DOT, xr - Ui.w(readyText) - (rd > 0.5f ? 11 : 9), y + (rd > 0.5f ? 5 : 6), 1, readyColor);
