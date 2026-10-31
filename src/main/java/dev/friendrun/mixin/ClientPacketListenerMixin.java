@@ -15,7 +15,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(ClientPacketListener.class)
 public abstract class ClientPacketListenerMixin {
     @Inject(method = "handleTakeItemEntity(Lnet/minecraft/network/protocol/game/ClientboundTakeItemEntityPacket;)V",
-            at = @At("HEAD"), require = 0)
+            at = @At("RETURN"), require = 0)
     private void friendrun$trackDraftPlusPickup(ClientboundTakeItemEntityPacket packet, CallbackInfo ci) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null || packet.getPlayerId() != mc.player.getId()) return;
