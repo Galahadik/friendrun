@@ -1253,7 +1253,11 @@ public final class Lobby {
                 return str(previous.getAsJsonObject(), "deltas");
 
             JsonObject frozen = obj(doc, "draftPlusFrozenSettings");
-            boolean rated = bool(frozen.isEmpty() ? doc : frozen, frozen.isEmpty() ? "draftPlusRated" : "rated");
+            boolean configuredRated = bool(frozen.isEmpty() ? doc : frozen, frozen.isEmpty() ? "draftPlusRated" : "rated");
+            boolean allForfeited = state.forfeitedPlayers().size() >= state.players().size();
+            boolean cancelled = allForfeited && state.owners().stream().allMatch("-"::equals);
+            boolean rated = configuredRated && !cancelled;
+            Set<String> forfeited = allForfeited ? Set.of() : Set.copyOf(state.forfeitedPlayers());
             JsonObject currentRatings = new JsonObject();
             if (rated) {
                 JsonElement existing = send("GET", root + "/" + ratingNode, null);
@@ -1267,14 +1271,17 @@ public final class Lobby {
 
             JsonObject playerDocs = obj(doc, "players");
             Map<String, DraftPlusContribution.Metrics> contributionMetrics = new java.util.HashMap<>();
+            Map<String, DraftPlusContribution.Metrics> activeContributionMetrics = new java.util.HashMap<>();
             for (DraftPlusRules.Player player : state.players()) {
                 JsonObject acquired = obj(obj(playerDocs, player.id()), "draftPlusAcquired");
                 Set<String> acquiredIds = new HashSet<>();
                 for (String itemId : acquired.keySet()) if (num(acquired, itemId) > 0) acquiredIds.add(itemId);
-                contributionMetrics.put(player.id(), new DraftPlusContribution.Metrics(
-                    acquiredIds, cells.getOrDefault(player.id(), 0)));
+                DraftPlusContribution.Metrics metrics = new DraftPlusContribution.Metrics(
+                    acquiredIds, cells.getOrDefault(player.id(), 0));
+                contributionMetrics.put(player.id(), metrics);
+                if (!forfeited.contains(player.id())) activeContributionMetrics.put(player.id(), metrics);
             }
-            Map<String, Integer> contributionAdjustments = DraftPlusContribution.adjustments(contributionMetrics);
+            Map<String, Integer> contributionAdjustments = DraftPlusContribution.adjustments(activeContributionMetrics);
 
             Map<String, JsonObject> oldProfiles = new java.util.HashMap<>();
             List<DraftPlusRating.PlayerResult> ffaPlayers = new ArrayList<>();
@@ -1294,14 +1301,14 @@ public final class Lobby {
             List<DraftPlusRating.Delta> deltas = List.of();
             if (rated) {
                 if (ffa) {
-                    deltas = DraftPlusRating.calculateFfa(ffaPlayers);
+                    deltas = DraftPlusRating.calculateFfa(ffaPlayers, forfeited);
                 } else {
                     DraftPlusRating.TeamResult result = switch (state.winner()) {
                         case "team:0" -> DraftPlusRating.TeamResult.A_WIN;
                         case "team:1" -> DraftPlusRating.TeamResult.B_WIN;
                         default -> DraftPlusRating.TeamResult.DRAW;
                     };
-                    deltas = DraftPlusRating.calculateTeam(teamA, teamB, result);
+                    deltas = DraftPlusRating.calculateTeam(teamA, teamB, result, forfeited);
                 }
             }
 
@@ -1315,6 +1322,7 @@ public final class Lobby {
                 JsonObject playerHistory = new JsonObject();
                 playerHistory.addProperty("team", player.teamIndex());
                 playerHistory.addProperty("cells", playerCells);
+                playerHistory.addProperty("forfeited", state.forfeitedPlayers().contains(player.id()));
                 playerHistory.addProperty("contributionScore",
                     DraftPlusContribution.score(contributionMetrics.get(player.id())));
                 String role = str(obj(doc, "draftPlusRoles"), player.id());
@@ -1350,7 +1358,8 @@ public final class Lobby {
                 historyPlayers.add(player.id(), playerHistory);
             }
 
-            String deltaSummary = rated ? deltaText.toString() : "Training — MMR не меняется";
+            String deltaSummary = cancelled ? "Матч отменён — MMR не меняется"
+                : rated ? deltaText.toString() : "Training — MMR не меняется";
             JsonObject history = new JsonObject();
             history.addProperty("id", historyId);
             history.addProperty("lobby", name);
@@ -1358,7 +1367,9 @@ public final class Lobby {
             history.addProperty("durationMs", num(obj(doc, "winner"), "ms"));
             history.addProperty("format", ffa ? "FFA" : "TEAM");
             history.addProperty("rated", rated);
+            history.addProperty("cancelled", cancelled);
             history.addProperty("winner", state.winner());
+            history.add("forfeitedPlayers", strings(state.forfeitedPlayers()));
             history.addProperty("winnerName", str(obj(doc, "winner"), "name"));
             history.addProperty("deltas", deltaSummary);
             JsonObject score = new JsonObject();
