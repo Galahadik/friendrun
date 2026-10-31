@@ -76,6 +76,22 @@ final class FirebaseConditionalStateTest {
         assertEquals(2, transport.requests.size());
     }
     @Test
+    void secondCreatorCannotOverwriteTheFirstConditionalLobbyClaim() throws Exception {
+        JsonObject firstCreator = new JsonObject();
+        firstCreator.addProperty("host", "alice");
+        firstCreator.addProperty("sessionId", "session-a");
+        JsonObject secondCreator = new JsonObject();
+        secondCreator.addProperty("host", "bob");
+        secondCreator.addProperty("sessionId", "session-b");
+        FakeTransport transport = new FakeTransport()
+            .response(200, firstCreator.toString(), "\"etag-first\"");
+
+        assertFalse(FirebaseConditionalState.putIfUnchanged(
+            transport, NODE, com.google.gson.JsonNull.INSTANCE, secondCreator));
+        assertEquals(1, transport.requests.size());
+    }
+
+    @Test
     void deletesOnlyWhenSnapshotMatchesAndUsesIfMatch() throws Exception {
         JsonObject current = new JsonObject();
         current.addProperty("host", "alice");
