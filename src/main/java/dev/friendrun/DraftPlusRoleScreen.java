@@ -130,20 +130,20 @@ public final class DraftPlusRoleScreen extends Screen {
         Ui.button(g, rolesToggleRect, rolesToggleRect.in(mx, my), hostCanEdit,
             state.draftPlusRolesEnabled ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
         Gfx.centered(g, "Роли: " + (state.draftPlusRolesEnabled ? "ВКЛ" : "ВЫКЛ"),
-            rolesToggleRect.cx(), rolesToggleRect.cy() - 4, hostCanEdit ? Ui.TEXT : Ui.MUTED);
+            (rolesToggleRect.x() + rolesToggleRect.w() / 2), rolesToggleRect.cy() - 4, hostCanEdit ? Ui.TEXT : Ui.MUTED);
         Ui.button(g, ratedRect, ratedRect.in(mx, my), hostCanEdit,
             state.draftPlusRated ? Ui.Kind.GOLD : Ui.Kind.NORMAL);
         Gfx.centered(g, state.draftPlusRated ? "Рейтинг: ВКЛ" : "Training",
-            ratedRect.cx(), ratedRect.cy() - 4, hostCanEdit ? Ui.TEXT : Ui.MUTED);
+            (ratedRect.x() + ratedRect.w() / 2), ratedRect.cy() - 4, hostCanEdit ? Ui.TEXT : Ui.MUTED);
         Ui.button(g, chaosRect, chaosRect.in(mx, my), hostCanEdit,
             state.draftPlusChaosEnabled ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
         Gfx.centered(g, "Хаос: " + (state.draftPlusChaosEnabled ? "ВКЛ" : "ВЫКЛ"),
-            chaosRect.cx(), chaosRect.cy() - 4, hostCanEdit ? Ui.TEXT : Ui.MUTED);
+            (chaosRect.x() + chaosRect.w() / 2), chaosRect.cy() - 4, hostCanEdit ? Ui.TEXT : Ui.MUTED);
         Ui.button(g, countRect, countRect.in(mx, my), hostCanEdit && state.draftPlusChaosEnabled, Ui.Kind.NORMAL);
-        Gfx.centered(g, "Кол-во: " + count, countRect.cx(), countRect.cy() - 4,
+        Gfx.centered(g, "Кол-во: " + count, (countRect.x() + countRect.w() / 2), countRect.cy() - 4,
             hostCanEdit && state.draftPlusChaosEnabled ? Ui.TEXT : Ui.MUTED);
         Ui.button(g, difficultyRect, difficultyRect.in(mx, my), hostCanEdit && state.draftPlusChaosEnabled, Ui.Kind.NORMAL);
-        Gfx.centered(g, difficulty[state.draftPlusChaosDifficulty], difficultyRect.cx(), difficultyRect.cy() - 4,
+        Gfx.centered(g, difficulty[state.draftPlusChaosDifficulty], (difficultyRect.x() + difficultyRect.w() / 2), difficultyRect.cy() - 4,
             hostCanEdit && state.draftPlusChaosEnabled ? Ui.TEXT : Ui.MUTED);
 
         for (int i = 0; i < DraftPlusRole.values().length; i++) {
@@ -156,10 +156,10 @@ public final class DraftPlusRoleScreen extends Screen {
             roleButtons[i].active = canChooseRole;
         }
         if (!state.draftPlusRolesEnabled)
-            Gfx.centered(g, "Роли выключены — бонусы не применяются", panel.cx(), panel.y() + 250, Ui.MUTED);
+            Gfx.centered(g, "Роли выключены — бонусы не применяются", (panel.x() + panel.w() / 2), panel.y() + 250, Ui.MUTED);
 
         Ui.button(g, backRect, backRect.in(mx, my), true, Ui.Kind.NORMAL);
-        Gfx.centered(g, "Назад", backRect.cx(), backRect.cy() - 4, Ui.TEXT);
+        Gfx.centered(g, "Назад", (backRect.x() + backRect.w() / 2), backRect.cy() - 4, Ui.TEXT);
 
         rolesToggleButton.active = ratedButton.active = chaosButton.active = hostCanEdit;
         countButton.active = difficultyButton.active = hostCanEdit && state.draftPlusChaosEnabled;
