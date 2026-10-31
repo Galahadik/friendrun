@@ -76,6 +76,7 @@ public final class RunState {
     public int draftPlusClaimPendingIndex = -1;
     public long draftPlusClaimSentAtNanos;
     public boolean draftPlusNeedsBaseline;
+    public boolean draftPlusBoardPersonalized;
     // Monotonic item acquisition tracking for Draft+: pickup packets and inventory increases.
     public final java.util.Map<String, Integer> draftPlusAcquired = new java.util.HashMap<>();
     public final java.util.Map<String, Integer> draftPlusLastInventory = new java.util.HashMap<>();
@@ -121,6 +122,7 @@ public final class RunState {
         draftPlusClaimPendingIndex = -1;
         draftPlusClaimSentAtNanos = 0;
         draftPlusNeedsBaseline = false;
+        draftPlusBoardPersonalized = false;
         draftPlusAcquired.clear();
         draftPlusLastInventory.clear();
         draftPlusPickupPending.clear();
