@@ -104,7 +104,7 @@ public final class DraftPlusScreen extends Screen {
                 int playerIndex = 0;
                 for (int p = 0; p < state.players().size(); p++)
                     if (state.players().get(p).id().equals(owner)) { playerIndex = p; break; }
-                color = Ui.mix(Ui.BLUE, Ui.GOLD, state.players().size() <= 1 ? 0 : playerIndex / (float) (state.players().size() - 1));
+                color = Ui.mix(Ui.ORANGE, Ui.GOLD, state.players().size() <= 1 ? 0 : playerIndex / (float) (state.players().size() - 1));
             }
             Gfx.rect(g, cx + 2, cy + cell - 4, cx + cell - 2, cy + cell - 2, color);
         }
