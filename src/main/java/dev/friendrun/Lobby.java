@@ -572,14 +572,16 @@ public final class Lobby {
     }
 
     /** Submit a single Draft+ action; the host validates the actor and phase from its snapshot. */
-    public void submitDraftPlusAction(String action, String goal, int choice, int expectedIndex) {
-        if (closed || action == null || (!action.equals("BAN") && !action.equals("PICK"))) return;
+    public void submitDraftPlusAction(String action, String goal, int choice, int expectedIndex, String matchSeed) {
+        if (closed || action == null || matchSeed == null || matchSeed.isBlank()
+            || (!action.equals("BAN") && !action.equals("PICK"))) return;
         JsonObject request = new JsonObject();
         request.addProperty("draftPlusActionId", java.util.UUID.randomUUID().toString());
         request.addProperty("draftPlusAction", action);
         request.addProperty("draftPlusGoal", goal == null ? "" : goal);
         request.addProperty("draftPlusChoice", choice);
         request.addProperty("draftPlusExpectedIndex", expectedIndex);
+        request.addProperty("draftPlusActionSeed", matchSeed);
         patch("/players/" + me, request);
     }
     public void setLanAddress(String addr) { JsonObject o = new JsonObject(); o.addProperty("lanAddress", addr); patch("", o); }
@@ -1121,7 +1123,20 @@ public final class Lobby {
         for (String id : players.keySet()) {
             JsonObject player = obj(players, id);
             String actionId = str(player, "draftPlusActionId");
-            if (actionId.isBlank() || actionId.equals(lastActionId) || !state.currentActor().equals(id)) continue;
+            if (actionId.isBlank()) continue;
+            // A delayed write from an earlier match must never be accepted just because
+            // its actor and turn index happen to match the newly-created state.
+            if (!str(player, "draftPlusActionSeed").equals(str(doc, "draftPlusSeed"))) {
+                updates.add("players/" + id + "/draftPlusActionId", JsonNull.INSTANCE);
+                updates.add("players/" + id + "/draftPlusAction", JsonNull.INSTANCE);
+                updates.add("players/" + id + "/draftPlusActionGoal", JsonNull.INSTANCE);
+                updates.add("players/" + id + "/draftPlusActionSeed", JsonNull.INSTANCE);
+                updates.add("players/" + id + "/draftPlusGoal", JsonNull.INSTANCE);
+                updates.add("players/" + id + "/draftPlusChoice", JsonNull.INSTANCE);
+                updates.add("players/" + id + "/draftPlusExpectedIndex", JsonNull.INSTANCE);
+                continue;
+            }
+            if (actionId.equals(lastActionId) || !state.currentActor().equals(id)) continue;
             String action = str(player, "draftPlusAction");
             int expectedIndex = (int) num(player, "draftPlusExpectedIndex");
             int currentIndex = state.phase() == DraftPlusFlow.Phase.BANS ? state.banIndex() : state.pickIndex();
