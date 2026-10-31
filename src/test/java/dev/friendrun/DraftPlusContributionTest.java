@@ -52,6 +52,34 @@ final class DraftPlusContributionTest {
     }
 
     @Test
+    void ffaSuccessfulPickRequiresThePickerToCaptureThatCell() {
+        List<DraftPlusRules.Player> players = List.of(
+            new DraftPlusRules.Player("alice", -1, false, 0),
+            new DraftPlusRules.Player("bob", -1, false, 1)
+        );
+        DraftPlusFlow.State state = new DraftPlusFlow.State(DraftPlusRules.Format.FFA, players,
+            List.of(), List.of(), List.of("goal:a", "goal:b"), List.of("alice", "bob"),
+            List.of("alice", "alice"), List.of(), DraftPlusFlow.Phase.PLAY,
+            0, 0, 0, 25, "", "", "", "");
+        assertEquals(Map.of("alice", 1), DraftPlusContribution.successfulDraftPicks(state));
+    }
+
+    @Test
+    void teamSuccessfulPickCreditsThePickerWhenAnyTeammateCapturesIt() {
+        List<DraftPlusRules.Player> players = List.of(
+            new DraftPlusRules.Player("a1", DraftPlusTeams.TEAM_A, false, 0),
+            new DraftPlusRules.Player("a2", DraftPlusTeams.TEAM_A, false, 1),
+            new DraftPlusRules.Player("b1", DraftPlusTeams.TEAM_B, false, 2),
+            new DraftPlusRules.Player("b2", DraftPlusTeams.TEAM_B, false, 3)
+        );
+        DraftPlusFlow.State state = new DraftPlusFlow.State(DraftPlusRules.Format.TEAM, players,
+            List.of(), List.of(), List.of("goal:a", "goal:b"), List.of("a1", "b1"),
+            List.of("a2", "b2"), List.of(), DraftPlusFlow.Phase.PLAY,
+            0, 0, 0, 25, "", "", "", "");
+        assertEquals(Map.of("a1", 1, "b1", 1), DraftPlusContribution.successfulDraftPicks(state));
+    }
+
+    @Test
     void emptyMetricsProduceNeutralAdjustment() {
         assertEquals(Map.of("a", 0, "b", 0), DraftPlusContribution.adjustments(Map.of(
             "a", new DraftPlusContribution.Metrics(Set.of(), 0),
