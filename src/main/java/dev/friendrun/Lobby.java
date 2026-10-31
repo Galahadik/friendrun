@@ -68,6 +68,8 @@ public final class Lobby {
     private long lastBeat = 0;
     // Captured before the reconnect heartbeat overwrites the persisted presence timestamp.
     private volatile boolean draftPlusWasOfflineForFiveMinutes;
+    // Once this client leaves the world, stale SSE snapshots must not restore its host authority.
+    private volatile boolean draftPlusWorldExitPending;
     private long nextDelay = 1000;
     private long scheduledStartRound; // prevents repeatedly extending startAt before SSE echoes the PATCH
     private int failures = 0;
@@ -802,20 +804,35 @@ public final class Lobby {
         if (!host || closed) return;
         JsonObject current = latestSnapshot();
         if (current != null && isRatedDraftPlus(current)) {
-            String nextHost = electDraftPlusHost(current, System.currentTimeMillis(), me);
-            JsonObject transfer = new JsonObject();
-            transfer.addProperty("host", nextHost == null ? "" : nextHost);
-            transfer.addProperty("hostSeen", nextHost == null ? 0 : System.currentTimeMillis());
-            transfer.addProperty("hostInGame", false);
-            transfer.addProperty("hostMigrationFrom", me);
-            transfer.addProperty("hostMigrationAt", System.currentTimeMillis());
-            transfer.addProperty("hostEpoch", num(current, "hostEpoch") + 1);
-            try {
-                commitDraftPlusHostSnapshot(current, transfer);
-            } catch (IOException ex) {
-                fail(ex);
-            }
+            // Relinquish locally first. If the root CAS races with a player heartbeat,
+            // the old host must not be reactivated by the next stale SSE/poll snapshot.
+            draftPlusWorldExitPending = true;
             host = false;
+            try {
+                writeEx.execute(() -> {
+                    try {
+                        for (int attempt = 0; attempt < 4 && !closed; attempt++) {
+                            JsonElement latest = request("GET", "", null);
+                            if (latest == null || !latest.isJsonObject()) return;
+                            JsonObject persisted = latest.getAsJsonObject();
+                            if (!me.equals(str(persisted, "host")) || !isRatedDraftPlus(persisted)) return;
+                            long now = System.currentTimeMillis();
+                            String nextHost = electDraftPlusHost(persisted, now, me);
+                            JsonObject transfer = new JsonObject();
+                            transfer.addProperty("host", nextHost == null ? "" : nextHost);
+                            transfer.addProperty("hostSeen", nextHost == null ? 0 : now);
+                            transfer.addProperty("hostInGame", false);
+                            transfer.addProperty("hostMigrationFrom", me);
+                            transfer.addProperty("hostMigrationAt", now);
+                            transfer.addProperty("hostEpoch", num(persisted, "hostEpoch") + 1);
+                            if (commitDraftPlusHostSnapshot(persisted, transfer)) return;
+                        }
+                        FriendRunClient.LOG.debug("FRun: voluntary Draft+ host transfer deferred to lease migration");
+                    } catch (IOException ex) {
+                        fail(ex);
+                    }
+                });
+            } catch (RejectedExecutionException ignored) {}
             return; // Keep the rated Draft+ match and all frozen settings intact.
         }
         JsonObject o = new JsonObject();
@@ -968,7 +985,7 @@ public final class Lobby {
             return; // wait for the initial SSE snapshot
         }
         long nowMs = System.currentTimeMillis();
-        host = str(doc, "host").equals(me);
+        host = ownsDraftPlusHost(doc);
         boolean ownPresenceExpired = nowMs - num(obj(obj(doc, "players"), me), "lastSeen") >= 300_000;
         if (host && shouldMarkDraftPlusGlobalTimeout(doc, me, nowMs, ownPresenceExpired)) {
             JsonObject timeout = new JsonObject();
@@ -1114,6 +1131,15 @@ public final class Lobby {
         return true;
     }
 
+    static boolean shouldActAsDraftPlusHost(JsonObject doc, String actor, boolean worldExitPending) {
+        return !worldExitPending && doc != null && actor != null && actor.equals(str(doc, "host"));
+    }
+
+    private boolean ownsDraftPlusHost(JsonObject doc) {
+        if (doc != null && !me.equals(str(doc, "host"))) draftPlusWorldExitPending = false;
+        return shouldActAsDraftPlusHost(doc, me, draftPlusWorldExitPending);
+    }
+
     private JsonObject latestSnapshot() {
         synchronized (snapshotLock) { return latestDoc == null ? null : latestDoc.deepCopy(); }
     }
@@ -1196,7 +1222,7 @@ public final class Lobby {
                     }
                 }
                 snapshotVersion++;
-                host = str(latestDoc, "host").equals(me);
+                host = ownsDraftPlusHost(latestDoc);
             }
             queueSnapshotDelivery();
         } catch (RuntimeException e) {
