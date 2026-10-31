@@ -207,10 +207,12 @@ public final class Hud {
             Ui.frame(g, cx, cy, cell, cell, fill, border);
 
             var icon = s.draftGoals.get(i).icon();
-            if (icon != null) {
+            if (icon != null && cell >= 16) {
                 ItemStack stack = ItemInfo.stack(icon);
-                int iconOffset = Math.max(1, (cell - 16) / 2);
+                int iconOffset = (cell - 16) / 2;
                 if (stack != null) Gfx.item(g, stack, cx + iconOffset, cy + iconOffset);
+            } else if (cell < 16) {
+                Gfx.text(g, Integer.toString(i + 1), cx + 2, cy + 2, 0xFFFFFFFF);
             }
             if (claimed) {
                 int markColor = mine ? 0xFFFFFFFF : 0xFFE8EEF8;
@@ -278,7 +280,7 @@ public final class Hud {
         int leftSpace = inventoryLeft - 8;
         int sideSpace = Math.max(leftSpace, rightSpace);
 
-        int cell = sideSpace >= 172 ? 24 : sideSpace >= 134 ? 18 : 12;
+        int cell = sideSpace >= 140 ? 24 : sideSpace >= 106 ? 18 : 12;
         int gap = cell == 24 ? 3 : 2;
         int total = DraftPlusRules.BOARD_SIZE * cell + (DraftPlusRules.BOARD_SIZE - 1) * gap;
         int x;
@@ -290,10 +292,8 @@ public final class Hud {
         // No nextStratum(): the board is deliberately non-overlapping with inventory widgets.
         Gfx.rect(g, x - 6, y - 24, x + total + 6, y + total + 6, 0xF0101A2B);
         Gfx.rect(g, x - 6, y - 24, x + total + 6, y - 23, Ui.GOLD);
-        Gfx.text(g, "DRAFT+  ·  СЕТКА 5×5", x, y - 17, Ui.GOLD);
-        String count = "Захвачено: " + draftPlusOwnedByMe(s) + "/13";
-        int countX = x + total - Minecraft.getInstance().font.width(count);
-        Gfx.text(g, count, countX, y - 17, 0xFF55FF55);
+        Gfx.text(g, "DRAFT+  ·  СЕТКА 5×5", x, y - 18, Ui.GOLD);
+        Gfx.text(g, "Захвачено: " + draftPlusOwnedByMe(s) + "/13", x, y - 8, 0xFF55FF55);
         drawDraftPlusBoard(g, s, x, y, cell, gap, mouseX, mouseY);
     }
 
