@@ -189,7 +189,7 @@
 ## 14. Текущая реализация (проверять по коду, не считать все пункты завершёнными)
 
 В ветке уже присутствуют отдельные доменные классы Draft+ для правил, потока банов/драфта, команд, ролей и Firebase codec; интеграция с Lobby/FriendRunClient; HUD; начальные unit tests. Также реализованы отдельные UI для выбора режима/команд и роль-модификаторы.
-Это не означает, что все согласованные функции завершены. Перед следующими изменениями нужен аудит текущей реализации и gap list по требованиям выше. Известные области, требующие реализации/проверки: полная настройка и snapshot лобби, реальный runtime capture/progress, chaos effects, disconnect/reconnect и host migration, рейтинги и Firebase persistence, подробный экран результата/history/rematch, lifecycle всех ролей, локализация, сетевые/регрессионные тесты.
+Это не означает, что все согласованные функции завершены. Перед следующими изменениями нужен аудит текущей реализации и gap list по требованиям выше. Chaos-модификаторы теперь подключены к серверным событиям и результатам крафта, список фиксируется хостом и сохраняется в истории; требуется отдельная проверка каждого эффекта в игре. Disconnect/reconnect, host migration и global timeout имеют отдельные сценарии и unit tests, но также требуют multiplayer проверки. Остаются аудит runtime capture/progress, изолированных рейтингов и Firebase persistence, подробного экрана результата/history/rematch, lifecycle всех ролей, локализации и сетевых/регрессионных тестов.
 
 ## 15. Технические детали, требующие осторожной реализации
 
@@ -232,3 +232,15 @@
 - If all participants are offline for five minutes, the persisted board decides the result: a unique leader wins, a tied score is a draw, and a board with no captured cells is cancelled without MMR changes.
 - During a rated Draft+ match, if the host disappears, the oldest currently connected participant is elected deterministically after the host heartbeat timeout. If the host leaves the world normally, authority is transferred immediately. The new host cannot change the frozen match settings, roles, bans, or chaos modifiers. A returning former host is an ordinary participant.
 - After a match is complete, the host may edit settings and team assignments for the next match. The next match freezes the updated settings and current role choices when all active participants are ready.
+
+## 17. Реализация Chaos-модификаторов Draft+ (первая тестовая версия)
+
+- Список выбирается один раз хостом при создании состояния матча; случайность детерминирована seed матча. Выбранный список хранится в `draftPlusChaosMods`, передаётся полным snapshot и сохраняется в истории.
+- Вариант «Случайно 1–3» хранится отдельным значением настройки (4), а не смешивается с фиксированным количеством 1/2/3.
+- Богатый урожай: при сборе полностью созревшей пшеницы, моркови, картофеля или свёклы добавляется ещё +1 / +2 / +3 соответствующего продукта.
+- Железная лихорадка: при обычном выпадении сырого железа из железной руды добавляется ещё +1 / +2 / +3 сырого железа; при Silk Touch бонус не выдаётся.
+- Опасная ночь: враждебным мобам типа `Monster` добавляются временные серверные модификаторы максимального здоровья и урона +10% / +20% / +35%. Модификаторы обновляются без накопления и удаляются после матча.
+- Быстрый крафт: при получении результата обычного crafting grid есть шанс 10% / 20% / 30% получить ещё один такой же экземпляр результата. Дополнительный предмет помещается в инвентарь, а при нехватке места появляется рядом с игроком.
+- Дефицит ресурсов: при выборе модификатора дополнительно случайно фиксируется одна категория — руды, урожай, древесина или добыча с мобов. Вероятность удалить каждую единицу добычи составляет 10% / 20% / 30%.
+- Runtime hooks: Fabric API 26.3 `PlayerBlockBreakEvents.AFTER`, `LootTableEvents.MODIFY_DROPS`, `ServerEntityEvents.ENTITY_LOAD`, `ServerTickEvents.END_SERVER_TICK`; дополнительный Mixin в `ResultSlot.onTake` для результата крафта.
+- Эти эффекты — согласованная тестовая реализация, не окончательная балансировка. До multiplayer тестирования нужно проверить, что каждый эффект активен только в Draft+, одинаков для всех игроков и полностью очищается после матча.
