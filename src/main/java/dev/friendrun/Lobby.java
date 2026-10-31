@@ -1040,7 +1040,7 @@ public final class Lobby {
                             }
                             if (!isRatedDraftPlus(current)) {
                                 if (shouldDeleteLobbyOnClose(current, me))
-                                    request("DELETE", "", null);
+                                    conditionalFirebaseDelete(base, current);
                                 return;
                             }
                             long now = System.currentTimeMillis();
@@ -1062,7 +1062,7 @@ public final class Lobby {
                         }
                         FriendRunClient.LOG.debug("FRun: close transfer deferred to Draft+ lease migration");
                     } else if (shouldDeleteLobbyOnClose(current, me)) {
-                        request("DELETE", "", null);
+                        conditionalFirebaseDelete(base, current);
                     }
                 } catch (IOException ignored) {}
             });
