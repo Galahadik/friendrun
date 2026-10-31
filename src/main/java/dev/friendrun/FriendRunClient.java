@@ -612,6 +612,9 @@ public final class FriendRunClient implements ClientModInitializer {
                         if (mc.player != null && personalizeDraftPlusBoard(mc, s)) {
                             if (lateDraftPlusJoin) {
                                 resetDraftPlusAcquisitionTracking(mc, s);
+                                JsonObject ownPlayerDoc = Lobby.obj(players, myName());
+                                s.draftPlusAcquired.putAll(DraftPlusContribution.restoreAcquired(
+                                    Lobby.obj(ownPlayerDoc, "draftPlusAcquired")));
                                 for (int i = 0; i < Math.min(DraftPlusRules.CELL_COUNT, s.draftGoals.size()); i++)
                                     s.draftBase[i] = s.draftGoals.get(i).progressValue(mc, s.draftPlusAcquired);
                                 s.draftPlusNeedsBaseline = false;
