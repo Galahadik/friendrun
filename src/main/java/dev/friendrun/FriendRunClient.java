@@ -585,6 +585,13 @@ public final class FriendRunClient implements ClientModInitializer {
         lobby.setDraftPlusTeam(teamIndex);
     }
 
+    public static void renameDraftPlusTeam(int teamIndex, String name) {
+        if (lobby == null || STATE.gameMode != Game.DRAFT_PLUS || STATE.draftPlusFormat != 1
+            || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
+        if (!lobby.renameDraftPlusTeam(teamIndex, name))
+            chat("Переименовать команду может только её капитан.");
+    }
+
     public static void randomizeDraftPlusTeams() {
         if (lobby == null || !STATE.amHost || STATE.gameMode != Game.DRAFT_PLUS
             || STATE.draftPlusFormat != 1 || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
