@@ -493,14 +493,17 @@ public final class FriendRunClient implements ClientModInitializer {
                         s.draftClaimPending = new boolean[49];
                         s.draftPlusClaimPendingIndex = -1;
                         s.draftPlusClaimSentAtNanos = 0;
+                        s.draftPlusBoardPersonalized = false;
                         // A player joining an already-running match starts tracking only from now.
                         // If the world/player is not loaded yet, roundTick captures this baseline later.
                         s.draftPlusNeedsBaseline = lateDraftPlusJoin;
-                        if (lateDraftPlusJoin && mc.player != null) {
-                            resetDraftPlusAcquisitionTracking(mc, s);
-                            for (int i = 0; i < Math.min(DraftPlusRules.CELL_COUNT, s.draftGoals.size()); i++)
-                                s.draftBase[i] = s.draftGoals.get(i).progressValue(mc, s.draftPlusAcquired);
-                            s.draftPlusNeedsBaseline = false;
+                        if (mc.player != null && personalizeDraftPlusBoard(mc, s)) {
+                            if (lateDraftPlusJoin) {
+                                resetDraftPlusAcquisitionTracking(mc, s);
+                                for (int i = 0; i < Math.min(DraftPlusRules.CELL_COUNT, s.draftGoals.size()); i++)
+                                    s.draftBase[i] = s.draftGoals.get(i).progressValue(mc, s.draftPlusAcquired);
+                                s.draftPlusNeedsBaseline = false;
+                            }
                         }
                         s.target = null;
                     } else if (s.roundGame == Game.WAVES || s.roundGame == Game.MANHUNT) {
@@ -1026,14 +1029,21 @@ public final class FriendRunClient implements ClientModInitializer {
             if (mc.player != null && s.target != null) s.baseline = Inv.count(mc.player, s.target);
             if (mc.player != null && s.roundGame == Game.BINGO && s.chain.size() == s.cfgBingoSize * s.cfgBingoSize) s.bingoBase = Inv.counts(mc.player, s.chain);
             if (mc.player != null && (s.roundGame == Game.DRAFT || s.roundGame == Game.DRAFT_PLUS)) {
-                s.draftPlusNeedsBaseline = false;
                 s.draftBase = new int[49];
-                if (s.roundGame == Game.DRAFT_PLUS) resetDraftPlusAcquisitionTracking(mc, s);
-                for (int i = 0; i < Math.min(s.roundGame == Game.DRAFT_PLUS
-                        ? DraftPlusRules.CELL_COUNT : s.cfgDraftSize * s.cfgDraftSize, s.draftGoals.size()); i++)
-                    s.draftBase[i] = s.roundGame == Game.DRAFT_PLUS
-                        ? s.draftGoals.get(i).progressValue(mc, s.draftPlusAcquired)
-                        : s.draftGoals.get(i).progressValue(mc);
+                if (s.roundGame == Game.DRAFT_PLUS) {
+                    s.draftPlusBoardPersonalized = personalizeDraftPlusBoard(mc, s);
+                    s.draftPlusNeedsBaseline = !s.draftPlusBoardPersonalized;
+                    if (s.draftPlusBoardPersonalized) resetDraftPlusAcquisitionTracking(mc, s);
+                } else {
+                    s.draftPlusNeedsBaseline = false;
+                }
+                if (s.roundGame != Game.DRAFT_PLUS || s.draftPlusBoardPersonalized) {
+                    for (int i = 0; i < Math.min(s.roundGame == Game.DRAFT_PLUS
+                            ? DraftPlusRules.CELL_COUNT : s.cfgDraftSize * s.cfgDraftSize, s.draftGoals.size()); i++)
+                        s.draftBase[i] = s.roundGame == Game.DRAFT_PLUS
+                            ? s.draftGoals.get(i).progressValue(mc, s.draftPlusAcquired)
+                            : s.draftGoals.get(i).progressValue(mc);
+                }
             }
             if (s.roundGame == Game.BINGO) printCard();
             if (s.roundGame == Game.DRAFT) chat("Драфт начался: " + DraftGoal.draftTypeName(s.cfgDraftType) + ". Карточка " + s.cfgDraftSize + "×" + s.cfgDraftSize + "; для победы нужно " + (s.cfgDraftSize * s.cfgDraftSize / 2 + 1) + " целей.");
@@ -1185,6 +1195,10 @@ public final class FriendRunClient implements ClientModInitializer {
                 }
             }
             case Game.DRAFT_PLUS -> {
+                if (!s.draftPlusBoardPersonalized) {
+                    if (!personalizeDraftPlusBoard(mc, s)) return;
+                    s.draftPlusNeedsBaseline = true;
+                }
                 if (s.draftGoals.size() != DraftPlusRules.CELL_COUNT) return;
                 if (s.draftPlusNeedsBaseline) {
                     resetDraftPlusAcquisitionTracking(mc, s);
