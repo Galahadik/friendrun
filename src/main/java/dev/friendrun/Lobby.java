@@ -917,7 +917,8 @@ public final class Lobby {
         }
         long nowMs = System.currentTimeMillis();
         host = str(doc, "host").equals(me);
-        if (host && isRatedDraftPlus(doc) && nowMs - num(doc, "hostSeen") >= 300_000
+        if (host && bool(doc, "launched") && num(doc, "gameMode") == Game.DRAFT_PLUS
+            && nowMs - num(doc, "hostSeen") >= 300_000
             && !bool(doc, "draftPlusAllDisconnectedTimeout")) {
             JsonObject timeout = new JsonObject();
             timeout.addProperty("draftPlusAllDisconnectedTimeout", true);
