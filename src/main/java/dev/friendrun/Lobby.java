@@ -1502,6 +1502,56 @@ public final class Lobby {
         }
     }
 
+    private static void writeDraftPlusWinnerFields(
+        JsonObject doc, JsonObject updates, DraftPlusFlow.State state, long now
+    ) {
+        String token = state.winner();
+        String winnerName = "—";
+        Map<String, Long> playerCells = new java.util.HashMap<>();
+        for (DraftPlusRules.Player player : state.players()) playerCells.put(player.id(), 0L);
+        for (String owner : state.owners()) if (!owner.equals("-") && playerCells.containsKey(owner))
+            playerCells.merge(owner, 1L, Long::sum);
+        long winningCells = 0;
+        if (token.startsWith("player:")) {
+            winnerName = token.substring("player:".length());
+            winningCells = playerCells.getOrDefault(winnerName, 0L);
+        } else if (token.equals("team:0") || token.equals("team:1")) {
+            int team = token.equals("team:0") ? DraftPlusTeams.TEAM_A : DraftPlusTeams.TEAM_B;
+            JsonObject frozen = obj(doc, "draftPlusFrozenSettings");
+            String teamName = str(frozen.isEmpty() ? doc : frozen, frozen.isEmpty()
+                ? (team == 0 ? "draftPlusTeamNameA" : "draftPlusTeamNameB")
+                : (team == 0 ? "teamNameA" : "teamNameB"));
+            winnerName = teamName.isBlank() ? (team == 0 ? "Команда A" : "Команда B") : teamName;
+            for (DraftPlusRules.Player player : state.players())
+                if (player.teamIndex() == team) winningCells += playerCells.getOrDefault(player.id(), 0L);
+        } else if (state.format() == DraftPlusRules.Format.TEAM) {
+            long a = 0, b = 0;
+            for (DraftPlusRules.Player player : state.players()) {
+                if (player.teamIndex() == DraftPlusTeams.TEAM_A) a += playerCells.getOrDefault(player.id(), 0L);
+                else if (player.teamIndex() == DraftPlusTeams.TEAM_B) b += playerCells.getOrDefault(player.id(), 0L);
+            }
+            winningCells = Math.max(a, b);
+        } else {
+            winningCells = playerCells.values().stream().mapToLong(Long::longValue).max().orElse(0);
+        }
+        long startedAt = num(doc, "startAt");
+        long duration = startedAt > 0 ? Math.max(0, now - startedAt) : 0;
+        JsonObject winnerDoc = obj(doc, "winner").deepCopy();
+        winnerDoc.addProperty("name", winnerName);
+        winnerDoc.addProperty("ms", duration);
+        winnerDoc.addProperty("score", winningCells);
+        winnerDoc.addProperty("round", num(doc, "roundId"));
+        winnerDoc.addProperty("mode", Game.DRAFT_PLUS);
+        winnerDoc.addProperty("deltas", "");
+        doc.add("winner", winnerDoc);
+        updates.addProperty("winner/name", winnerName);
+        updates.addProperty("winner/ms", duration);
+        updates.addProperty("winner/score", winningCells);
+        updates.addProperty("winner/round", num(doc, "roundId"));
+        updates.addProperty("winner/mode", Game.DRAFT_PLUS);
+        updates.addProperty("winner/deltas", "");
+    }
+
     private static JsonObject freezeDraftPlusSettings(JsonObject current) {
         JsonObject frozen = new JsonObject();
         frozen.addProperty("format", (int) num(current, "draftPlusFormat"));
@@ -1534,36 +1584,8 @@ public final class Lobby {
                 }
             }
             if (state.phase() == DraftPlusFlow.Phase.COMPLETE
-                && num(obj(doc, "winner"), "round") != num(doc, "roundId")) {
-                String winnerToken = state.winner();
-                String winnerName = "—";
-                long winnerCells = 0;
-                Map<String, Long> playerCells = new java.util.HashMap<>();
-                for (DraftPlusRules.Player player : state.players()) playerCells.put(player.id(), 0L);
-                for (String owner : state.owners()) if (!owner.equals("-") && playerCells.containsKey(owner))
-                    playerCells.merge(owner, 1L, Long::sum);
-                if (winnerToken.startsWith("player:")) {
-                    winnerName = winnerToken.substring("player:".length());
-                    winnerCells = playerCells.getOrDefault(winnerName, 0L);
-                } else if (winnerToken.equals("team:0") || winnerToken.equals("team:1")) {
-                    int winningTeam = winnerToken.equals("team:0") ? DraftPlusTeams.TEAM_A : DraftPlusTeams.TEAM_B;
-                    JsonObject frozen = obj(doc, "draftPlusFrozenSettings");
-                    String teamName = str(frozen.isEmpty() ? doc : frozen, frozen.isEmpty()
-                        ? (winningTeam == 0 ? "draftPlusTeamNameA" : "draftPlusTeamNameB")
-                        : (winningTeam == 0 ? "teamNameA" : "teamNameB"));
-                    winnerName = teamName.isBlank() ? (winningTeam == 0 ? "Команда A" : "Команда B") : teamName;
-                    for (DraftPlusRules.Player player : state.players())
-                        if (player.teamIndex() == winningTeam) winnerCells += playerCells.getOrDefault(player.id(), 0L);
-                } else {
-                    winnerCells = playerCells.values().stream().mapToLong(Long::longValue).max().orElse(0);
-                }
-                updates.addProperty("winner/name", winnerName);
-                long startedAt = num(doc, "startAt");
-                updates.addProperty("winner/ms", startedAt > 0 ? Math.max(0, now - startedAt) : 0);
-                updates.addProperty("winner/score", winnerCells);
-                updates.addProperty("winner/round", num(doc, "roundId"));
-                updates.addProperty("winner/mode", Game.DRAFT_PLUS);
-            }
+                && num(obj(doc, "winner"), "round") != num(doc, "roundId"))
+                writeDraftPlusWinnerFields(doc, updates, state, now);
         }
         if (state != null && state.phase() == DraftPlusFlow.Phase.COMPLETE) {
             String matchSeed = str(doc, "draftPlusSeed");
@@ -1703,7 +1725,11 @@ public final class Lobby {
             state = resolvedForfeits;
             updates.add("draftPlusState", DraftPlusCodec.encode(state));
         }
-        if (state.phase() == DraftPlusFlow.Phase.COMPLETE) return;
+        if (state.phase() == DraftPlusFlow.Phase.COMPLETE) {
+            if (num(obj(doc, "winner"), "round") != num(doc, "roundId"))
+                writeDraftPlusWinnerFields(doc, updates, state, now);
+            return;
+        }
         String lastActionId = str(doc, "draftPlusLastActionId");
         for (String id : players.keySet()) {
             JsonObject player = obj(players, id);
