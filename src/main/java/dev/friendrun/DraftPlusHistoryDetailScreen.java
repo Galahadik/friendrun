@@ -71,15 +71,17 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
         JsonArray owners = data.has("owners") && data.get("owners").isJsonArray()
             ? data.getAsJsonArray("owners") : new JsonArray();
         String date = new SimpleDateFormat("dd.MM.yyyy HH:mm").format(new Date(entry.timestamp()));
-        String title = entry.winnerName().isBlank() || entry.winnerName().equals("—")
-            ? "Ничья" : "Победитель: " + entry.winnerName();
+        String title = Lobby.bool(data, "cancelled") ? "Матч отменён — MMR не меняется"
+            : entry.winnerName().isBlank() || entry.winnerName().equals("—")
+                ? "Ничья" : "Победитель: " + entry.winnerName();
 
         Ui.backdrop(g, width, height);
         Ui.panel(g, panel.x(), panel.y(), panel.w(), panel.h());
         Icons.draw(g, Icons.CROWN, panel.x() + 14, panel.y() + 10, 2, Ui.GOLD);
         Ui.bold(g, "Матч Draft+ · " + entry.format(), panel.x() + 36, panel.y() + 9, Ui.GOLD);
         Gfx.text(g, date + " · " + RunState.formatTime(entry.durationMs())
-            + " · " + (entry.rated() ? "Рейтинговый" : "Тренировочный"), panel.x() + 14, panel.y() + 28, Ui.MUTED);
+            + " · " + (Lobby.bool(data, "cancelled") ? "Отменён" : entry.rated() ? "Рейтинговый" : "Тренировочный"),
+            panel.x() + 14, panel.y() + 28, Ui.MUTED);
         Gfx.text(g, Ui.trunc(title, panel.w() - 28), panel.x() + 14, panel.y() + 46, Ui.TEXT);
         if (!entry.deltas().isBlank())
             Gfx.text(g, Ui.trunc(entry.deltas(), panel.w() - 28), panel.x() + 14, panel.y() + 62, Ui.GOLD);
@@ -100,6 +102,7 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
             String team = (int) Lobby.num(player, "team") == DraftPlusTeams.TEAM_A ? "A"
                 : (int) Lobby.num(player, "team") == DraftPlusTeams.TEAM_B ? "B" : "";
             String name = team.isBlank() ? id : id + " · " + team;
+            if (Lobby.bool(player, "forfeited")) name += " · AFK/поражение";
             Gfx.text(g, Ui.trunc(name, panel.w() - 330), panel.x() + 20, y, Ui.TEXT);
             Gfx.text(g, Integer.toString((int) Lobby.num(player, "cells")), panel.x() + panel.w() - 290, y, Ui.TEXT);
             int contributionScore = (int) Lobby.num(player, "contributionScore");
