@@ -78,18 +78,18 @@ public final class DraftPlusScreen extends Screen {
             rect.x() + rect.w() / 2, rect.y() + 151, enabled ? Ui.GOLD : Ui.MUTED);
     }
 
-    private void drawBoard(GuiGraphicsExtractor g, DraftPlusFlow.State state, int x, int y) {
+    private void drawBoard(GuiGraphicsExtractor g, DraftPlusFlow.State state, java.util.List<DraftGoal> personalGoals, int x, int y) {
         int cell = 34, gap = 4;
         for (int i = 0; i < DraftPlusRules.CELL_COUNT; i++) {
             int cx = x + (i % 5) * (cell + gap);
             int cy = y + (i / 5) * (cell + gap);
             Gfx.rect(g, cx, cy, cx + cell, cy + cell, 0xFF111A27);
             Gfx.rect(g, cx, cy, cx + cell, cy + 1, Ui.LINE);
-            if (i >= state.boardGoals().size()) {
+            if (i >= personalGoals.size()) {
                 Gfx.centered(g, "·", cx + cell / 2, cy + 12, Ui.MUTED);
                 continue;
             }
-            DraftGoal goal = DraftGoal.parse(state.boardGoals().get(i));
+            DraftGoal goal = personalGoals.get(i);
             if (goal != null && goal.icon() != null) {
                 var stack = ItemInfo.stack(goal.icon());
                 if (stack != null) Gfx.item(g, stack, cx + 9, cy + 3);
@@ -149,7 +149,7 @@ public final class DraftPlusScreen extends Screen {
                 : "Сейчас выбирает: " + state.currentActor();
         }
         Gfx.centered(g, status, width / 2, panel.y() + 46, active ? Ui.GREEN : Ui.MUTED);
-        drawBoard(g, state, panel.x() + 18, panel.y() + 82);
+        drawBoard(g, state, FriendRunClient.STATE.draftGoals, panel.x() + 18, panel.y() + 82);
 
         boolean ban = state.phase() == DraftPlusFlow.Phase.BANS;
         if (state.phase() == DraftPlusFlow.Phase.COMPLETE) {
