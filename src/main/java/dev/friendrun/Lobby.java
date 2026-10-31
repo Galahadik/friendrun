@@ -802,8 +802,18 @@ public final class Lobby {
      */
     public void endBecauseHostLeftWorld() {
         if (!host || closed) return;
-        JsonObject current = latestSnapshot();
-        if (current != null && isRatedDraftPlus(current)) {
+        // Decide from Firebase's current root, not a possibly stale/empty SSE cache:
+        // the legacy reset below must never erase a rated Draft+ match.
+        JsonObject current;
+        try {
+            JsonElement persisted = request("GET", "", null);
+            current = persisted != null && persisted.isJsonObject() ? persisted.getAsJsonObject() : null;
+        } catch (IOException ex) {
+            fail(ex);
+            return;
+        }
+        if (current == null) return;
+        if (isRatedDraftPlus(current)) {
             // Relinquish locally first. If the root CAS races with a player heartbeat,
             // the old host must not be reactivated by the next stale SSE/poll snapshot.
             draftPlusWorldExitPending = true;
