@@ -584,7 +584,6 @@ public final class Lobby {
             o.addProperty("draftPlusStartError", "");
             o.addProperty("draftPlusPrepared", false);
             o.addProperty("draftPlusSeed", "");
-            JsonObject currentPlayers = obj(current, "players");
             for (String id : currentPlayers.keySet()) {
                 o.add("players/" + id + "/draftPlusActionId", JsonNull.INSTANCE);
                 o.add("players/" + id + "/draftPlusAction", JsonNull.INSTANCE);
