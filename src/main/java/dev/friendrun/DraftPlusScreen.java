@@ -159,10 +159,19 @@ public final class DraftPlusScreen extends Screen {
         int lastPick = -1;
         for (int i = state.pickers().size() - 1; i >= 0; i--)
             if (!state.pickers().get(i).isBlank()) { lastPick = i; break; }
+        String coinWinner = "после банов";
+        if (state.firstDraftActor() >= 0) {
+            DraftPlusRules.Player first = DraftPlusRules.drafter(
+                state.format(), state.players(), state.firstDraftActor(), 0);
+            coinWinner = state.format() == DraftPlusRules.Format.TEAM
+                ? (first.teamIndex() == DraftPlusTeams.TEAM_A
+                    ? FriendRunClient.STATE.draftPlusTeamNameA : FriendRunClient.STATE.draftPlusTeamNameB)
+                : first.id();
+        }
         DraftGoal lastGoal = lastPick < 0 ? null : DraftGoal.parse(state.boardGoals().get(lastPick));
-        String lastSelection = lastPick < 0 ? "Выборы начнутся после банов"
-            : "Последний выбор: " + state.pickers().get(lastPick) + " — "
-                + (lastGoal == null ? state.boardGoals().get(lastPick) : lastGoal.displayName());
+        String lastSelection = "🪙 Монетка: начинает " + coinWinner
+            + (lastPick < 0 ? "" : " · " + state.pickers().get(lastPick) + " выбрал: "
+                + (lastGoal == null ? state.boardGoals().get(lastPick) : lastGoal.displayName()));
         Gfx.centered(g, Ui.trunc(lastSelection, panel.w() - 32), width / 2, panel.y() + 63, Ui.MUTED);
         drawBoard(g, state, FriendRunClient.STATE.draftGoals, panel.x() + 18, panel.y() + 82);
 
