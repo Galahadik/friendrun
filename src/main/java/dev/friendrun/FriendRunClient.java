@@ -118,6 +118,7 @@ public final class FriendRunClient implements ClientModInitializer {
 
     private static void resetDraftPlusAcquisitionTracking(Minecraft mc, RunState s) {
         s.draftPlusAcquired.clear();
+        s.draftPlusAcquired.putAll(s.draftPlusPersistedAcquired);
         s.draftPlusLastInventory.clear();
         synchronized (s.draftPlusPickupPending) { s.draftPlusPickupPending.clear(); }
         if (mc == null || mc.player == null) return;
@@ -261,6 +262,10 @@ public final class FriendRunClient implements ClientModInitializer {
 
         // игроки
         JsonObject players = Lobby.obj(doc, "players");
+        JsonObject ownPlayerDoc = Lobby.obj(players, myName());
+        s.draftPlusPersistedAcquired.clear();
+        s.draftPlusPersistedAcquired.putAll(DraftPlusContribution.restoreAcquired(
+            Lobby.obj(ownPlayerDoc, "draftPlusAcquired")));
         String hostName = Lobby.str(doc, "host");
         // Estimate host-clock offset from fresh host heartbeat timestamps. Use a monotonic
         // clock after sampling so an old heartbeat does not make the offset drift over time.
@@ -612,9 +617,6 @@ public final class FriendRunClient implements ClientModInitializer {
                         if (mc.player != null && personalizeDraftPlusBoard(mc, s)) {
                             if (lateDraftPlusJoin) {
                                 resetDraftPlusAcquisitionTracking(mc, s);
-                                JsonObject ownPlayerDoc = Lobby.obj(players, myName());
-                                s.draftPlusAcquired.putAll(DraftPlusContribution.restoreAcquired(
-                                    Lobby.obj(ownPlayerDoc, "draftPlusAcquired")));
                                 for (int i = 0; i < Math.min(DraftPlusRules.CELL_COUNT, s.draftGoals.size()); i++)
                                     s.draftBase[i] = s.draftGoals.get(i).progressValue(mc, s.draftPlusAcquired);
                                 s.draftPlusNeedsBaseline = false;
