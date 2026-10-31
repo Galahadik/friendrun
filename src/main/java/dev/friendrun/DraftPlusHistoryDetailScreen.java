@@ -97,7 +97,7 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
         int tableY = panel.y() + 84;
         Ui.frame(g, panel.x() + 12, tableY, panel.w() - 24, 18 + Math.min(10, players.size()) * 18, Ui.SECTION, Ui.LINE);
         Gfx.text(g, "Игрок", panel.x() + 20, tableY + 5, Ui.MUTED);
-        Gfx.text(g, "Клетки", panel.x() + panel.w() - 290, tableY + 5, Ui.MUTED);
+        Gfx.text(g, "Клетки / пики", panel.x() + panel.w() - 290, tableY + 5, Ui.MUTED);
         Gfx.text(g, "Вклад", panel.x() + panel.w() - 235, tableY + 5, Ui.MUTED);
         Gfx.text(g, "Роль", panel.x() + panel.w() - 165, tableY + 5, Ui.MUTED);
         Ui.right(g, "MMR", panel.x() + panel.w() - 20, tableY + 5, Ui.MUTED);
@@ -111,7 +111,9 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
             String name = team.isBlank() ? id : id + " · " + team;
             if (Lobby.bool(player, "forfeited")) name += " · AFK/поражение";
             Gfx.text(g, Ui.trunc(name, panel.w() - 330), panel.x() + 20, y, Ui.TEXT);
-            Gfx.text(g, Integer.toString((int) Lobby.num(player, "cells")), panel.x() + panel.w() - 290, y, Ui.TEXT);
+            String cellsAndPicks = (int) Lobby.num(player, "cells") + " / "
+                + (int) Lobby.num(player, "successfulDraftPicks");
+            Gfx.text(g, cellsAndPicks, panel.x() + panel.w() - 290, y, Ui.TEXT);
             int contributionScore = (int) Lobby.num(player, "contributionScore");
             int contributionDelta = (int) Lobby.num(player, "contributionDelta");
             String contribution = contributionScore + " (" + (contributionDelta > 0 ? "+" : "") + contributionDelta + " MMR)";
