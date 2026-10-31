@@ -164,6 +164,29 @@ final class DraftPlusFlowTest {
     }
 
     @Test
+    void globalTimeoutUsesPersistedTeamBoardInsteadOfFirstTeamForfeit() {
+        List<String> owners = new ArrayList<>();
+        owners.addAll(java.util.Collections.nCopies(12, "alice"));
+        owners.addAll(java.util.Collections.nCopies(13, "bob"));
+        DraftPlusFlow.State state = boardState(DraftPlusRules.Format.TEAM, TEAM_PLAYERS, owners);
+        state = DraftPlusFlow.completeAfterGlobalTimeout(state);
+        assertEquals(DraftPlusFlow.Phase.COMPLETE, state.phase());
+        assertEquals("team:1", state.winner());
+        assertEquals(TEAM_PLAYERS.size(), state.forfeitedPlayers().size());
+    }
+
+    @Test
+    void globalTimeoutWithTiedTeamScoreIsADraw() {
+        List<String> owners = new ArrayList<>();
+        owners.addAll(java.util.Collections.nCopies(12, "alice"));
+        owners.addAll(java.util.Collections.nCopies(12, "bob"));
+        owners.add("-");
+        DraftPlusFlow.State state = boardState(DraftPlusRules.Format.TEAM, TEAM_PLAYERS, owners);
+        state = DraftPlusFlow.completeAfterGlobalTimeout(state);
+        assertEquals("", state.winner());
+    }
+
+    @Test
     void fullBoardForfeitWinnerIgnoresDisconnectedFfaPlayer() {
         List<String> owners = new ArrayList<>();
         owners.addAll(java.util.Collections.nCopies(13, "alice"));
