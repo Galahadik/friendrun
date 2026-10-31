@@ -85,11 +85,11 @@ public final class DraftPlusScreen extends Screen {
             int cy = y + (i / 5) * (cell + gap);
             Gfx.rect(g, cx, cy, cx + cell, cy + cell, 0xFF111A27);
             Gfx.rect(g, cx, cy, cx + cell, cy + 1, Ui.LINE);
-            if (i >= personalGoals.size()) {
+            if (i >= Math.max(personalGoals.size(), state.boardGoals().size())) {
                 Gfx.centered(g, "·", cx + cell / 2, cy + 12, Ui.MUTED);
                 continue;
             }
-            DraftGoal goal = personalGoals.get(i);
+            DraftGoal goal = i < personalGoals.size() ? personalGoals.get(i) : DraftGoal.parse(state.boardGoals().get(i));
             if (goal != null && goal.icon() != null) {
                 var stack = ItemInfo.stack(goal.icon());
                 if (stack != null) Gfx.item(g, stack, cx + 9, cy + 3);
