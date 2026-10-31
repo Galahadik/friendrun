@@ -1026,7 +1026,7 @@ public final class Lobby {
                     JsonObject current = fetched.getAsJsonObject();
 
                     if (!me.equals(str(current, "host"))) {
-                        request("DELETE", "/players/" + me, null);
+                        deleteOwnPlayerEntry();
                         return;
                     }
 
@@ -1035,7 +1035,7 @@ public final class Lobby {
                         // from being overwritten by this voluntary close.
                         for (int attempt = 0; attempt < 4; attempt++) {
                             if (!me.equals(str(current, "host"))) {
-                                request("DELETE", "/players/" + me, null);
+                                deleteOwnPlayerEntry();
                                 return;
                             }
                             if (!isRatedDraftPlus(current)) {
@@ -1053,7 +1053,7 @@ public final class Lobby {
                             transfer.addProperty("hostMigrationAt", now);
                             transfer.addProperty("hostEpoch", num(current, "hostEpoch") + 1);
                             if (commitDraftPlusHostSnapshot(current, transfer)) {
-                                request("DELETE", "/players/" + me, null);
+                                deleteOwnPlayerEntry();
                                 return;
                             }
                             JsonElement refreshed = request("GET", "", null);
