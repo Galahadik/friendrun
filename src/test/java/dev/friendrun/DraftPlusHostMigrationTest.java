@@ -184,15 +184,15 @@ final class DraftPlusHostMigrationTest {
         transfer.addProperty("hostEpoch", 8);
         Lobby.applyFirebasePatch(doc, transfer);
 
-        assertEquals("bob", Lobby.str(doc, "host"));
-        assertEquals(8, Lobby.num(doc, "hostEpoch"));
-        assertEquals("COMPLETE", Lobby.str(Lobby.obj(doc, "draftPlusState"), "phase"));
-        assertEquals(25, Lobby.num(Lobby.obj(doc, "draftPlusState"), "pickIndex"));
+        assertTrue("bob".equals(Lobby.str(doc, "host")));
+        assertTrue(Lobby.num(doc, "hostEpoch") == 8);
+        assertTrue("COMPLETE".equals(Lobby.str(Lobby.obj(doc, "draftPlusState"), "phase")));
+        assertTrue(Lobby.num(Lobby.obj(doc, "draftPlusState"), "pickIndex") == 25);
         assertTrue(Lobby.bool(Lobby.obj(doc, "draftPlusFrozenSettings"), "rated"));
         assertTrue(Lobby.bool(Lobby.obj(doc, "draftPlusFrozenSettings"), "rolesEnabled"));
-        assertEquals("miner", Lobby.str(Lobby.obj(doc, "draftPlusRoles"), "alice"));
-        assertEquals("guardian", Lobby.str(Lobby.obj(doc, "draftPlusRoles"), "bob"));
-        assertEquals("match-seed-42", Lobby.str(doc, "draftPlusSettledSeed"));
+        assertTrue("miner".equals(Lobby.str(Lobby.obj(doc, "draftPlusRoles"), "alice")));
+        assertTrue("guardian".equals(Lobby.str(Lobby.obj(doc, "draftPlusRoles"), "bob")));
+        assertTrue("match-seed-42".equals(Lobby.str(doc, "draftPlusSettledSeed")));
     }
 
 
