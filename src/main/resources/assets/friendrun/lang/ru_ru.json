@@ -135,5 +135,6 @@
   "friendrun.draft_plus.turn.ban": "Твой ход — выбери цель для бана",
   "friendrun.draft_plus.turn.pick": "Твой ход — выбери цель на поле",
   "friendrun.draft_plus.turn.current": "Сейчас выбирает: %s",
-  "friendrun.draft_plus.no_more_choices": "Больше выборов нет"
+  "friendrun.draft_plus.no_more_choices": "Больше выборов нет",
+  "friendrun.draft_plus.chaos.prefix": "Хаос: "
 }
