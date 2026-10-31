@@ -264,6 +264,11 @@ public final class FriendRunClient implements ClientModInitializer {
         s.draftPlusFormat = (int) Lobby.orDef(Lobby.num(doc, "draftPlusFormat"), 0);
         s.draftPlusTeamSize = (int) Math.max(1, Math.min(5, Lobby.orDef(Lobby.num(doc, "draftPlusTeamSize"), 1)));
         s.draftPlusBansEnabled = !doc.has("draftPlusBansEnabled") || Lobby.bool(doc, "draftPlusBansEnabled");
+        s.draftPlusRolesEnabled = !doc.has("draftPlusRolesEnabled") || Lobby.bool(doc, "draftPlusRolesEnabled");
+        s.draftPlusRated = Lobby.bool(doc, "draftPlusRated");
+        s.draftPlusChaosEnabled = !doc.has("draftPlusChaosEnabled") || Lobby.bool(doc, "draftPlusChaosEnabled");
+        s.draftPlusChaosCount = Math.max(1, Math.min(4, (int) Lobby.orDef(Lobby.num(doc, "draftPlusChaosCount"), 1)));
+        s.draftPlusChaosDifficulty = Math.max(0, Math.min(2, (int) Lobby.num(doc, "draftPlusChaosDifficulty")));
         s.draftPlusTeamNameA = Lobby.str(doc, "draftPlusTeamNameA").isBlank() ? "Команда A" : Lobby.str(doc, "draftPlusTeamNameA");
         s.draftPlusTeamNameB = Lobby.str(doc, "draftPlusTeamNameB").isBlank() ? "Команда B" : Lobby.str(doc, "draftPlusTeamNameB");
         JsonObject draftPlusJson = Lobby.obj(doc, "draftPlusState");
@@ -775,6 +780,19 @@ public final class FriendRunClient implements ClientModInitializer {
         lobby.setDraftPlusBansEnabled(enabled);
     }
 
+    public static void setDraftPlusSettings(boolean rolesEnabled, boolean rated, boolean chaosEnabled,
+                                             int chaosCount, int chaosDifficulty) {
+        if (lobby == null || !STATE.amHost || STATE.gameMode != Game.DRAFT_PLUS
+            || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
+        STATE.draftPlusRolesEnabled = rolesEnabled;
+        STATE.draftPlusRated = rated;
+        STATE.draftPlusChaosEnabled = chaosEnabled;
+        STATE.draftPlusChaosCount = Math.max(1, Math.min(4, chaosCount));
+        STATE.draftPlusChaosDifficulty = Math.max(0, Math.min(2, chaosDifficulty));
+        lobby.setDraftPlusSettings(STATE.draftPlusRolesEnabled, STATE.draftPlusRated,
+            STATE.draftPlusChaosEnabled, STATE.draftPlusChaosCount, STATE.draftPlusChaosDifficulty);
+    }
+
     public static void setDraftPlusTeam(int teamIndex) {
         if (lobby == null || STATE.gameMode != Game.DRAFT_PLUS || STATE.draftPlusFormat != 1
             || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
@@ -860,7 +878,15 @@ public final class FriendRunClient implements ClientModInitializer {
                     chat("Draft+ Команды: заполните обе команды до выбранного размера."); return;
                 }
             }
-            if (STATE.players.stream().anyMatch(p -> DraftPlusRole.byId(p.draftPlusRole()) == null)) {
+            if (STATE.draftPlusRated && (STATE.draftPlusFormat == 0
+                ? STATE.players.size() < 2 : STATE.draftPlusTeamSize < 2)) {
+                chat(STATE.draftPlusFormat == 0
+                    ? "Рейтинговый FFA требует минимум 2 игроков. Выберите Training для одиночной игры."
+                    : "Рейтинговый Team требует минимум 2 игроков в каждой команде.");
+                return;
+            }
+            if (STATE.draftPlusRolesEnabled
+                && STATE.players.stream().anyMatch(p -> DraftPlusRole.byId(p.draftPlusRole()) == null)) {
                 chat("Draft+: каждый игрок должен выбрать роль перед стартом."); return;
             }
         }
