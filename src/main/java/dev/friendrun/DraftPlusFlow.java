@@ -209,13 +209,29 @@ public final class DraftPlusFlow {
         if (state.phase() == Phase.COMPLETE || state.forfeitedPlayers().contains(playerId)) return state;
         List<String> forfeited = new ArrayList<>(state.forfeitedPlayers());
         forfeited.add(playerId);
-        String winner = winnerAfterForfeit(state.format(), state.players(), state.owners(), forfeited);
-        boolean allForfeited = forfeited.size() >= state.players().size();
-        Phase phase = state.phase();
-        if (allForfeited || (!winner.isBlank() && phase == Phase.PLAY)) phase = Phase.COMPLETE;
-        return new State(state.format(), state.players(), state.availableGoals(), state.bannedGoals(),
-            state.boardGoals(), state.owners(), forfeited, phase, state.banIndex(),
+        State updated = new State(state.format(), state.players(), state.availableGoals(), state.bannedGoals(),
+            state.boardGoals(), state.owners(), forfeited, state.phase(), state.banIndex(),
             state.firstBanActor(), state.firstDraftActor(), state.pickIndex(),
+            state.currentActor(), state.offerA(), state.offerB(), "");
+        if (forfeited.size() >= state.players().size())
+            return new State(updated.format(), updated.players(), updated.availableGoals(), updated.bannedGoals(),
+                updated.boardGoals(), updated.owners(), updated.forfeitedPlayers(), Phase.COMPLETE,
+                updated.banIndex(), updated.firstBanActor(), updated.firstDraftActor(), updated.pickIndex(),
+                updated.currentActor(), updated.offerA(), updated.offerB(),
+                winnerAfterForfeit(updated.format(), updated.players(), updated.owners(), updated.forfeitedPlayers()));
+        return resolveForfeitOutcome(updated);
+    }
+
+    /** Resolves automatic wins after the remaining active roster changes. */
+    public static State resolveForfeitOutcome(State state) {
+        if (state == null || state.phase() != Phase.PLAY) return state;
+        String winner = winnerAfterForfeit(state.format(), state.players(), state.owners(), state.forfeitedPlayers());
+        boolean full = state.owners().stream().noneMatch("-"::equals);
+        boolean allForfeited = state.forfeitedPlayers().size() >= state.players().size();
+        if (winner.isBlank() && !full && !allForfeited) return state;
+        return new State(state.format(), state.players(), state.availableGoals(), state.bannedGoals(),
+            state.boardGoals(), state.owners(), state.forfeitedPlayers(), Phase.COMPLETE,
+            state.banIndex(), state.firstBanActor(), state.firstDraftActor(), state.pickIndex(),
             state.currentActor(), state.offerA(), state.offerB(), winner);
     }
 
