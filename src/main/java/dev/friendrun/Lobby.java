@@ -802,6 +802,10 @@ public final class Lobby {
      */
     public void endBecauseHostLeftWorld() {
         if (!host || closed) return;
+        // Stop local host actions immediately; a stale SSE event must not revive them
+        // while the authoritative root is being checked.
+        draftPlusWorldExitPending = true;
+        host = false;
         // Decide from Firebase's current root, not a possibly stale/empty SSE cache:
         // the legacy reset below must never erase a rated Draft+ match.
         JsonObject current;
@@ -814,10 +818,8 @@ public final class Lobby {
         }
         if (current == null) return;
         if (isRatedDraftPlus(current)) {
-            // Relinquish locally first. If the root CAS races with a player heartbeat,
-            // the old host must not be reactivated by the next stale SSE/poll snapshot.
-            draftPlusWorldExitPending = true;
-            host = false;
+            // If the root CAS races with a player heartbeat, the lease will expire
+            // and another participant can claim it through the fenced migration path.
             try {
                 writeEx.execute(() -> {
                     try {
@@ -845,6 +847,9 @@ public final class Lobby {
             } catch (RejectedExecutionException ignored) {}
             return; // Keep the rated Draft+ match and all frozen settings intact.
         }
+        // Preserve the legacy non-rated reset, but restore local ownership for that write.
+        draftPlusWorldExitPending = false;
+        host = true;
         JsonObject o = new JsonObject();
         o.addProperty("launched", false);
         o.addProperty("hostInGame", false);
