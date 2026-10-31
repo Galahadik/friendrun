@@ -184,5 +184,6 @@
   "friendrun.draft_plus.detail.contribution_value": "%s (%s MMR)",
   "friendrun.draft_plus.detail.mmr_value": "%s (%s)",
   "friendrun.draft_plus.detail.team_format": "Команди",
-  "friendrun.draft_plus.detail.mmr": "MMR"
+  "friendrun.draft_plus.detail.mmr": "MMR",
+  "friendrun.draft_plus.role.none": "без ролі"
 }
