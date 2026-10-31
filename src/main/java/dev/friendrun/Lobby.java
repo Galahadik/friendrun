@@ -60,6 +60,8 @@ public final class Lobby {
     });
     private final Object snapshotLock = new Object();
     private volatile JsonObject latestDoc;
+    // Incremented under snapshotLock whenever an SSE event changes the cached document.
+    private long snapshotVersion;
     private final java.util.concurrent.atomic.AtomicBoolean snapshotQueued = new java.util.concurrent.atomic.AtomicBoolean();
     private ScheduledFuture<?> poller;
     private long lastBeat = 0;
@@ -796,6 +798,7 @@ public final class Lobby {
                         setPath(latestDoc, path, data);
                     }
                 }
+                snapshotVersion++;
             }
             queueSnapshotDelivery();
         } catch (RuntimeException e) {
@@ -826,13 +829,28 @@ public final class Lobby {
         if (closed || !snapshotQueued.compareAndSet(false, true)) return;
         try {
             pollEx.execute(() -> {
+                long deliveredVersion = -1L;
                 try {
-                    JsonObject doc = latestSnapshot();
+                    JsonObject doc;
+                    synchronized (snapshotLock) {
+                        doc = latestDoc == null ? null : latestDoc.deepCopy();
+                        deliveredVersion = snapshotVersion;
+                    }
                     if (doc == null || closed) return;
                     if (!host && !obj(doc, "players").has(me)) { shutdown("Вас удалили из лобби"); return; }
-                    // Apply latest state promptly on every Firebase event.
+                    // Apply the newest state captured for this delivery.
                     listener.onDoc(doc);
-                } finally { snapshotQueued.set(false); }
+                } finally {
+                    snapshotQueued.set(false);
+                    // An SSE event may have arrived while this delivery was queued or running.
+                    // Such events cannot enqueue while snapshotQueued is true, so recheck after
+                    // releasing the flag. An event arriving after this check queues itself.
+                    boolean newerSnapshot;
+                    synchronized (snapshotLock) {
+                        newerSnapshot = snapshotVersion != deliveredVersion;
+                    }
+                    if (newerSnapshot) queueSnapshotDelivery();
+                }
             });
         } catch (RejectedExecutionException ignored) { snapshotQueued.set(false); }
     }
