@@ -1502,6 +1502,45 @@ public final class Lobby {
             try { state = DraftPlusCodec.decode(stored.getAsJsonObject()); }
             catch (RuntimeException ex) { FriendRunClient.LOG.warn("FRun: invalid Draft+ state in lobby", ex); return; }
         }
+        if (state != null && state.phase() != DraftPlusFlow.Phase.COMPLETE) {
+            for (String id : players.keySet()) {
+                if (bool(obj(players, id), "draftPlusForfeit") && !state.forfeitedPlayers().contains(id)) {
+                    state = DraftPlusFlow.forfeit(state, id);
+                    updates.add("draftPlusState", DraftPlusCodec.encode(state));
+                }
+            }
+            if (state.phase() == DraftPlusFlow.Phase.COMPLETE
+                && num(obj(doc, "winner"), "round") != num(doc, "roundId")) {
+                String winnerToken = state.winner();
+                String winnerName = "—";
+                long winnerCells = 0;
+                Map<String, Long> playerCells = new java.util.HashMap<>();
+                for (DraftPlusRules.Player player : state.players()) playerCells.put(player.id(), 0L);
+                for (String owner : state.owners()) if (!owner.equals("-") && playerCells.containsKey(owner))
+                    playerCells.merge(owner, 1L, Long::sum);
+                if (winnerToken.startsWith("player:")) {
+                    winnerName = winnerToken.substring("player:".length());
+                    winnerCells = playerCells.getOrDefault(winnerName, 0L);
+                } else if (winnerToken.equals("team:0") || winnerToken.equals("team:1")) {
+                    int winningTeam = winnerToken.equals("team:0") ? DraftPlusTeams.TEAM_A : DraftPlusTeams.TEAM_B;
+                    JsonObject frozen = obj(doc, "draftPlusFrozenSettings");
+                    String teamName = str(frozen.isEmpty() ? doc : frozen, frozen.isEmpty()
+                        ? (winningTeam == 0 ? "draftPlusTeamNameA" : "draftPlusTeamNameB")
+                        : (winningTeam == 0 ? "teamNameA" : "teamNameB"));
+                    winnerName = teamName.isBlank() ? (winningTeam == 0 ? "Команда A" : "Команда B") : teamName;
+                    for (DraftPlusRules.Player player : state.players())
+                        if (player.teamIndex() == winningTeam) winnerCells += playerCells.getOrDefault(player.id(), 0L);
+                } else {
+                    winnerCells = playerCells.values().stream().mapToLong(Long::longValue).max().orElse(0);
+                }
+                updates.addProperty("winner/name", winnerName);
+                long startedAt = num(doc, "startAt");
+                updates.addProperty("winner/ms", startedAt > 0 ? Math.max(0, now - startedAt) : 0);
+                updates.addProperty("winner/score", winnerCells);
+                updates.addProperty("winner/round", num(doc, "roundId"));
+                updates.addProperty("winner/mode", Game.DRAFT_PLUS);
+            }
+        }
         if (state != null && state.phase() == DraftPlusFlow.Phase.COMPLETE) {
             String matchSeed = str(doc, "draftPlusSeed");
             if (matchSeed.isBlank()) matchSeed = Long.toString(num(doc, "roundId"));
@@ -1514,27 +1553,28 @@ public final class Lobby {
                     updates.addProperty("draftPlusSettledSeed", matchSeed);
                 }
             }
-            boolean readyAgain = !players.isEmpty();
+            boolean readyAgain = false;
             for (String id : players.keySet()) {
                 JsonObject p = obj(players, id);
-                if (now - num(p, "lastSeen") > 20_000 || !bool(p, "ready")) { readyAgain = false; break; }
+                if (now - num(p, "lastSeen") > 20_000) continue;
+                if (!bool(p, "ready")) { readyAgain = false; break; }
+                readyAgain = true;
             }
             if (readyAgain) state = null;
         }
         if (state == null) {
-            boolean allReady = !players.isEmpty();
-            for (String id : players.keySet()) {
-                JsonObject p = obj(players, id);
-                if (now - num(p, "lastSeen") > 20_000 || !bool(p, "ready")) { allReady = false; break; }
-            }
+            List<String> activeIds = new ArrayList<>();
+            for (String id : players.keySet())
+                if (now - num(obj(players, id), "lastSeen") <= 20_000) activeIds.add(id);
+            boolean allReady = !activeIds.isEmpty();
+            for (String id : activeIds) if (!bool(obj(players, id), "ready")) { allReady = false; break; }
             if (!allReady) return;
             long targetRound = num(doc, "roundId") + 1;
             java.util.Map<String, java.util.Set<String>> completedAdvancements =
-                completedAdvancementsFor(players, targetRound, new ArrayList<>(players.keySet()));
+                completedAdvancementsFor(players, targetRound, activeIds);
             if (completedAdvancements == null) return; // wait until every client has reported its own baseline
             try {
-                List<String> ids = new ArrayList<>();
-                for (String id : players.keySet()) if (now - num(obj(players, id), "lastSeen") <= 20_000) ids.add(id);
+                List<String> ids = new ArrayList<>(activeIds);
                 ids.sort(java.util.Comparator.comparingLong((String id) -> obj(players, id).has("joinedAt")
                     ? num(obj(players, id), "joinedAt") : num(obj(players, id), "lastSeen")).thenComparing(id -> id));
                 List<DraftPlusRules.Player> roster = new ArrayList<>();
@@ -1573,6 +1613,9 @@ public final class Lobby {
                 updates.addProperty("draftPlusPrepared", false);
                 for (String id : ids) {
                     updates.addProperty("players/" + id + "/ready", false);
+                    updates.addProperty("players/" + id + "/draftPlusForfeit", false);
+                    updates.addProperty("players/" + id + "/draftPlusDisconnected", false);
+                    updates.add("players/" + id + "/draftPlusForfeitAt", JsonNull.INSTANCE);
                     updates.add("players/" + id + "/draftPlusAcquired", new JsonObject());
                     updates.add("players/" + id + "/draftPlusActionId", JsonNull.INSTANCE);
                     updates.add("players/" + id + "/draftPlusAction", JsonNull.INSTANCE);
@@ -1586,9 +1629,28 @@ public final class Lobby {
             }
             return;
         }
+        Set<String> forfeitedIds = new HashSet<>(state.forfeitedPlayers());
+        List<String> activeStateIds = state.players().stream().map(DraftPlusRules.Player::id)
+            .filter(id -> !forfeitedIds.contains(id)).toList();
         java.util.Map<String, java.util.Set<String>> completedAdvancements =
-            completedAdvancementsFor(players, num(doc, "roundId") + 1, state.players().stream().map(DraftPlusRules.Player::id).toList());
+            completedAdvancementsFor(players, num(doc, "roundId") + 1, activeStateIds);
         if (completedAdvancements == null) return;
+        while ((state.phase() == DraftPlusFlow.Phase.BANS || state.phase() == DraftPlusFlow.Phase.DRAFT)
+            && state.forfeitedPlayers().contains(state.currentActor())) {
+            String skippedActor = state.currentActor();
+            long seed;
+            try { seed = Long.parseLong(str(doc, "draftPlusSeed")); }
+            catch (NumberFormatException ex) { seed = num(doc, "roundId"); }
+            Random autoRandom = new Random(seed ^ (0x9E3779B97F4A7C15L
+                * (state.phase() == DraftPlusFlow.Phase.BANS ? state.banIndex() + 1L : state.pickIndex() + 1L)));
+            if (state.phase() == DraftPlusFlow.Phase.BANS)
+                state = DraftPlusFlow.ban(state, skippedActor, state.offerA(), completedAdvancements, autoRandom);
+            else
+                state = DraftPlusFlow.pick(state, skippedActor, 0, completedAdvancements, autoRandom);
+            updates.add("draftPlusState", DraftPlusCodec.encode(state));
+            if (state.phase() == DraftPlusFlow.Phase.COMPLETE) break;
+        }
+        if (state.phase() == DraftPlusFlow.Phase.COMPLETE) return;
         String lastActionId = str(doc, "draftPlusLastActionId");
         for (String id : players.keySet()) {
             JsonObject player = obj(players, id);
