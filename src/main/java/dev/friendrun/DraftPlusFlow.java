@@ -25,6 +25,7 @@ public final class DraftPlusFlow {
         List<String> bannedGoals,
         List<String> boardGoals,
         List<String> owners,
+        List<String> forfeitedPlayers,
         Phase phase,
         int banIndex,
         int firstBanActor,
@@ -43,6 +44,7 @@ public final class DraftPlusFlow {
             bannedGoals = List.copyOf(bannedGoals);
             boardGoals = List.copyOf(boardGoals);
             owners = List.copyOf(owners);
+            forfeitedPlayers = List.copyOf(forfeitedPlayers == null ? List.of() : forfeitedPlayers);
             currentActor = currentActor == null ? "" : currentActor;
             offerA = offerA == null ? "" : offerA;
             offerB = offerB == null ? "" : offerB;
@@ -76,7 +78,7 @@ public final class DraftPlusFlow {
                 ? random.nextInt(players.size()) : random.nextInt(2);
             DraftPlusRules.Player actor = DraftPlusRules.banActor(format, players, firstBanActor, 0);
             String[] offers = drawOffers(pool, excludedFor(completedAdvancements, actor.id()), random);
-            return new State(format, players, pool, List.of(), List.of(), List.of(),
+            return new State(format, players, pool, List.of(), List.of(), List.of(), List.of(),
                 Phase.BANS, 0, firstBanActor, -1, 0, actor.id(), offers[0], offers[1], "");
         }
         return beginDraft(format, players, pool, List.of(), completedAdvancements, random);
@@ -103,7 +105,7 @@ public final class DraftPlusFlow {
             state.format(), state.players(), state.firstBanActor(), nextBan);
         String[] offers = drawOffers(available, excludedFor(completedAdvancements, next.id()), random);
         return new State(state.format(), state.players(), available, banned,
-            state.boardGoals(), state.owners(), Phase.BANS, nextBan,
+            state.boardGoals(), state.owners(), state.forfeitedPlayers(), Phase.BANS, nextBan,
             state.firstBanActor(), -1, 0, next.id(), offers[0], offers[1], "");
     }
 
@@ -126,7 +128,7 @@ public final class DraftPlusFlow {
 
         if (board.size() >= DraftPlusRules.CELL_COUNT) {
             return new State(state.format(), state.players(), available, state.bannedGoals(),
-                board, owners, Phase.PLAY, state.banIndex(), state.firstBanActor(),
+                board, owners, state.forfeitedPlayers(), Phase.PLAY, state.banIndex(), state.firstBanActor(),
                 state.firstDraftActor(), board.size(), "", "", "", "");
         }
 
@@ -135,7 +137,7 @@ public final class DraftPlusFlow {
             state.format(), state.players(), state.firstDraftActor(), nextPick);
         String[] offers = drawOffers(available, excludedFor(completedAdvancements, next.id()), random);
         return new State(state.format(), state.players(), available, state.bannedGoals(),
-            board, owners, Phase.DRAFT, state.banIndex(), state.firstBanActor(),
+            board, owners, state.forfeitedPlayers(), Phase.DRAFT, state.banIndex(), state.firstBanActor(),
             state.firstDraftActor(), nextPick, next.id(), offers[0], offers[1], "");
     }
 
@@ -144,6 +146,8 @@ public final class DraftPlusFlow {
         requirePhase(state, Phase.PLAY);
         if (actorId == null || state.players().stream().noneMatch(p -> p.id().equals(actorId)))
             throw new IllegalArgumentException("Unknown Draft+ player");
+        if (state.forfeitedPlayers().contains(actorId))
+            throw new IllegalArgumentException("Forfeited Draft+ players cannot claim cells");
         if (cellIndex < 0 || cellIndex >= state.boardGoals().size()
             || cellIndex >= state.owners().size())
             throw new IllegalArgumentException("Invalid Draft+ board cell");
@@ -152,14 +156,14 @@ public final class DraftPlusFlow {
 
         List<String> owners = new ArrayList<>(state.owners());
         owners.set(cellIndex, actorId);
-        var winner = DraftPlusRules.winner(state.format(), state.players(), owners);
+        String winnerId = winnerAfterForfeit(state.format(), state.players(), owners, state.forfeitedPlayers());
         boolean full = owners.stream().noneMatch("-"::equals);
-        String winnerId = winner.orElse("");
         if (full && winnerId.isEmpty() && state.format() == DraftPlusRules.Format.FFA) {
             long best = -1;
             String leader = "";
             boolean tied = false;
             for (DraftPlusRules.Player player : state.players()) {
+                if (state.forfeitedPlayers().contains(player.id())) continue;
                 long owned = owners.stream().filter(player.id()::equals).count();
                 if (owned > best) {
                     best = owned;
@@ -171,9 +175,11 @@ public final class DraftPlusFlow {
             }
             if (!tied) winnerId = "player:" + leader;
         }
-        Phase nextPhase = winner.isPresent() || full ? Phase.COMPLETE : Phase.PLAY;
+        if (winnerId.isBlank() && full && state.format() == DraftPlusRules.Format.TEAM)
+            winnerId = winnerAfterForfeit(state.format(), state.players(), owners, state.forfeitedPlayers());
+        Phase nextPhase = !winnerId.isBlank() || full ? Phase.COMPLETE : Phase.PLAY;
         return new State(state.format(), state.players(), state.availableGoals(), state.bannedGoals(),
-            state.boardGoals(), owners, nextPhase, state.banIndex(), state.firstBanActor(),
+            state.boardGoals(), owners, state.forfeitedPlayers(), nextPhase, state.banIndex(), state.firstBanActor(),
             state.firstDraftActor(), state.pickIndex(), "", "", "", winnerId);
     }
 
@@ -189,9 +195,60 @@ public final class DraftPlusFlow {
             ? random.nextInt(players.size()) : random.nextInt(2);
         DraftPlusRules.Player first = DraftPlusRules.drafter(format, players, firstActor, 0);
         String[] offers = drawOffers(available, excludedFor(completedAdvancements, first.id()), random);
-        return new State(format, players, available, banned, List.of(), List.of(),
+        return new State(format, players, available, banned, List.of(), List.of(), List.of(),
             Phase.DRAFT, banned.size(), -1, firstActor, 0, first.id(),
             offers[0], offers[1], "");
+    }
+
+    /** Marks a player as forfeited after the five-minute reconnect window expires. */
+    public static State forfeit(State state, String playerId) {
+        Objects.requireNonNull(state, "state");
+        if (playerId == null || state.players().stream().noneMatch(player -> player.id().equals(playerId)))
+            throw new IllegalArgumentException("Unknown Draft+ player");
+        if (state.phase() == Phase.COMPLETE || state.forfeitedPlayers().contains(playerId)) return state;
+        List<String> forfeited = new ArrayList<>(state.forfeitedPlayers());
+        forfeited.add(playerId);
+        String winner = winnerAfterForfeit(state.format(), state.players(), state.owners(), forfeited);
+        boolean allForfeited = forfeited.size() >= state.players().size();
+        Phase phase = state.phase();
+        if (allForfeited || (!winner.isBlank() && phase == Phase.PLAY)) phase = Phase.COMPLETE;
+        return new State(state.format(), state.players(), state.availableGoals(), state.bannedGoals(),
+            state.boardGoals(), state.owners(), forfeited, phase, state.banIndex(),
+            state.firstBanActor(), state.firstDraftActor(), state.pickIndex(),
+            state.currentActor(), state.offerA(), state.offerB(), winner);
+    }
+
+    /** Whether this player has already forfeited the current match. */
+    public static boolean isForfeited(State state, String playerId) {
+        return state != null && state.forfeitedPlayers().contains(playerId);
+    }
+
+    private static String winnerAfterForfeit(
+        DraftPlusRules.Format format, List<DraftPlusRules.Player> players,
+        List<String> owners, List<String> forfeited
+    ) {
+        List<DraftPlusRules.Player> active = players.stream()
+            .filter(player -> !forfeited.contains(player.id())).toList();
+        if (active.isEmpty()) return "";
+        if (format == DraftPlusRules.Format.FFA) {
+            if (active.size() == 1) return "player:" + active.get(0).id();
+            for (DraftPlusRules.Player player : active) {
+                long owned = owners.stream().filter(player.id()::equals).count();
+                if (owned >= DraftPlusRules.WIN_CELLS) return "player:" + player.id();
+            }
+            return "";
+        }
+        boolean activeA = active.stream().anyMatch(player -> player.teamIndex() == DraftPlusTeams.TEAM_A);
+        boolean activeB = active.stream().anyMatch(player -> player.teamIndex() == DraftPlusTeams.TEAM_B);
+        if (activeA && !activeB) return "team:" + DraftPlusTeams.TEAM_A;
+        if (activeB && !activeA) return "team:" + DraftPlusTeams.TEAM_B;
+        for (int team = 0; team < 2; team++) {
+            final int teamId = team;
+            long owned = owners.stream().filter(owner -> players.stream()
+                .anyMatch(player -> player.id().equals(owner) && player.teamIndex() == teamId)).count();
+            if (owned >= DraftPlusRules.WIN_CELLS) return "team:" + team;
+        }
+        return "";
     }
 
     private static Set<String> excludedFor(Map<String, Set<String>> completedAdvancements, String playerId) {
