@@ -71,6 +71,29 @@ public final class DraftPlusChaos {
         snapshot = Snapshot.EMPTY;
     }
 
+    public static String displayName(String id) {
+        if (id == null) return "";
+        if (id.startsWith("resource_scarcity:")) {
+            String category = id.substring("resource_scarcity:".length());
+            String label = switch (category) {
+                case "ores" -> "руды";
+                case "crops" -> "урожай";
+                case "wood" -> "древесина";
+                case "mob_drops" -> "добыча с мобов";
+                default -> "ресурсы";
+            };
+            return "Дефицит ресурсов (" + label + ")";
+        }
+        return switch (id) {
+            case "rich_harvest" -> "Богатый урожай";
+            case "iron_fever" -> "Железная лихорадка";
+            case "dangerous_night" -> "Опасная ночь";
+            case "fast_craft" -> "Быстрый крафт";
+            case "resource_scarcity" -> "Дефицит ресурсов";
+            default -> id;
+        };
+    }
+
     public static List<String> roll(boolean enabled, int countSetting, int difficulty, java.util.Random random) {
         if (!enabled) return List.of();
         int count = countSetting == 4 ? 1 + random.nextInt(3) : Math.max(1, Math.min(3, countSetting));
