@@ -102,12 +102,12 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
         for (int i = 0; i < 25; i++) {
             int col = i % 5, r = i / 5;
             int cx = gridX + col * cellW;
-            int cy = gridY + r * 27;
-            Ui.frame(g, cx, cy, cellW - 2, 25, Ui.ROW, Ui.LINE);
+            int cy = gridY + r * 24;
+            Ui.frame(g, cx, cy, cellW - 2, 22, Ui.ROW, Ui.LINE);
             String goal = i < goals.size() ? goals.get(i).getAsString() : "—";
             String owner = i < owners.size() ? owners.get(i).getAsString() : "-";
-            Gfx.text(g, Ui.trunc(goal, cellW - 10), cx + 4, cy + 4, Ui.TEXT);
-            if (!owner.equals("-")) Gfx.text(g, Ui.trunc("✓ " + owner, cellW - 10), cx + 4, cy + 14, Ui.GREEN);
+            Gfx.text(g, Ui.trunc(goal, cellW - 10), cx + 4, cy + 3, Ui.TEXT);
+            if (!owner.equals("-")) Gfx.text(g, Ui.trunc("✓ " + owner, cellW - 10), cx + 4, cy + 12, Ui.GREEN);
         }
 
         Ui.button(g, backRect, backRect.in(mx, my), true, Ui.Kind.NORMAL);
