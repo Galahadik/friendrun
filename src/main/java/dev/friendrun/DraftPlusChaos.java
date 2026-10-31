@@ -109,7 +109,8 @@ public final class DraftPlusChaos {
                                         BlockState state, net.minecraft.world.level.block.entity.BlockEntity blockEntity) {
         Snapshot current = snapshot;
         if (!current.has("rich_harvest") || !(level instanceof ServerLevel serverLevel)
-            || player.isSpectator() || !(state.getBlock() instanceof CropBlock crop)) return;
+            || player.isSpectator() || player.isCreative()
+            || !(state.getBlock() instanceof CropBlock crop)) return;
         if (crop.getAge(state) < crop.getMaxAge()) return;
 
         net.minecraft.world.item.Item produce = state.is(Blocks.WHEAT) ? Items.WHEAT
@@ -214,7 +215,7 @@ public final class DraftPlusChaos {
     public static void onCrafted(Player player, ItemStack crafted) {
         Snapshot current = snapshot;
         if (!current.has("fast_craft") || !(player instanceof ServerPlayer serverPlayer)
-            || crafted == null || crafted.isEmpty()) return;
+            || serverPlayer.isCreative() || crafted == null || crafted.isEmpty()) return;
         double chance = switch (current.difficulty()) {
             case 0 -> 0.10;
             case 1 -> 0.20;
