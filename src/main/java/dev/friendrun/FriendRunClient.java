@@ -283,6 +283,13 @@ public final class FriendRunClient implements ClientModInitializer {
 
         s.players.clear();
         s.myReady = Lobby.bool(Lobby.obj(players, myName()), "ready");
+        s.draftPlusDisconnectedPlayers.clear();
+        s.draftPlusForfeitedPlayers.clear();
+        for (String id : players.keySet()) {
+            JsonObject playerDoc = Lobby.obj(players, id);
+            if (Lobby.bool(playerDoc, "draftPlusDisconnected")) s.draftPlusDisconnectedPlayers.add(id);
+            if (Lobby.bool(playerDoc, "draftPlusForfeit")) s.draftPlusForfeitedPlayers.add(id);
+        }
         for (String p : players.keySet()) {
             JsonObject playerDoc = Lobby.obj(players, p);
             long joinedAt = playerDoc.has("joinedAt")
@@ -337,6 +344,8 @@ public final class FriendRunClient implements ClientModInitializer {
         String nextDraftPlusError = Lobby.str(doc, "draftPlusStartError");
         if (!previousDraftPlusError.equals(nextDraftPlusError)) s.draftPlusScreenDismissed = false;
         s.draftPlusState = nextDraftPlus;
+        if (s.draftPlusState != null)
+            s.draftPlusForfeitedPlayers.addAll(s.draftPlusState.forfeitedPlayers());
         String nextDraftPlusSeed = Lobby.str(doc, "draftPlusSeed");
         if (!java.util.Objects.equals(s.draftPlusMatchSeed, nextDraftPlusSeed))
             s.draftPlusBoardPersonalized = false;
