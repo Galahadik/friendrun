@@ -168,6 +168,7 @@ public final class FriendRunClient implements ClientModInitializer {
         s.gameMode = (int) Lobby.num(doc, "gameMode");
         s.draftPlusFormat = (int) Lobby.orDef(Lobby.num(doc, "draftPlusFormat"), 0);
         s.draftPlusTeamSize = (int) Math.max(1, Math.min(5, Lobby.orDef(Lobby.num(doc, "draftPlusTeamSize"), 1)));
+        s.draftPlusBansEnabled = !doc.has("draftPlusBansEnabled") || Lobby.bool(doc, "draftPlusBansEnabled");
         s.draftPlusTeamNameA = Lobby.str(doc, "draftPlusTeamNameA").isBlank() ? "Команда A" : Lobby.str(doc, "draftPlusTeamNameA");
         s.draftPlusTeamNameB = Lobby.str(doc, "draftPlusTeamNameB").isBlank() ? "Команда B" : Lobby.str(doc, "draftPlusTeamNameB");
         JsonObject draftPlusJson = Lobby.obj(doc, "draftPlusState");
@@ -624,6 +625,13 @@ public final class FriendRunClient implements ClientModInitializer {
         STATE.draftPlusFormat = Math.max(0, Math.min(1, format));
         STATE.draftPlusTeamSize = Math.max(1, Math.min(5, teamSize));
         lobby.setDraftPlusConfig(STATE.draftPlusFormat, STATE.draftPlusTeamSize);
+    }
+
+    public static void setDraftPlusBansEnabled(boolean enabled) {
+        if (lobby == null || !STATE.amHost || STATE.gameMode != Game.DRAFT_PLUS
+            || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
+        STATE.draftPlusBansEnabled = enabled;
+        lobby.setDraftPlusBansEnabled(enabled);
     }
 
     public static void setDraftPlusTeam(int teamIndex) {
