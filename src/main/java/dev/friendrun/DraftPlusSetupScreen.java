@@ -8,12 +8,16 @@ import net.minecraft.network.chat.Component;
 /** Настройка формата Draft+ в визуальном стиле FriendRun. */
 public final class DraftPlusSetupScreen extends Screen {
     private final Screen parent;
+    private int selectedFormat;
+    private int selectedTeamSize;
     private Button ffaButton, teamButton, sizeButton, confirmButton, backButton;
     private Ui.R panel, ffaRect, teamRect, sizeRect, confirmRect, backRect;
 
     public DraftPlusSetupScreen(Screen parent) {
         super(Component.literal("FriendRun — Draft+"));
         this.parent = parent;
+        this.selectedFormat = FriendRunClient.STATE.draftPlusFormat;
+        this.selectedTeamSize = FriendRunClient.STATE.draftPlusTeamSize;
     }
 
     private Button make(Ui.R r, Runnable action) {
@@ -36,16 +40,13 @@ public final class DraftPlusSetupScreen extends Screen {
         confirmRect = new Ui.R(x + 12, y + 158, (w - 28) / 2, 22);
         backRect = new Ui.R(confirmRect.x() + confirmRect.w() + 4, y + 158, confirmRect.w(), 22);
 
-        ffaButton = make(ffaRect, () -> FriendRunClient.STATE.draftPlusFormat = 0);
-        teamButton = make(teamRect, () -> FriendRunClient.STATE.draftPlusFormat = 1);
-        sizeButton = make(sizeRect, () -> {
-            RunState s = FriendRunClient.STATE;
-            s.draftPlusTeamSize = s.draftPlusTeamSize % 5 + 1;
-        });
+        ffaButton = make(ffaRect, () -> selectedFormat = 0);
+        teamButton = make(teamRect, () -> selectedFormat = 1);
+        sizeButton = make(sizeRect, () -> selectedTeamSize = selectedTeamSize % 5 + 1);
         confirmButton = make(confirmRect, () -> {
             RunState s = FriendRunClient.STATE;
             if (!s.amHost || s.phase != RunState.Phase.IDLE) return;
-            FriendRunClient.setDraftPlusConfig(s.draftPlusFormat, s.draftPlusTeamSize);
+            FriendRunClient.setDraftPlusConfig(selectedFormat, selectedTeamSize);
             FriendRunClient.setGameMode(Game.DRAFT_PLUS);
             Mc.setScreen(parent);
         });
@@ -61,7 +62,7 @@ public final class DraftPlusSetupScreen extends Screen {
     public void extractRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         RunState s = FriendRunClient.STATE;
         boolean editable = s.amHost && s.phase == RunState.Phase.IDLE;
-        boolean teamMode = s.draftPlusFormat == 1;
+        boolean teamMode = selectedFormat == 1;
 
         Ui.backdrop(g, width, height);
         Ui.panel(g, panel.x(), panel.y(), panel.w(), panel.h());
@@ -71,13 +72,13 @@ public final class DraftPlusSetupScreen extends Screen {
 
         super.extractRenderState(g, mx, my, delta);
 
-        Ui.button(g, ffaRect, ffaRect.in(mx, my), editable, s.draftPlusFormat == 0 ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
-        Gfx.centered(g, "FFA", ffaRect.x() + ffaRect.w() / 2, ffaRect.cy() - 4, s.draftPlusFormat == 0 ? Ui.GREEN : Ui.TEXT);
+        Ui.button(g, ffaRect, ffaRect.in(mx, my), editable, selectedFormat == 0 ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
+        Gfx.centered(g, "FFA", ffaRect.x() + ffaRect.w() / 2, ffaRect.cy() - 4, selectedFormat == 0 ? Ui.GREEN : Ui.TEXT);
         Ui.button(g, teamRect, teamRect.in(mx, my), editable, teamMode ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
         Gfx.centered(g, "Команды", teamRect.x() + teamRect.w() / 2, teamRect.cy() - 4, teamMode ? Ui.GREEN : Ui.TEXT);
 
         Ui.button(g, sizeRect, sizeRect.in(mx, my), editable && teamMode, Ui.Kind.NORMAL);
-        String teamSize = "Размер команд: " + s.draftPlusTeamSize + " × " + s.draftPlusTeamSize + " (нажмите, чтобы изменить)";
+        String teamSize = "Размер команд: " + selectedTeamSize + " × " + selectedTeamSize + " (нажмите, чтобы изменить)";
         Gfx.centered(g, teamMode ? teamSize : "FFA: от 1 до 10 игроков · доска 5 × 5",
             sizeRect.x() + sizeRect.w() / 2, sizeRect.cy() - 4, teamMode ? Ui.TEXT : Ui.MUTED);
         Gfx.centered(g, "Победа: захватить 13 из 25 клеток", panel.x() + panel.w() / 2, panel.y() + 139, Ui.MUTED);
