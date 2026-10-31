@@ -36,4 +36,52 @@ final class DraftPlusHostMigrationTest {
 
         assertFalse(Lobby.shouldHeartbeatBeforeDraftPlusMigration(doc, 20_001, 10_000));
     }
+    private static JsonObject disconnectedMatch(long hostSeen, long aliceSeen, long bobSeen) {
+        JsonObject doc = ratedMatch();
+        doc.addProperty("hostSeen", hostSeen);
+        JsonObject state = new JsonObject();
+        state.addProperty("phase", "PLAY");
+        doc.add("draftPlusState", state);
+        JsonObject players = new JsonObject();
+        JsonObject alice = new JsonObject();
+        alice.addProperty("lastSeen", aliceSeen);
+        players.add("alice", alice);
+        JsonObject bob = new JsonObject();
+        bob.addProperty("lastSeen", bobSeen);
+        players.add("bob", bob);
+        doc.add("players", players);
+        return doc;
+    }
+
+    @Test
+    void globalTimeoutRequiresCandidateAndEveryOtherPlayerToBeOfflineForFiveMinutes() {
+        JsonObject doc = disconnectedMatch(1_000, 1_000, 1_000);
+        assertTrue(Lobby.shouldMarkDraftPlusGlobalTimeout(doc, "alice", 301_001, true));
+    }
+
+    @Test
+    void globalTimeoutIsNotTriggeredWhenCandidateWasOnline() {
+        JsonObject doc = disconnectedMatch(1_000, 1_000, 1_000);
+        assertFalse(Lobby.shouldMarkDraftPlusGlobalTimeout(doc, "alice", 301_001, false));
+    }
+
+    @Test
+    void globalTimeoutIsNotTriggeredWhenAnotherPlayerRecentlyHeartbeated() {
+        JsonObject doc = disconnectedMatch(1_000, 1_000, 300_000);
+        assertFalse(Lobby.shouldMarkDraftPlusGlobalTimeout(doc, "alice", 301_001, true));
+    }
+
+    @Test
+    void globalTimeoutIsNotTriggeredWhenHostTimeoutHasNotReachedFiveMinutes() {
+        JsonObject doc = disconnectedMatch(300_000, 1_000, 1_000);
+        assertFalse(Lobby.shouldMarkDraftPlusGlobalTimeout(doc, "alice", 301_001, true));
+    }
+
+    @Test
+    void completedMatchDoesNotReceiveGlobalTimeoutFlag() {
+        JsonObject doc = disconnectedMatch(1_000, 1_000, 1_000);
+        doc.getAsJsonObject("draftPlusState").addProperty("phase", "COMPLETE");
+        assertFalse(Lobby.shouldMarkDraftPlusGlobalTimeout(doc, "alice", 301_001, true));
+    }
+
 }
