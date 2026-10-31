@@ -1719,9 +1719,24 @@ public final class Lobby {
                 String teamName = str(frozen.isEmpty() ? doc : frozen, frozen.isEmpty() ? "draftPlusTeamNameB" : "teamNameB");
                 winnerName = teamName.isBlank() ? "Команда B" : teamName;
             }
+            long winningCells = 0;
+            if (winnerToken.startsWith("player:")) {
+                String winnerId = winnerToken.substring("player:".length());
+                winningCells = state.owners().stream().filter(winnerId::equals).count();
+            } else if (winnerToken.equals("team:0") || winnerToken.equals("team:1")) {
+                int winningTeam = winnerToken.equals("team:0") ? DraftPlusTeams.TEAM_A : DraftPlusTeams.TEAM_B;
+                Set<String> winningPlayers = new HashSet<>();
+                for (DraftPlusRules.Player player : state.players())
+                    if (player.teamIndex() == winningTeam) winningPlayers.add(player.id());
+                winningCells = state.owners().stream().filter(winningPlayers::contains).count();
+            } else {
+                Map<String, Long> counts = new java.util.HashMap<>();
+                for (String owner : state.owners()) if (!owner.equals("-")) counts.merge(owner, 1L, Long::sum);
+                winningCells = counts.values().stream().mapToLong(Long::longValue).max().orElse(0);
+            }
             updates.addProperty("winner/name", winnerName);
             updates.addProperty("winner/ms", Math.max(0, nowForDraftClaims() - startAt));
-            updates.addProperty("winner/score", winnerToken.isBlank() ? 0 : DraftPlusRules.WIN_CELLS);
+            updates.addProperty("winner/score", winningCells);
             updates.addProperty("winner/mode", Game.DRAFT_PLUS);
             updates.addProperty("winner/deltas", "");
             updates.addProperty("winner/round", roundId);
