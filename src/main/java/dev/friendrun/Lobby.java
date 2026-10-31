@@ -476,10 +476,15 @@ public final class Lobby {
     public static long orDef(long v, long def) { return v > 0 ? v : def; }
     public void setNum(String key, long v) { JsonObject o = new JsonObject(); o.addProperty(key, v); patch("", o); }
     public void setFlag(String key, boolean v) { JsonObject o = new JsonObject(); o.addProperty(key, v); patch("", o); }
+    private static boolean draftPlusEditable(JsonObject doc) {
+        if (doc == null || !bool(doc, "launched")) return true;
+        return str(obj(doc, "draftPlusState"), "phase").equals(DraftPlusFlow.Phase.COMPLETE.name());
+    }
+
     public void setDraftPlusConfig(int format, int teamSize) {
         if (!host || closed) return;
         JsonObject current = latestSnapshot();
-        if (current != null && bool(current, "launched")) return;
+        if (current != null && !draftPlusEditable(current)) return;
         JsonObject o = new JsonObject();
         o.addProperty("draftPlusFormat", Math.max(0, Math.min(1, format)));
         o.addProperty("draftPlusTeamSize", Math.max(1, Math.min(5, teamSize)));
@@ -511,7 +516,10 @@ public final class Lobby {
     }
 
     public void setDraftPlusTeam(int teamIndex) {
-        if (closed || teamIndex < DraftPlusTeams.NO_TEAM || teamIndex > DraftPlusTeams.TEAM_B) return;
+        JsonObject current = latestSnapshot();
+        if (closed || current == null || num(current, "gameMode") != Game.DRAFT_PLUS
+            || !draftPlusEditable(current) || teamIndex < DraftPlusTeams.NO_TEAM
+            || teamIndex > DraftPlusTeams.TEAM_B) return;
         JsonObject o = new JsonObject();
         o.addProperty("draftPlusTeam", teamIndex);
         patch("/players/" + me, o);
@@ -522,7 +530,7 @@ public final class Lobby {
         DraftPlusRole role = DraftPlusRole.byId(roleId);
         if (closed || role == null) return;
         JsonObject current = latestSnapshot();
-        if (current == null || bool(current, "launched") || num(current, "gameMode") != Game.DRAFT_PLUS) return;
+        if (current == null || !draftPlusEditable(current) || num(current, "gameMode") != Game.DRAFT_PLUS) return;
         JsonObject players = obj(current, "players");
         if (!players.has(me)) return;
         JsonObject o = new JsonObject();
@@ -534,7 +542,7 @@ public final class Lobby {
     public boolean renameDraftPlusTeam(int teamIndex, String rawName) {
         if (closed || (teamIndex != DraftPlusTeams.TEAM_A && teamIndex != DraftPlusTeams.TEAM_B)) return false;
         JsonObject doc = latestSnapshot();
-        if (doc == null) return false;
+        if (doc == null || num(doc, "gameMode") != Game.DRAFT_PLUS || !draftPlusEditable(doc)) return false;
         JsonObject players = obj(doc, "players");
         List<DraftPlusTeams.Member> roster = new ArrayList<>();
         for (String id : players.keySet()) {
@@ -559,7 +567,7 @@ public final class Lobby {
     public boolean randomizeDraftPlusTeams(int teamSize) {
         if (!host || closed || teamSize < 1 || teamSize > 5) return false;
         JsonObject doc = latestSnapshot();
-        if (doc == null) return false;
+        if (doc == null || num(doc, "gameMode") != Game.DRAFT_PLUS || !draftPlusEditable(doc)) return false;
         JsonObject players = obj(doc, "players");
         List<DraftPlusTeams.Member> roster = new ArrayList<>();
         for (String id : players.keySet()) {
