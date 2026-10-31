@@ -133,7 +133,8 @@ public final class DraftPlusChaos {
         if (!current.active()) return;
         if (current.has("iron_fever")
             && (holder.is(Blocks.IRON_ORE.getLootTable().orElseThrow())
-                || holder.is(Blocks.DEEPSLATE_IRON_ORE.getLootTable().orElseThrow()))) {
+                || holder.is(Blocks.DEEPSLATE_IRON_ORE.getLootTable().orElseThrow()))
+            && drops.stream().anyMatch(stack -> stack.is(Items.RAW_IRON))) {
             drops.add(new ItemStack(Items.RAW_IRON, levelBonus(current)));
         }
         if (current.has("resource_scarcity")) {
@@ -161,7 +162,7 @@ public final class DraftPlusChaos {
     private static boolean matchesScarcityTable(net.minecraft.core.Holder<LootTable> holder, String category) {
         var key = holder.unwrapKey().orElse(null);
         if (key == null) return false;
-        String path = key.location().getPath();
+        String path = key.identifier().getPath();
         return switch (category) {
             case "ores" -> path.contains("_ore");
             case "crops" -> path.contains("wheat") || path.contains("carrot")
@@ -223,6 +224,7 @@ public final class DraftPlusChaos {
         };
         if (serverPlayer.getRandom().nextFloat() >= chance) return;
         ItemStack bonus = crafted.copy();
-        if (!serverPlayer.getInventory().add(bonus)) serverPlayer.drop(bonus, false);
+        if (!serverPlayer.getInventory().add(bonus))
+            spawnDrop(serverPlayer.serverLevel(), serverPlayer.blockPosition(), bonus);
     }
 }
