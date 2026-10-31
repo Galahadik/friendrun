@@ -70,6 +70,8 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
             ? data.getAsJsonArray("boardGoals") : new JsonArray();
         JsonArray owners = data.has("owners") && data.get("owners").isJsonArray()
             ? data.getAsJsonArray("owners") : new JsonArray();
+        JsonArray pickers = data.has("pickers") && data.get("pickers").isJsonArray()
+            ? data.getAsJsonArray("pickers") : new JsonArray();
         String date = new SimpleDateFormat("dd.MM.yyyy HH:mm").format(new Date(entry.timestamp()));
         String title = Lobby.bool(data, "cancelled")
             ? Tr.t("friendrun.draft_plus.detail.cancelled", "Матч отменён — MMR не меняется")
@@ -151,10 +153,16 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
             int cx = gridX + col * cellW;
             int cy = gridY + r * 24;
             Ui.frame(g, cx, cy, cellW - 2, 22, Ui.ROW, Ui.LINE);
-            String goal = i < goals.size() ? goals.get(i).getAsString() : "—";
+            String encodedGoal = i < goals.size() ? goals.get(i).getAsString() : "—";
+            DraftGoal parsedGoal = DraftGoal.parse(encodedGoal);
+            String goal = parsedGoal == null ? encodedGoal : parsedGoal.displayName();
             String owner = i < owners.size() ? owners.get(i).getAsString() : "-";
+            String picker = i < pickers.size() ? pickers.get(i).getAsString() : "";
             Gfx.text(g, Ui.trunc(goal, cellW - 10), cx + 4, cy + 3, Ui.TEXT);
-            if (!owner.equals("-")) Gfx.text(g, Ui.trunc("✓ " + owner, cellW - 10), cx + 4, cy + 12, Ui.GREEN);
+            if (!owner.equals("-")) {
+                String attribution = picker.isBlank() ? "✓ " + owner : "✓ " + owner + " · " + picker;
+                Gfx.text(g, Ui.trunc(attribution, cellW - 10), cx + 4, cy + 12, Ui.GREEN);
+            }
         }
 
         if (resultMode) {
