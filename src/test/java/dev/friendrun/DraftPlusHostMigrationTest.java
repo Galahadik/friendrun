@@ -358,4 +358,33 @@ final class DraftPlusHostMigrationTest {
         assertFalse(Lobby.shouldMarkDraftPlusGlobalTimeout(doc, "alice", 301_001, true));
     }
 
+
+    @Test
+    void migrationRequiresLeaseToBeStrictlyExpiredAndEpochToAdvanceExactlyOnce() {
+        JsonObject doc = ratedMatch();
+        doc.addProperty("host", "alice");
+        doc.addProperty("hostSeen", 20_000);
+        doc.addProperty("hostEpoch", 12);
+        JsonObject players = new JsonObject();
+        JsonObject bob = new JsonObject();
+        bob.addProperty("joinedAt", 1);
+        bob.addProperty("lastSeen", 40_000);
+        players.add("bob", bob);
+        doc.add("players", players);
+
+        JsonObject transfer = new JsonObject();
+        transfer.addProperty("host", "bob");
+        transfer.addProperty("hostSeen", 32_000);
+        transfer.addProperty("hostMigrationAt", 32_000);
+        transfer.addProperty("hostEpoch", 13);
+        assertFalse(Lobby.isValidDraftPlusHostMigration(doc, "bob", transfer));
+
+        transfer.addProperty("hostSeen", 32_001);
+        transfer.addProperty("hostMigrationAt", 32_001);
+        assertTrue(Lobby.isValidDraftPlusHostMigration(doc, "bob", transfer));
+
+        transfer.addProperty("hostEpoch", 14);
+        assertFalse(Lobby.isValidDraftPlusHostMigration(doc, "bob", transfer));
+    }
+
 }
