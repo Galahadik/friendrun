@@ -1515,8 +1515,9 @@ public final class Lobby {
                     int oldMmr = old.has("mmr") ? (int) num(old, "mmr") : DraftPlusRating.START_MMR;
                     int newMmr = delta == null ? oldMmr : delta.newMmr();
                     int mmrDelta = delta == null ? 0 : delta.delta();
-                    boolean won = ffa ? state.winner().equals("player:" + player.id())
-                        : state.winner().equals(player.teamIndex() == DraftPlusTeams.TEAM_A ? "team:0" : "team:1");
+                    boolean won = !forfeited.contains(player.id())
+                        && (ffa ? state.winner().equals("player:" + player.id())
+                            : state.winner().equals(player.teamIndex() == DraftPlusTeams.TEAM_A ? "team:0" : "team:1"));
                     JsonObject updated = new JsonObject();
                     updated.addProperty("name", player.id());
                     updated.addProperty("mmr", newMmr);
