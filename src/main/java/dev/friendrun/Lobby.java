@@ -1362,8 +1362,18 @@ public final class Lobby {
             JsonObject player = obj(players, name);
             int index = (int) num(player, "draftClaim");
             long claimAt = num(player, "draftClaimAt");
-            if (num(player, "draftClaimRound") != roundId || index < 0 || index >= DraftPlusRules.CELL_COUNT
-                || claimAt <= 0 || nowForDraftClaims() - claimAt < DRAFT_CLAIM_SETTLE_MS) continue;
+            long claimRound = num(player, "draftClaimRound");
+            // Discard malformed or previous-round requests instead of leaving stale claims
+            // in Firebase indefinitely. A fresh, valid claim still gets its settle window.
+            if (claimRound != roundId || index < 0 || index >= DraftPlusRules.CELL_COUNT || claimAt <= 0) {
+                if (index != -1 || claimRound != 0 || claimAt != 0) {
+                    updates.addProperty("players/" + name + "/draftClaim", -1);
+                    updates.addProperty("players/" + name + "/draftClaimRound", 0);
+                    updates.addProperty("players/" + name + "/draftClaimAt", 0);
+                }
+                continue;
+            }
+            if (nowForDraftClaims() - claimAt < DRAFT_CLAIM_SETTLE_MS) continue;
             if (index < state.owners().size() && "-".equals(state.owners().get(index))) {
                 try {
                     state = DraftPlusFlow.claim(state, name, index);
