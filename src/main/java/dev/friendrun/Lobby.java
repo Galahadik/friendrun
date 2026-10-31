@@ -463,6 +463,7 @@ public final class Lobby {
         List<DraftPlusTeams.Member> roster = new ArrayList<>();
         for (String id : players.keySet()) {
             JsonObject p = obj(players, id);
+            if (System.currentTimeMillis() - num(p, "lastSeen") > 20_000) continue;
             roster.add(new DraftPlusTeams.Member(id, num(p, "joinedAt"), (int) num(p, "draftPlusTeam")));
         }
         try {
