@@ -308,7 +308,7 @@ public final class LobbyRoomScreen extends Screen {
             // рейтинг игрока в выбранном режиме
             String mmrText;
             int mmrColor;
-            if (s.gameMode == Game.SINGLE_SPEEDRUN) { mmrText = Tr.t("friendrun.ui.no_mmr", "без MMR"); mmrColor = Ui.MUTED; }
+            if (s.gameMode == Game.SINGLE_SPEEDRUN || s.gameMode == Game.DRAFT_PLUS) { mmrText = Tr.t("friendrun.ui.no_mmr", "без MMR"); mmrColor = Ui.MUTED; }
             else {
                 Ranking.Rec rec = Ranking.recFor(Ranking.cached(p.name()), s.gameMode + 1);
                 int mmr = rec == null ? Ranking.START : rec.mmr();
