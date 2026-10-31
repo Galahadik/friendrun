@@ -1061,6 +1061,26 @@ public final class Lobby {
         return candidates.isEmpty() ? null : candidates.get(0);
     }
 
+    /** A candidate may claim an expired lease, but only the deterministic election winner may do so. */
+    static boolean isValidDraftPlusHostMigration(JsonObject expected, String candidate, JsonObject updates) {
+        if (expected == null || updates == null || !isRatedDraftPlus(expected)
+            || candidate == null || candidate.isBlank() || str(expected, "host").isBlank()
+            || !candidate.equals(str(updates, "host"))) return false;
+        long migrationAt = num(updates, "hostMigrationAt");
+        if (migrationAt <= 0
+            || !candidate.equals(electDraftPlusHost(expected, migrationAt, str(expected, "host")))) return false;
+        return num(updates, "hostEpoch") == num(expected, "hostEpoch") + 1;
+    }
+
+    /** CAS for an expired-lease takeover; unlike a normal host write, the actor is not yet the owner. */
+    private boolean commitDraftPlusHostMigration(JsonObject expected, String candidate, JsonObject updates)
+            throws IOException {
+        if (!isValidDraftPlusHostMigration(expected, candidate, updates)) return false;
+        JsonObject replacement = expected.deepCopy();
+        applyFirebasePatch(replacement, updates);
+        return conditionalFirebasePut(base, expected, replacement);
+    }
+
     private boolean tryDraftPlusHostMigration(JsonObject doc, long now) throws IOException {
         String currentHost = str(doc, "host");
         String elected = electDraftPlusHost(doc, now, currentHost);
@@ -1074,7 +1094,7 @@ public final class Lobby {
         if (shouldMarkDraftPlusGlobalTimeout(doc, me, now, draftPlusWasOfflineForFiveMinutes))
             transfer.addProperty("draftPlusAllDisconnectedTimeout", true);
         transfer.addProperty("hostEpoch", num(doc, "hostEpoch") + 1);
-        if (!commitDraftPlusHostSnapshot(doc, transfer)) return false;
+        if (!commitDraftPlusHostMigration(doc, me, transfer)) return false;
         draftPlusWasOfflineForFiveMinutes = false;
         host = true;
         return true;
