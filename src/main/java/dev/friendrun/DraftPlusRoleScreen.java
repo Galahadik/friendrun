@@ -35,7 +35,9 @@ public final class DraftPlusRoleScreen extends Screen {
     private boolean editable() {
         RunState state = FriendRunClient.STATE;
         return FriendRunClient.inLobby() && state.gameMode == Game.DRAFT_PLUS
-            && !state.launched && state.phase == RunState.Phase.IDLE;
+            && (!state.launched || (state.draftPlusState != null
+                && state.draftPlusState.phase() == DraftPlusFlow.Phase.COMPLETE))
+            && state.phase == RunState.Phase.IDLE;
     }
 
     private void publishSettings(boolean roles, boolean rated, boolean chaos, int count, int difficulty) {
