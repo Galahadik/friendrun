@@ -152,6 +152,10 @@ public final class DraftPlusScreen extends Screen {
                 : "Сейчас выбирает: " + state.currentActor();
         }
         Gfx.centered(g, status, width / 2, panel.y() + 46, active ? Ui.GREEN : Ui.MUTED);
+        String chaos = FriendRunClient.STATE.draftPlusChaosModifiers.isEmpty() ? "Хаос-моды: выключены"
+            : "Хаос: " + FriendRunClient.STATE.draftPlusChaosModifiers.stream()
+                .map(DraftPlusChaos::displayName).collect(java.util.stream.Collectors.joining(", "));
+        Gfx.centered(g, Ui.trunc(chaos, panel.w() - 32), width / 2, panel.y() + 63, Ui.MUTED);
         drawBoard(g, state, FriendRunClient.STATE.draftGoals, panel.x() + 18, panel.y() + 82);
 
         boolean ban = state.phase() == DraftPlusFlow.Phase.BANS;
