@@ -162,6 +162,18 @@ final class DraftPlusFlowTest {
     }
 
     @Test
+    void fullBoardForfeitWinnerIgnoresDisconnectedFfaPlayer() {
+        List<String> owners = new ArrayList<>();
+        owners.addAll(java.util.Collections.nCopies(13, "alice"));
+        owners.addAll(java.util.Collections.nCopies(7, "bob"));
+        owners.addAll(java.util.Collections.nCopies(5, "cara"));
+        DraftPlusFlow.State state = boardState(DraftPlusRules.Format.FFA, FFA_PLAYERS, owners);
+        state = DraftPlusFlow.forfeit(state, "alice");
+        assertEquals("player:bob", state.winner());
+        assertEquals(DraftPlusFlow.Phase.COMPLETE, state.phase());
+    }
+
+    @Test
     void forfeitedPlayerCannotClaimAnotherCell() {
         DraftPlusFlow.State state = boardState(DraftPlusRules.Format.FFA, FFA_PLAYERS,
             new ArrayList<>(java.util.Collections.nCopies(25, "-")));
