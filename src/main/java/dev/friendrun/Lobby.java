@@ -723,6 +723,22 @@ public final class Lobby {
         patch("/players/" + me, request);
     }
 
+    /** Publishes match-local acquired item counts for anti-farm contribution scoring. */
+    public void setDraftPlusAcquired(java.util.Map<String, Integer> acquired) {
+        if (closed) return;
+        JsonObject items = new JsonObject();
+        if (acquired != null) {
+            int count = 0;
+            for (java.util.Map.Entry<String, Integer> entry : acquired.entrySet()) {
+                if (entry.getKey() == null || entry.getKey().isBlank()
+                    || entry.getValue() == null || entry.getValue() <= 0 || count >= 100) continue;
+                items.addProperty(entry.getKey(), entry.getValue());
+                count++;
+            }
+        }
+        patch("/players/" + me + "/draftPlusAcquired", items);
+    }
+
     /** Publishes this client's completed advancement IDs for the upcoming Draft+ match. */
     public void setDraftPlusCompletedAdvancements(String csv, long targetRound) {
         if (closed || targetRound <= 0) return;
@@ -1249,6 +1265,17 @@ public final class Lobby {
             for (String owner : state.owners()) if (!owner.equals("-") && cells.containsKey(owner))
                 cells.merge(owner, 1, Integer::sum);
 
+            JsonObject playerDocs = obj(doc, "players");
+            Map<String, DraftPlusContribution.Metrics> contributionMetrics = new java.util.HashMap<>();
+            for (DraftPlusRules.Player player : state.players()) {
+                JsonObject acquired = obj(obj(playerDocs, player.id()), "draftPlusAcquired");
+                Set<String> acquiredIds = new HashSet<>();
+                for (String itemId : acquired.keySet()) if (num(acquired, itemId) > 0) acquiredIds.add(itemId);
+                contributionMetrics.put(player.id(), new DraftPlusContribution.Metrics(
+                    acquiredIds, cells.getOrDefault(player.id(), 0)));
+            }
+            Map<String, Integer> contributionAdjustments = DraftPlusContribution.adjustments(contributionMetrics);
+
             Map<String, JsonObject> oldProfiles = new java.util.HashMap<>();
             List<DraftPlusRating.PlayerResult> ffaPlayers = new ArrayList<>();
             List<DraftPlusRating.PlayerResult> teamA = new ArrayList<>(), teamB = new ArrayList<>();
@@ -1257,7 +1284,8 @@ public final class Lobby {
                 oldProfiles.put(player.id(), profile);
                 int mmr = profile.has("mmr") ? (int) num(profile, "mmr") : DraftPlusRating.START_MMR;
                 DraftPlusRating.PlayerResult result = new DraftPlusRating.PlayerResult(
-                    player.id(), Math.max(0, mmr), cells.getOrDefault(player.id(), 0), 0);
+                    player.id(), Math.max(0, mmr), cells.getOrDefault(player.id(), 0),
+                    contributionAdjustments.getOrDefault(player.id(), 0));
                 if (ffa) ffaPlayers.add(result);
                 else if (player.teamIndex() == DraftPlusTeams.TEAM_A) teamA.add(result);
                 else if (player.teamIndex() == DraftPlusTeams.TEAM_B) teamB.add(result);
@@ -1287,6 +1315,8 @@ public final class Lobby {
                 JsonObject playerHistory = new JsonObject();
                 playerHistory.addProperty("team", player.teamIndex());
                 playerHistory.addProperty("cells", playerCells);
+                playerHistory.addProperty("contributionScore",
+                    DraftPlusContribution.score(contributionMetrics.get(player.id())));
                 String role = str(obj(doc, "draftPlusRoles"), player.id());
                 if (!role.isBlank()) playerHistory.addProperty("role", role);
 
@@ -1430,6 +1460,7 @@ public final class Lobby {
                 updates.addProperty("draftPlusPrepared", false);
                 for (String id : ids) {
                     updates.addProperty("players/" + id + "/ready", false);
+                    updates.add("players/" + id + "/draftPlusAcquired", new JsonObject());
                     updates.add("players/" + id + "/draftPlusActionId", JsonNull.INSTANCE);
                     updates.add("players/" + id + "/draftPlusAction", JsonNull.INSTANCE);
                     updates.add("players/" + id + "/draftPlusGoal", JsonNull.INSTANCE);
