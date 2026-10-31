@@ -51,6 +51,86 @@ final class DraftPlusHostMigrationTest {
     }
 
     @Test
+    void electedCandidateCanClaimExpiredLeaseAndAdvanceEpoch() {
+        JsonObject doc = ratedMatch();
+        doc.addProperty("host", "alice");
+        doc.addProperty("hostSeen", 1_000);
+        doc.addProperty("hostEpoch", 4);
+        JsonObject players = new JsonObject();
+        JsonObject bob = new JsonObject();
+        bob.addProperty("joinedAt", 2);
+        bob.addProperty("lastSeen", 20_000);
+        players.add("bob", bob);
+        JsonObject cara = new JsonObject();
+        cara.addProperty("joinedAt", 3);
+        cara.addProperty("lastSeen", 20_000);
+        players.add("cara", cara);
+        doc.add("players", players);
+
+        JsonObject transfer = new JsonObject();
+        transfer.addProperty("host", "bob");
+        transfer.addProperty("hostSeen", 20_000);
+        transfer.addProperty("hostMigrationAt", 20_000);
+        transfer.addProperty("hostEpoch", 5);
+
+        assertTrue(Lobby.isValidDraftPlusHostMigration(doc, "bob", transfer));
+        assertFalse(Lobby.isValidDraftPlusHostMigration(doc, "cara", transfer));
+    }
+
+    @Test
+    void nextHostCanTakeOverAgainWithMonotonicallyIncreasingEpoch() {
+        JsonObject doc = ratedMatch();
+        doc.addProperty("host", "bob");
+        doc.addProperty("hostSeen", 20_000);
+        doc.addProperty("hostEpoch", 5);
+        JsonObject players = new JsonObject();
+        JsonObject bob = new JsonObject();
+        bob.addProperty("joinedAt", 2);
+        bob.addProperty("lastSeen", 20_000);
+        players.add("bob", bob);
+        JsonObject cara = new JsonObject();
+        cara.addProperty("joinedAt", 3);
+        cara.addProperty("lastSeen", 40_000);
+        players.add("cara", cara);
+        JsonObject dan = new JsonObject();
+        dan.addProperty("joinedAt", 4);
+        dan.addProperty("lastSeen", 40_000);
+        players.add("dan", dan);
+        doc.add("players", players);
+
+        JsonObject transfer = new JsonObject();
+        transfer.addProperty("host", "cara");
+        transfer.addProperty("hostSeen", 40_000);
+        transfer.addProperty("hostMigrationAt", 40_000);
+        transfer.addProperty("hostEpoch", 6);
+
+        assertTrue(Lobby.isValidDraftPlusHostMigration(doc, "cara", transfer));
+    }
+
+    @Test
+    void expiredOrNonElectedCandidateCannotClaimLease() {
+        JsonObject doc = ratedMatch();
+        doc.addProperty("host", "alice");
+        doc.addProperty("hostEpoch", 8);
+        JsonObject players = new JsonObject();
+        JsonObject bob = new JsonObject();
+        bob.addProperty("joinedAt", 1);
+        bob.addProperty("lastSeen", 1);
+        players.add("bob", bob);
+        doc.add("players", players);
+
+        JsonObject transfer = new JsonObject();
+        transfer.addProperty("host", "bob");
+        transfer.addProperty("hostSeen", 20_000);
+        transfer.addProperty("hostMigrationAt", 20_000);
+        transfer.addProperty("hostEpoch", 9);
+
+        assertFalse(Lobby.isValidDraftPlusHostMigration(doc, "bob", transfer));
+        transfer.addProperty("hostEpoch", 10);
+        assertFalse(Lobby.isValidDraftPlusHostMigration(doc, "bob", transfer));
+    }
+
+    @Test
     void staleReturningClientMustRefreshHeartbeatBeforeHostElection() {
         JsonObject doc = ratedMatch();
 
