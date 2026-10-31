@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 
 import java.util.HashSet;
 import java.util.Set;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import org.junit.jupiter.api.Test;
 
 final class DraftPlusRoleTest {
@@ -38,11 +37,11 @@ final class DraftPlusRoleTest {
         assertEquals(0.15, DraftPlusRole.ACROBAT.amount());
         assertEquals(0.20, DraftPlusRole.SWIMMER.amount());
 
-        assertEquals(AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL, DraftPlusRole.SPEEDSTER.operation());
-        assertEquals(AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL, DraftPlusRole.MINER.operation());
-        assertEquals(AttributeModifier.Operation.ADD_VALUE, DraftPlusRole.GUARD.operation());
-        assertEquals(AttributeModifier.Operation.ADD_VALUE, DraftPlusRole.FIGHTER.operation());
-        assertEquals(AttributeModifier.Operation.ADD_MULTIPLIED_TOTAL, DraftPlusRole.ACROBAT.operation());
-        assertEquals(AttributeModifier.Operation.ADD_VALUE, DraftPlusRole.SWIMMER.operation());
+        assertTrue(DraftPlusRole.SPEEDSTER.multiplicative());
+        assertTrue(DraftPlusRole.MINER.multiplicative());
+        assertFalse(DraftPlusRole.GUARD.multiplicative());
+        assertFalse(DraftPlusRole.FIGHTER.multiplicative());
+        assertTrue(DraftPlusRole.ACROBAT.multiplicative());
+        assertFalse(DraftPlusRole.SWIMMER.multiplicative());
     }
 }
