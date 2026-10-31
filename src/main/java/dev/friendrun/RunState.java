@@ -72,6 +72,8 @@ public final class RunState {
     public String[] draftOwners = new String[49];
     public int[] draftBase = new int[49];
     public boolean[] draftClaimPending = new boolean[49];
+    public int draftPlusClaimPendingIndex = -1;
+    public long draftPlusClaimSentAtNanos;
     public int[] bingoBase = new int[25];           // бинго: сколько штук было в инвентаре на старте
     public long countdownEndNanos;
     public long startNanos;
@@ -110,6 +112,8 @@ public final class RunState {
         draftOwners = new String[49];
         draftBase = new int[49];
         draftClaimPending = new boolean[49];
+        draftPlusClaimPendingIndex = -1;
+        draftPlusClaimSentAtNanos = 0;
     }
 
     public void resetAll() {
