@@ -438,6 +438,7 @@ public final class Lobby {
         List<DraftPlusTeams.Member> roster = new ArrayList<>();
         for (String id : players.keySet()) {
             JsonObject p = obj(players, id);
+            if (System.currentTimeMillis() - num(p, "lastSeen") > 20_000) continue;
             roster.add(new DraftPlusTeams.Member(id, num(p, "joinedAt"), (int) num(p, "draftPlusTeam")));
         }
         try {
@@ -840,11 +841,6 @@ public final class Lobby {
         JsonObject players = obj(doc, "players");
         JsonObject updates = new JsonObject();
 
-        if (!bool(doc, "launched") && num(doc, "gameMode") == Game.DRAFT_PLUS
-            && num(doc, "draftPlusFormat") == 1) {
-            reconcileDraftPlusTeams(players, (int) orDef(num(doc, "draftPlusTeamSize"), 1), updates);
-        }
-
         // Одиночный спидран: хост — единственный участник. Удаляем только игроков ЭТОГО лобби.
         boolean solo = bool(doc, "soloLock") || num(doc, "gameMode") == Game.SINGLE_SPEEDRUN;
         if (solo) {
@@ -855,6 +851,10 @@ public final class Lobby {
             if (!p.equals(me) && (solo || now - num(obj(players, p), "lastSeen") > 20_000)) {
                 updates.add("players/" + p, JsonNull.INSTANCE);
             }
+        }
+        if (!bool(doc, "launched") && num(doc, "gameMode") == Game.DRAFT_PLUS
+            && num(doc, "draftPlusFormat") == 1) {
+            reconcileDraftPlusTeams(players, (int) orDef(num(doc, "draftPlusTeamSize"), 1), updates);
         }
         boolean launched = bool(doc, "launched");
         long startAt = num(doc, "startAt");
@@ -981,11 +981,18 @@ public final class Lobby {
     /** Keeps simultaneous client joins within the configured team capacity. */
     private static void reconcileDraftPlusTeams(JsonObject players, int teamSize, JsonObject updates) {
         if (teamSize < 1 || teamSize > 5) teamSize = 1;
+        for (String id : players.keySet()) {
+            long assigned = num(obj(players, id), "draftPlusTeam");
+            if ((assigned < DraftPlusTeams.NO_TEAM || assigned > DraftPlusTeams.TEAM_B)
+                && !updates.has("players/" + id))
+                updates.addProperty("players/" + id + "/draftPlusTeam", DraftPlusTeams.NO_TEAM);
+        }
         for (int team = DraftPlusTeams.TEAM_A; team <= DraftPlusTeams.TEAM_B; team++) {
             final int teamIndex = team;
             List<String> members = new ArrayList<>();
             for (String id : players.keySet())
-                if (num(obj(players, id), "draftPlusTeam") == teamIndex) members.add(id);
+                if (!updates.has("players/" + id)
+                    && num(obj(players, id), "draftPlusTeam") == teamIndex) members.add(id);
             members.sort(java.util.Comparator
                 .comparingLong((String id) -> num(obj(players, id), "joinedAt"))
                 .thenComparing(id -> id));
