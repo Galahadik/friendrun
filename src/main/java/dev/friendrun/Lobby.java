@@ -429,6 +429,30 @@ public final class Lobby {
         patch("/players/" + me, o);
     }
 
+    /** A team captain may rename only the team they currently captain. */
+    public boolean renameDraftPlusTeam(int teamIndex, String rawName) {
+        if (closed || (teamIndex != DraftPlusTeams.TEAM_A && teamIndex != DraftPlusTeams.TEAM_B)) return false;
+        JsonObject doc = latestSnapshot();
+        if (doc == null) return false;
+        JsonObject players = obj(doc, "players");
+        List<DraftPlusTeams.Member> roster = new ArrayList<>();
+        for (String id : players.keySet()) {
+            JsonObject p = obj(players, id);
+            roster.add(new DraftPlusTeams.Member(id, num(p, "joinedAt"), (int) num(p, "draftPlusTeam")));
+        }
+        try {
+            if (!DraftPlusTeams.isCaptain(roster, me, teamIndex)) return false;
+            String name = DraftPlusTeams.validateTeamName(rawName);
+            JsonObject updates = new JsonObject();
+            updates.addProperty(teamIndex == DraftPlusTeams.TEAM_A ? "draftPlusTeamNameA" : "draftPlusTeamNameB", name);
+            patch("", updates);
+            return true;
+        } catch (IllegalArgumentException e) {
+            FriendRunClient.LOG.warn("FRun: Draft+ team rename rejected: {}", e.getMessage());
+            return false;
+        }
+    }
+
     /** Host-side random assignment; only the host chooses and publishes the result. */
     public boolean randomizeDraftPlusTeams(int teamSize) {
         if (!host || closed || teamSize < 1 || teamSize > 5) return false;
