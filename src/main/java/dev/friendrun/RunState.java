@@ -32,7 +32,7 @@ public final class RunState {
     public String address = "";        // домен e4mc мира хоста
     public String status = "";         // строка состояния для экрана лобби
     public long roundId;
-    public record PlayerInfo(String name, boolean host, boolean ready, int score, boolean dead) {}
+    public record PlayerInfo(String name, boolean host, boolean ready, int score, boolean dead, long joinedAt, int draftPlusTeam) {}
     public final List<PlayerInfo> players = new ArrayList<>();
 
     public String playersLine() {
