@@ -73,6 +73,6 @@ public enum DraftPlusRole {
 
     public static String label(String id) {
         DraftPlusRole role = byId(id);
-        return role == null ? "без роли" : role.title;
+        return role == null ? Tr.t("friendrun.draft_plus.role.none", "без роли") : role.title();
     }
 }
