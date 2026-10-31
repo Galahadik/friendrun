@@ -58,11 +58,12 @@ final class DraftPlusFlowTest {
 
         assertEquals(DraftPlusFlow.Phase.BANS, state.phase());
         for (int ban = 0; ban < DraftPlusRules.defaultBanCount(DraftPlusRules.Format.FFA); ban++) {
+            DraftPlusFlow.State beforeBan = state;
             String wrongActor = FFA_PLAYERS.stream().map(DraftPlusRules.Player::id)
-                .filter(id -> !id.equals(state.currentActor())).findFirst().orElseThrow();
+                .filter(id -> !id.equals(beforeBan.currentActor())).findFirst().orElseThrow();
             assertThrows(IllegalArgumentException.class,
-                () -> DraftPlusFlow.ban(state, wrongActor, state.offerA(), Map.of(), new Random(9)));
-            state = DraftPlusFlow.ban(state, state.currentActor(), state.offerA(), Map.of(), new Random(ban + 10));
+                () -> DraftPlusFlow.ban(beforeBan, wrongActor, beforeBan.offerA(), Map.of(), new Random(9)));
+            state = DraftPlusFlow.ban(beforeBan, beforeBan.currentActor(), beforeBan.offerA(), Map.of(), new Random(ban + 10));
         }
 
         assertEquals(DraftPlusFlow.Phase.DRAFT, state.phase());
