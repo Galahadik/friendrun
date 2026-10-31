@@ -44,6 +44,7 @@ public final class FriendRunClient implements ClientModInitializer {
     private static long lastRollAt;
     private static int lastSubmittedDraftPick = -1;
     private static String lastDraftPlusAdvancementReport = "";
+    private static long lastDraftPlusAdvancementReportAtNanos;
 
     @Override
     public void onInitializeClient() {
@@ -264,7 +265,10 @@ public final class FriendRunClient implements ClientModInitializer {
         String nextDraftPlusError = Lobby.str(doc, "draftPlusStartError");
         if (!previousDraftPlusError.equals(nextDraftPlusError)) s.draftPlusScreenDismissed = false;
         s.draftPlusState = nextDraftPlus;
-        s.draftPlusMatchSeed = Lobby.str(doc, "draftPlusSeed");
+        String nextDraftPlusSeed = Lobby.str(doc, "draftPlusSeed");
+        if (!java.util.Objects.equals(s.draftPlusMatchSeed, nextDraftPlusSeed))
+            s.draftPlusBoardPersonalized = false;
+        s.draftPlusMatchSeed = nextDraftPlusSeed;
         s.draftPlusStartError = nextDraftPlusError;
         s.draftActive = Lobby.bool(doc, "draftActive");
         s.draftComplete = Lobby.bool(doc, "draftComplete");
@@ -903,6 +907,7 @@ public final class FriendRunClient implements ClientModInitializer {
         hostGameStateSent = false; lastHostGameState = false; hostWorldJoinLocked = false;
         lastJoinTry = 0; joinAttempts = 0; rouletteInit = false; chaosInit = false; lastChaosRollAt = 0; lastRollAt = 0; lastStartAt = 0; lastPreparedAckRound = 0; lastHostSeenValue = Long.MIN_VALUE; hostClockOffsetMs = 0; lastWinnerRound = Long.MAX_VALUE;
         lastDraftPlusAdvancementReport = "";
+        lastDraftPlusAdvancementReportAtNanos = 0;
         STATE.resetAll();
         Settings.clearLobby();
     }
@@ -938,8 +943,11 @@ public final class FriendRunClient implements ClientModInitializer {
             long targetRound = s.roundId + 1;
             String completed = String.join(",", DraftGoal.Advancement.completedIds(mc));
             String reportKey = targetRound + ":" + completed;
-            if (!reportKey.equals(lastDraftPlusAdvancementReport)) {
+            long nowNanos = System.nanoTime();
+            if (!reportKey.equals(lastDraftPlusAdvancementReport)
+                || nowNanos - lastDraftPlusAdvancementReportAtNanos >= 5_000_000_000L) {
                 lastDraftPlusAdvancementReport = reportKey;
+                lastDraftPlusAdvancementReportAtNanos = nowNanos;
                 lobby.setDraftPlusCompletedAdvancements(completed, targetRound);
             }
         }
