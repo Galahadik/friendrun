@@ -1356,11 +1356,36 @@ public final class Lobby {
             long now = System.currentTimeMillis();
             for (String n : all.getAsJsonObject().keySet()) {
                 if (n.equals(name) || n.startsWith("_")) continue;   // "_mmr" и другие служебные узлы не удаляем
-                if (now - num(obj(all.getAsJsonObject(), n), "hostSeen") > 60_000) send("DELETE", root + "/" + n, null);
+                JsonObject lobby = obj(all.getAsJsonObject(), n);
+                if (shouldCleanupStaleLobby(lobby, now)) {
+                    String lobbyUrl = root + "/" + n + ".json";
+                    conditionalFirebaseDelete(lobbyUrl, lobby);
+                }
             }
         } catch (IOException | RuntimeException e) {
             FriendRunClient.LOG.warn("FRun: очистка старых лобби не удалась: {}", e.toString());
         }
+    }
+
+    static boolean shouldCleanupStaleLobby(JsonObject lobby, long nowMs) {
+        if (lobby == null) return false;
+        // An unsettled rated match must remain recoverable even if its host left
+        // voluntarily and no successor was online to claim the lease.
+        if (isRatedDraftPlus(lobby) && !draftPlusSettlementConfirmed(lobby)) return false;
+        return nowMs - num(lobby, "hostSeen") > 60_000L;
+    }
+
+    private static boolean conditionalFirebaseDelete(String url, JsonElement expected) throws IOException {
+        return FirebaseConditionalState.deleteIfUnchanged(request -> {
+            try {
+                HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+                return new FirebaseConditionalState.Response(response.statusCode(), response.body(),
+                    response.headers().firstValue("ETag").orElse(null));
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Firebase conditional delete interrupted", interrupted);
+            }
+        }, URI.create(url.endsWith(".json") ? url : url + ".json"), expected);
     }
 
     private void heartbeatAsync() {
