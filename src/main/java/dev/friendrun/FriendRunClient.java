@@ -854,7 +854,7 @@ public final class FriendRunClient implements ClientModInitializer {
     public static void setDraftPlusSettings(boolean rolesEnabled, boolean rated, boolean chaosEnabled,
                                              int chaosCount, int chaosDifficulty) {
         if (lobby == null || !STATE.amHost || STATE.gameMode != Game.DRAFT_PLUS
-            || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
+            || !draftPlusEditable() || STATE.phase != RunState.Phase.IDLE) return;
         STATE.draftPlusRolesEnabled = rolesEnabled;
         STATE.draftPlusRated = rated;
         STATE.draftPlusChaosEnabled = chaosEnabled;
@@ -866,7 +866,7 @@ public final class FriendRunClient implements ClientModInitializer {
 
     public static void setDraftPlusTeam(int teamIndex) {
         if (lobby == null || STATE.gameMode != Game.DRAFT_PLUS || STATE.draftPlusFormat != 1
-            || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
+            || !draftPlusEditable() || STATE.phase != RunState.Phase.IDLE) return;
         if (teamIndex != DraftPlusTeams.NO_TEAM && teamIndex != DraftPlusTeams.TEAM_A
             && teamIndex != DraftPlusTeams.TEAM_B) return;
         if (teamIndex != DraftPlusTeams.NO_TEAM) {
@@ -883,7 +883,7 @@ public final class FriendRunClient implements ClientModInitializer {
     public static void setDraftPlusRole(String roleId) {
         DraftPlusRole role = DraftPlusRole.byId(roleId);
         if (lobby == null || role == null || STATE.gameMode != Game.DRAFT_PLUS
-            || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
+            || !draftPlusEditable() || STATE.phase != RunState.Phase.IDLE) return;
         lobby.setDraftPlusRole(role.id());
         String me = myName();
         for (int i = 0; i < STATE.players.size(); i++) {
@@ -898,14 +898,14 @@ public final class FriendRunClient implements ClientModInitializer {
 
     public static void renameDraftPlusTeam(int teamIndex, String name) {
         if (lobby == null || STATE.gameMode != Game.DRAFT_PLUS || STATE.draftPlusFormat != 1
-            || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
+            || !draftPlusEditable() || STATE.phase != RunState.Phase.IDLE) return;
         if (!lobby.renameDraftPlusTeam(teamIndex, name))
             chat("Переименовать команду может только её капитан.");
     }
 
     public static void randomizeDraftPlusTeams() {
         if (lobby == null || !STATE.amHost || STATE.gameMode != Game.DRAFT_PLUS
-            || STATE.draftPlusFormat != 1 || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
+            || STATE.draftPlusFormat != 1 || !draftPlusEditable() || STATE.phase != RunState.Phase.IDLE) return;
         if (lobby.randomizeDraftPlusTeams(STATE.draftPlusTeamSize))
             chat("Запрос на случайное распределение команд отправлен.");
         else
