@@ -141,7 +141,8 @@ public final class DraftPlusHistoryScreen extends Screen {
                 if (!available) continue;
                 Lobby.DraftPlusHistoryEntry entry = rows.get(scroll + i);
                 String date = new SimpleDateFormat("dd.MM HH:mm").format(new Date(entry.timestamp()));
-                String mode = entry.rated() ? "Rated" : "Training";
+                String mode = Lobby.bool(entry.data(), "cancelled") ? "Отменён"
+                    : entry.rated() ? "Rated" : "Training";
                 String winner = entry.winnerName().isBlank() ? "—" : entry.winnerName();
                 String left = (scroll + i + 1) + ". " + date + " · " + mode + " · " + winner;
                 Gfx.text(g, Ui.trunc(left, rect.w() - 120), rect.x() + 7, rect.y() + 6, Ui.TEXT);
