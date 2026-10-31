@@ -262,7 +262,7 @@ public final class FriendRunClient implements ClientModInitializer {
             } else if (wm == Game.DRAFT) {
                 chat("Драфт завершён. Победитель: " + wn + " — захвачено целей: " + Lobby.num(w, "score"));
             } else if (wm == Game.DRAFT_PLUS) {
-                chat(wn.equals("—") ? "Draft+ завершён: ничья."
+                chat(wn.equals("—") ? "Draft+ завершён без победителя: правило ничьей ещё не определено."
                     : "Draft+ завершён. Победитель: " + wn + " — захвачено клеток: " + Lobby.num(w, "score"));
             } else {
                 chat("Победитель: " + wn + " — " + RunState.formatTime(Lobby.num(w, "ms")));
