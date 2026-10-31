@@ -875,8 +875,17 @@ public final class Lobby {
         try {
             writeEx.execute(() -> {
                 if (closed) return;
-                try { request("PATCH", path, body.toString()); }
-                catch (IOException e) { fail(e); }
+                try {
+                    if (path.isEmpty()) {
+                        JsonObject snapshot = latestSnapshot();
+                        if (snapshot != null && isRatedDraftPlus(snapshot)) {
+                            if (!commitDraftPlusHostSnapshot(snapshot, body)) {
+                                FriendRunClient.LOG.debug("FRun: rejected root update from stale Draft+ host/client");
+                                return;
+                            }
+                        } else request("PATCH", path, body.toString());
+                    } else request("PATCH", path, body.toString());
+                } catch (IOException e) { fail(e); }
             });
         } catch (RejectedExecutionException ignored) {}
     }
@@ -2390,7 +2399,7 @@ public final class Lobby {
         return conditionalFirebasePut(base, expected, replacement);
     }
 
-    private static void applyFirebasePatch(JsonObject target, JsonObject patch) {
+    static void applyFirebasePatch(JsonObject target, JsonObject patch) {
         for (Map.Entry<String, JsonElement> entry : patch.entrySet()) {
             String[] path = entry.getKey().split("/");
             applyFirebasePatchPath(target, path, 0, entry.getValue());
