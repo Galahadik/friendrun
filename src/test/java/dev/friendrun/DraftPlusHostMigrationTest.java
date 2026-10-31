@@ -389,6 +389,18 @@ final class DraftPlusHostMigrationTest {
 
 
     @Test
+    void closingUsesPersistedStateAndNeverDeletesARatedMatch() {
+        JsonObject ordinaryLobby = new JsonObject();
+        ordinaryLobby.addProperty("host", "alice");
+        assertTrue(Lobby.shouldDeleteLobbyOnClose(ordinaryLobby, "alice"));
+
+        JsonObject startedRatedMatch = ratedMatch();
+        startedRatedMatch.addProperty("host", "alice");
+        assertFalse(Lobby.shouldDeleteLobbyOnClose(startedRatedMatch, "alice"));
+        assertFalse(Lobby.shouldDeleteLobbyOnClose(startedRatedMatch, "bob"));
+    }
+
+    @Test
     void staleHostHeartbeatCannotRenewLeaseAfterReplacement() {
         JsonObject persisted = ratedMatch();
         persisted.addProperty("host", "bob");
