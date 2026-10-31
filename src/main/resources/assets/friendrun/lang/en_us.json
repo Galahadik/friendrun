@@ -135,5 +135,6 @@
   "friendrun.draft_plus.turn.ban": "Your turn — choose a goal to ban",
   "friendrun.draft_plus.turn.pick": "Your turn — choose a goal for the board",
   "friendrun.draft_plus.turn.current": "Picking now: %s",
-  "friendrun.draft_plus.no_more_choices": "No more choices"
+  "friendrun.draft_plus.no_more_choices": "No more choices",
+  "friendrun.draft_plus.chaos.prefix": "Chaos: "
 }
