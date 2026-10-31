@@ -23,6 +23,11 @@ final class DraftPlusFlowTest {
         return result;
     }
 
+    private static boolean isExcludedAdvancement(String goal, Set<String> completed) {
+        return goal.startsWith("advancement:")
+            && completed.contains(goal.substring("advancement:".length()));
+    }
+
     private static DraftPlusFlow.State boardState(
             DraftPlusRules.Format format, List<DraftPlusRules.Player> players, List<String> owners) {
         List<String> board = new ArrayList<>();
@@ -89,9 +94,9 @@ final class DraftPlusFlowTest {
 
         while (state.phase() == DraftPlusFlow.Phase.DRAFT) {
             Set<String> excluded = completed.get(state.currentActor());
-            assertFalse(excluded.contains(state.offerA().substring("advancement:".length())),
+            assertFalse(isExcludedAdvancement(state.offerA(), excluded),
                 "offer A contains a completed advancement");
-            assertFalse(excluded.contains(state.offerB().substring("advancement:".length())),
+            assertFalse(isExcludedAdvancement(state.offerB(), excluded),
                 "offer B contains a completed advancement");
             state = DraftPlusFlow.pick(state, state.currentActor(), 0, completed, new Random(state.pickIndex() + 20));
         }
