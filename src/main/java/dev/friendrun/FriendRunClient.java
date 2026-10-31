@@ -200,6 +200,13 @@ public final class FriendRunClient implements ClientModInitializer {
             s.draftOwners = parseDraftOwners(s.draftOwnersIds);
         }
         for (int i = 0; i < s.draftOwners.length; i++) if (!"-".equals(s.draftOwners[i])) s.draftClaimPending[i] = false;
+        if (s.draftPlusClaimPendingIndex >= 0
+            && s.draftPlusClaimPendingIndex < s.draftOwners.length
+            && !"-".equals(s.draftOwners[s.draftPlusClaimPendingIndex])) {
+            s.draftClaimPending[s.draftPlusClaimPendingIndex] = false;
+            s.draftPlusClaimPendingIndex = -1;
+            s.draftPlusClaimSentAtNanos = 0;
+        }
         if (s.gameMode == Game.DRAFT && !s.draftBoardIds.isBlank()) s.draftGoals = parseDraftGoals(s.draftBoardIds);
         s.convTotalMin = (int) Lobby.orDef(Lobby.num(doc, "convTotal"), 20);
         s.convSlotMin = (int) Lobby.orDef(Lobby.num(doc, "convSlot"), 3);
@@ -1060,12 +1067,31 @@ public final class FriendRunClient implements ClientModInitializer {
             }
             case Game.DRAFT_PLUS -> {
                 if (s.draftGoals.size() != DraftPlusRules.CELL_COUNT) return;
+                // Firebase stores one outstanding claim per player. Never overwrite it
+                // with another cell while the host is still settling the previous claim.
+                int pending = s.draftPlusClaimPendingIndex;
+                if (pending >= 0) {
+                    if (pending < s.draftOwners.length && !"-".equals(s.draftOwners[pending])) {
+                        s.draftClaimPending[pending] = false;
+                        s.draftPlusClaimPendingIndex = -1;
+                        s.draftPlusClaimSentAtNanos = 0;
+                    } else if (System.nanoTime() - s.draftPlusClaimSentAtNanos < 5_000_000_000L) {
+                        return;
+                    } else {
+                        // Retry an unacknowledged request after a network/host delay.
+                        if (pending < s.draftClaimPending.length) s.draftClaimPending[pending] = false;
+                        s.draftPlusClaimPendingIndex = -1;
+                        s.draftPlusClaimSentAtNanos = 0;
+                    }
+                }
                 for (int i = 0; i < DraftPlusRules.CELL_COUNT; i++) {
                     if (!"-".equals(s.draftOwners[i]) || s.draftClaimPending[i]) continue;
                     int progress = s.draftGoals.get(i).progressValue(mc);
                     if (progress < s.draftBase[i]) s.draftBase[i] = progress;
                     else if (progress > s.draftBase[i]) {
                         s.draftClaimPending[i] = true;
+                        s.draftPlusClaimPendingIndex = i;
+                        s.draftPlusClaimSentAtNanos = System.nanoTime();
                         lobby.claimDraftGoal(i, s.roundId, System.currentTimeMillis() - hostClockOffsetMs);
                         break;
                     }
