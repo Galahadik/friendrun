@@ -991,6 +991,18 @@ public final class Lobby {
         transfer.addProperty("hostInGame", false);
         transfer.addProperty("hostMigrationFrom", currentHost);
         transfer.addProperty("hostMigrationAt", now);
+        boolean everyoneElseStale = true;
+        JsonObject playerDocs = obj(doc, "players");
+        for (String id : playerDocs.keySet()) {
+            if (id.equals(me)) continue;
+            if (now - num(obj(playerDocs, id), "lastSeen") <= 300_000) {
+                everyoneElseStale = false;
+                break;
+            }
+        }
+        if (everyoneElseStale && now - num(doc, "hostSeen") >= 300_000
+            && bool(doc, "launched") && num(doc, "gameMode") == Game.DRAFT_PLUS)
+            transfer.addProperty("draftPlusAllDisconnectedTimeout", true);
         request("PATCH", "", transfer.toString());
         host = true;
         return true;
