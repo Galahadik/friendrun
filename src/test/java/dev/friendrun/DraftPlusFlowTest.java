@@ -42,6 +42,42 @@ final class DraftPlusFlowTest {
     }
 
     @Test
+    void forfeitedBanActorIsSkippedDeterministically() {
+        DraftPlusFlow.State state = DraftPlusFlow.start(
+            DraftPlusRules.Format.FFA, FFA_PLAYERS, goals(40), true, Map.of(), new Random(31));
+        String skipped = state.currentActor();
+        String automaticBan = state.offerA();
+        state = DraftPlusFlow.forfeit(state, skipped);
+
+        DraftPlusFlow.State first = DraftPlusFlow.skipForfeitedActors(state, Map.of(), 12345L);
+        DraftPlusFlow.State replay = DraftPlusFlow.skipForfeitedActors(state, Map.of(), 12345L);
+
+        assertEquals(DraftPlusFlow.Phase.BANS, first.phase());
+        assertEquals(1, first.banIndex());
+        assertTrue(first.bannedGoals().contains(automaticBan));
+        assertFalse(first.forfeitedPlayers().contains(first.currentActor()));
+        assertEquals(DraftPlusCodec.encode(first), DraftPlusCodec.encode(replay));
+    }
+
+    @Test
+    void forfeitedDraftPickerIsSkippedDeterministically() {
+        DraftPlusFlow.State state = DraftPlusFlow.start(
+            DraftPlusRules.Format.FFA, FFA_PLAYERS, goals(40), false, Map.of(), new Random(32));
+        String skipped = state.currentActor();
+        state = DraftPlusFlow.forfeit(state, skipped);
+
+        DraftPlusFlow.State first = DraftPlusFlow.skipForfeitedActors(state, Map.of(), 54321L);
+        DraftPlusFlow.State replay = DraftPlusFlow.skipForfeitedActors(state, Map.of(), 54321L);
+
+        assertEquals(DraftPlusFlow.Phase.DRAFT, first.phase());
+        assertEquals(1, first.pickIndex());
+        assertEquals(1, first.boardGoals().size());
+        assertEquals(skipped, first.pickers().get(0));
+        assertFalse(first.forfeitedPlayers().contains(first.currentActor()));
+        assertEquals(DraftPlusCodec.encode(first), DraftPlusCodec.encode(replay));
+    }
+
+    @Test
     void noBanDraftBuildsTwentyFiveUniqueCells() {
         DraftPlusFlow.State state = DraftPlusFlow.start(
             DraftPlusRules.Format.FFA, FFA_PLAYERS, goals(40), false, Map.of(), new Random(1));
