@@ -109,6 +109,8 @@ public final class Lobby {
         if (raw != null && raw.isJsonObject()) {
             JsonObject profiles = raw.getAsJsonObject();
             for (String id : profiles.keySet()) {
+                // Internal idempotency ledger shares the atomic rating node, but is not a player profile.
+                if (id.startsWith("_")) continue;
                 JsonObject profile = obj(profiles, id);
                 String playerName = str(profile, "name");
                 if (playerName.isBlank()) playerName = id;
