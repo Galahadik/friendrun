@@ -567,6 +567,31 @@ public final class FriendRunClient implements ClientModInitializer {
         lobby.setDraftPlusConfig(STATE.draftPlusFormat, STATE.draftPlusTeamSize);
     }
 
+    public static void setDraftPlusTeam(int teamIndex) {
+        if (lobby == null || STATE.gameMode != Game.DRAFT_PLUS || STATE.draftPlusFormat != 1
+            || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
+        if (teamIndex != DraftPlusTeams.NO_TEAM && teamIndex != DraftPlusTeams.TEAM_A
+            && teamIndex != DraftPlusTeams.TEAM_B) return;
+        if (teamIndex != DraftPlusTeams.NO_TEAM) {
+            long occupied = STATE.players.stream().filter(p -> p.draftPlusTeam() == teamIndex).count();
+            RunState.PlayerInfo me = STATE.players.stream().filter(p -> p.name().equals(myName())).findFirst().orElse(null);
+            if ((me == null || me.draftPlusTeam() != teamIndex) && occupied >= STATE.draftPlusTeamSize) {
+                chat("В этой команде нет свободных мест.");
+                return;
+            }
+        }
+        lobby.setDraftPlusTeam(teamIndex);
+    }
+
+    public static void randomizeDraftPlusTeams() {
+        if (lobby == null || !STATE.amHost || STATE.gameMode != Game.DRAFT_PLUS
+            || STATE.draftPlusFormat != 1 || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
+        if (lobby.randomizeDraftPlusTeams(STATE.draftPlusTeamSize))
+            chat("Составы команд случайно распределены.");
+        else
+            chat("Не удалось распределить команды: проверьте число игроков и свободные места.");
+    }
+
     public static void setGameMode(int g) {
         if (lobby == null || !STATE.amHost) { chat("Режим игры выбирает только хост лобби."); return; }
         if (STATE.phase != RunState.Phase.IDLE) { chat("Дождитесь конца раунда."); return; }
