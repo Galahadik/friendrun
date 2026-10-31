@@ -206,7 +206,7 @@ public final class LobbyRoomScreen extends Screen {
         boolean draftPlusReady;
         java.util.List<RunState.PlayerInfo> activeDraftPlusPlayers = s.players.stream()
             .filter(p -> !s.draftPlusDisconnectedPlayers.contains(p.name())
-                && !s.draftPlusForfeitedPlayers.contains(p.name())).toList();
+                && (draftPlusComplete || !s.draftPlusForfeitedPlayers.contains(p.name()))).toList();
         if (s.draftPlusFormat == 0) draftPlusReady = !activeDraftPlusPlayers.isEmpty()
             && activeDraftPlusPlayers.size() <= 10
             && (!s.draftPlusRated || activeDraftPlusPlayers.size() >= 2);
