@@ -510,7 +510,7 @@ public final class Lobby {
         o.addProperty("draftPlusRolesEnabled", rolesEnabled);
         o.addProperty("draftPlusRated", rated);
         o.addProperty("draftPlusChaosEnabled", chaosEnabled);
-        o.addProperty("draftPlusChaosCount", Math.max(1, Math.min(3, chaosCount)));
+        o.addProperty("draftPlusChaosCount", Math.max(1, Math.min(4, chaosCount)));
         o.addProperty("draftPlusChaosDifficulty", Math.max(0, Math.min(2, chaosDifficulty)));
         patch("", o);
     }
@@ -671,7 +671,7 @@ public final class Lobby {
             frozenSettings.addProperty("rolesEnabled", !current.has("draftPlusRolesEnabled") || bool(current, "draftPlusRolesEnabled"));
             frozenSettings.addProperty("rated", rated);
             frozenSettings.addProperty("chaosEnabled", !current.has("draftPlusChaosEnabled") || bool(current, "draftPlusChaosEnabled"));
-            frozenSettings.addProperty("chaosCount", Math.max(1, Math.min(3, (int) orDef(num(current, "draftPlusChaosCount"), 1))));
+            frozenSettings.addProperty("chaosCount", Math.max(1, Math.min(4, (int) orDef(num(current, "draftPlusChaosCount"), 1))));
             frozenSettings.addProperty("chaosDifficulty", Math.max(0, Math.min(2, (int) num(current, "draftPlusChaosDifficulty"))));
             o.add("draftPlusFrozenSettings", frozenSettings);
             int teamSize = Math.max(1, Math.min(5, (int) orDef(num(current, "draftPlusTeamSize"), 1)));
@@ -1545,7 +1545,9 @@ public final class Lobby {
             history.add("owners", strings(state.owners()));
             history.add("bannedGoals", strings(state.bannedGoals()));
             history.add("roles", obj(doc, "draftPlusRoles").deepCopy());
-            history.add("chaosModifiers", new JsonArray());
+            JsonElement chaosHistory = doc.get("draftPlusChaosMods");
+            history.add("chaosModifiers", chaosHistory != null && chaosHistory.isJsonArray()
+                ? chaosHistory.deepCopy() : new JsonArray());
 
             JsonObject writes = ratingWrites.deepCopy();
             writes.add(historyNode + "/" + historyId, history);
@@ -1617,7 +1619,7 @@ public final class Lobby {
         frozen.addProperty("rolesEnabled", !current.has("draftPlusRolesEnabled") || bool(current, "draftPlusRolesEnabled"));
         frozen.addProperty("rated", bool(current, "draftPlusRated"));
         frozen.addProperty("chaosEnabled", !current.has("draftPlusChaosEnabled") || bool(current, "draftPlusChaosEnabled"));
-        frozen.addProperty("chaosCount", Math.max(1, Math.min(3, (int) orDef(num(current, "draftPlusChaosCount"), 1))));
+        frozen.addProperty("chaosCount", Math.max(1, Math.min(4, (int) orDef(num(current, "draftPlusChaosCount"), 1))));
         frozen.addProperty("chaosDifficulty", Math.max(0, Math.min(2, (int) num(current, "draftPlusChaosDifficulty"))));
         return frozen;
     }
@@ -1732,6 +1734,14 @@ public final class Lobby {
                 updates.add("draftPlusRoles", frozenRoles);
                 state = DraftPlusFlow.start(format, roster, DraftPlusPool.build(), bansEnabled, completedAdvancements, new Random(seed));
                 updates.addProperty("draftPlusSeed", Long.toString(seed));
+                boolean chaosEnabled = !matchSettings.has(frozen.isEmpty() ? "draftPlusChaosEnabled" : "chaosEnabled")
+                    || bool(matchSettings, frozen.isEmpty() ? "draftPlusChaosEnabled" : "chaosEnabled");
+                int chaosCount = Math.max(1, Math.min(4, (int) orDef(
+                    num(matchSettings, frozen.isEmpty() ? "draftPlusChaosCount" : "chaosCount"), 1)));
+                int chaosDifficulty = Math.max(0, Math.min(2,
+                    (int) num(matchSettings, frozen.isEmpty() ? "draftPlusChaosDifficulty" : "chaosDifficulty")));
+                updates.add("draftPlusChaosMods", strings(DraftPlusChaos.roll(
+                    chaosEnabled, chaosCount, chaosDifficulty, new Random(seed ^ 0xD1B54A32D192ED03L))));
                 updates.add("draftPlusState", DraftPlusCodec.encode(state));
                 updates.addProperty("draftPlusLastActionId", "");
                 updates.addProperty("draftPlusStartError", "");
