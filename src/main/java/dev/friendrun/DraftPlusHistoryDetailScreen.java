@@ -13,13 +13,19 @@ import net.minecraft.network.chat.Component;
 public final class DraftPlusHistoryDetailScreen extends Screen {
     private final Screen parent;
     private final Lobby.DraftPlusHistoryEntry entry;
-    private Ui.R panel, backRect;
-    private Button backButton;
+    private Ui.R panel, backRect, rematchRect, exitRect;
+    private Button backButton, rematchButton, exitButton;
+    private final boolean resultMode;
 
     public DraftPlusHistoryDetailScreen(Screen parent, Lobby.DraftPlusHistoryEntry entry) {
+        this(parent, entry, false);
+    }
+
+    public DraftPlusHistoryDetailScreen(Screen parent, Lobby.DraftPlusHistoryEntry entry, boolean resultMode) {
         super(Component.literal("FriendRun — Матч Draft+"));
         this.parent = parent;
         this.entry = entry;
+        this.resultMode = resultMode;
     }
 
     private Button make(Ui.R rect, Runnable action) {
@@ -36,8 +42,19 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
         int x = (width - w) / 2;
         int y = (height - h) / 2;
         panel = new Ui.R(x, y, w, h);
-        backRect = new Ui.R(x + 12, y + h - 28, w - 24, 20);
-        backButton = make(backRect, () -> Mc.setScreen(parent));
+        if (resultMode) {
+            int half = (w - 30) / 2;
+            rematchRect = new Ui.R(x + 12, y + h - 28, half, 20);
+            exitRect = new Ui.R(x + 18 + half, y + h - 28, half, 20);
+            rematchButton = make(rematchRect, () -> {
+                FriendRunClient.rematchDraftPlus();
+                Mc.setScreen(new LobbyRoomScreen(null));
+            });
+            exitButton = make(exitRect, () -> Mc.setScreen(new LobbyRoomScreen(null)));
+        } else {
+            backRect = new Ui.R(x + 12, y + h - 28, w - 24, 20);
+            backButton = make(backRect, () -> Mc.setScreen(parent));
+        }
     }
 
     @Override
@@ -110,8 +127,18 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
             if (!owner.equals("-")) Gfx.text(g, Ui.trunc("✓ " + owner, cellW - 10), cx + 4, cy + 12, Ui.GREEN);
         }
 
-        Ui.button(g, backRect, backRect.in(mx, my), true, Ui.Kind.NORMAL);
-        Gfx.centered(g, "Назад", backRect.x() + backRect.w() / 2, backRect.cy() - 4, Ui.TEXT);
-        backButton.active = true;
+        if (resultMode) {
+            Ui.button(g, rematchRect, rematchRect.in(mx, my), true, Ui.Kind.GREEN);
+            Gfx.centered(g, "Сыграть ещё раз", rematchRect.x() + rematchRect.w() / 2,
+                rematchRect.cy() - 4, Ui.GREEN);
+            Ui.button(g, exitRect, exitRect.in(mx, my), true, Ui.Kind.NORMAL);
+            Gfx.centered(g, "Выйти в лобби", exitRect.x() + exitRect.w() / 2,
+                exitRect.cy() - 4, Ui.TEXT);
+            rematchButton.active = exitButton.active = true;
+        } else {
+            Ui.button(g, backRect, backRect.in(mx, my), true, Ui.Kind.NORMAL);
+            Gfx.centered(g, "Назад", backRect.x() + backRect.w() / 2, backRect.cy() - 4, Ui.TEXT);
+            backButton.active = true;
+        }
     }
 }
