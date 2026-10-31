@@ -16,6 +16,41 @@ final class DraftPlusHostMigrationTest {
     }
 
     @Test
+    void onlyThePersistedRatedDraftPlusHostCanCommitAuthoritativeChanges() {
+        JsonObject doc = ratedMatch();
+        doc.addProperty("host", "alice");
+        assertTrue(Lobby.isCurrentRatedDraftPlusHost(doc, "alice"));
+        assertFalse(Lobby.isCurrentRatedDraftPlusHost(doc, "bob"));
+
+        doc.addProperty("host", "bob");
+        doc.addProperty("hostEpoch", 2);
+        assertFalse(Lobby.isCurrentRatedDraftPlusHost(doc, "alice"));
+        assertTrue(Lobby.isCurrentRatedDraftPlusHost(doc, "bob"));
+    }
+
+    @Test
+    void rootPatchMergePreservesUnrelatedFieldsAndAppliesNestedUpdates() {
+        JsonObject doc = new JsonObject();
+        doc.addProperty("host", "alice");
+        JsonObject players = new JsonObject();
+        JsonObject alice = new JsonObject();
+        alice.addProperty("ready", false);
+        alice.addProperty("score", 4);
+        players.add("alice", alice);
+        doc.add("players", players);
+
+        JsonObject patch = new JsonObject();
+        patch.addProperty("players/alice/ready", true);
+        patch.addProperty("hostSeen", 1234);
+        Lobby.applyFirebasePatch(doc, patch);
+
+        assertTrue(Lobby.bool(Lobby.obj(doc, "players").getAsJsonObject("alice"), "ready"));
+        assertTrue(Lobby.num(Lobby.obj(doc, "players").getAsJsonObject("alice"), "score") == 4);
+        assertTrue(Lobby.num(doc, "hostSeen") == 1234);
+        assertTrue(Lobby.str(doc, "host").equals("alice"));
+    }
+
+    @Test
     void staleReturningClientMustRefreshHeartbeatBeforeHostElection() {
         JsonObject doc = ratedMatch();
 
