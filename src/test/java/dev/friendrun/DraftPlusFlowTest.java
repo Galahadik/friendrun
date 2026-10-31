@@ -135,8 +135,10 @@ final class DraftPlusFlowTest {
 
     @Test
     void forfeitedFfaPlayerCannotWinAndSoleRemainingPlayerWins() {
-        DraftPlusFlow.State state = boardState(DraftPlusRules.Format.FFA, FFA_PLAYERS,
-            new ArrayList<>(java.util.Collections.nCopies(25, "alice")));
+        List<String> owners = new ArrayList<>();
+        owners.addAll(java.util.Collections.nCopies(10, "alice"));
+        owners.addAll(java.util.Collections.nCopies(15, "-"));
+        DraftPlusFlow.State state = boardState(DraftPlusRules.Format.FFA, FFA_PLAYERS, owners);
         state = DraftPlusFlow.forfeit(state, "alice");
         assertEquals("", state.winner());
         state = DraftPlusFlow.forfeit(state, "cara");
