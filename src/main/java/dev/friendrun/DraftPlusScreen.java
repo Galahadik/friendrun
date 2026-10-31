@@ -53,7 +53,7 @@ public final class DraftPlusScreen extends Screen {
 
     private void drawGoal(GuiGraphicsExtractor g, Ui.R rect, String encoded, boolean hover,
                           boolean enabled, int index, boolean ban) {
-        Ui.button(g, rect, hover, enabled, enabled ? (ban ? Ui.Kind.RED : Ui.Kind.GREEN) : Ui.Kind.NORMAL);
+        Ui.button(g, rect, hover, enabled, enabled ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
         DraftGoal goal = DraftGoal.parse(encoded);
         if (goal == null) {
             Gfx.centered(g, "Цель недоступна", rect.x() + rect.w() / 2, rect.y() + 82, Ui.MUTED);
@@ -99,7 +99,7 @@ public final class DraftPlusScreen extends Screen {
             if (state.format() == DraftPlusRules.Format.TEAM) {
                 int team = state.players().stream().filter(p -> p.id().equals(owner))
                     .map(DraftPlusRules.Player::teamIndex).findFirst().orElse(-1);
-                color = team == DraftPlusTeams.TEAM_A ? Ui.BLUE : team == DraftPlusTeams.TEAM_B ? Ui.ORANGE : color;
+                color = team == DraftPlusTeams.TEAM_A ? Ui.ORANGE : team == DraftPlusTeams.TEAM_B ? Ui.GOLD : color;
             } else {
                 int playerIndex = 0;
                 for (int p = 0; p < state.players().size(); p++)
