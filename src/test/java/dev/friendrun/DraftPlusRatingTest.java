@@ -43,7 +43,7 @@ final class DraftPlusRatingTest {
         List<DraftPlusRating.Delta> deltas = DraftPlusRating.calculateFfa(List.of(
             new DraftPlusRating.PlayerResult("alice", 1400, 10, 0),
             new DraftPlusRating.PlayerResult("bob", 1000, 5, 0),
-            new DraftPlusRating.PlayerResult("cara", 1000, 0, 0)
+            new DraftPlusRating.PlayerResult("cara", 1000, 5, 0)
         ));
         Map<String, DraftPlusRating.Delta> byId = deltas.stream()
             .collect(Collectors.toMap(DraftPlusRating.Delta::playerId, Function.identity()));
