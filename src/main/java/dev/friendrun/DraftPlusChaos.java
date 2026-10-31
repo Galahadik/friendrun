@@ -43,7 +43,9 @@ public final class DraftPlusChaos {
             modifiers = List.copyOf(modifiers);
             difficulty = Math.max(0, Math.min(2, difficulty));
         }
-        boolean has(String id) { return active && modifiers.contains(id); }
+        boolean has(String id) {
+            return active && modifiers.stream().anyMatch(value -> value.equals(id) || value.startsWith(id + ":"));
+        }
     }
 
     private DraftPlusChaos() {}
@@ -74,7 +76,13 @@ public final class DraftPlusChaos {
         int count = countSetting == 4 ? 1 + random.nextInt(3) : Math.max(1, Math.min(3, countSetting));
         java.util.ArrayList<String> pool = new java.util.ArrayList<>(MODIFIER_IDS);
         java.util.Collections.shuffle(pool, random);
-        return List.copyOf(pool.subList(0, Math.min(count, pool.size())));
+        List<String> selected = new java.util.ArrayList<>(pool.subList(0, Math.min(count, pool.size())));
+        if (selected.contains("resource_scarcity")) {
+            String[] categories = { "ores", "crops", "wood", "mob_drops" };
+            selected.set(selected.indexOf("resource_scarcity"),
+                "resource_scarcity:" + categories[random.nextInt(categories.length)]);
+        }
+        return List.copyOf(selected);
     }
 
     private static int levelBonus(Snapshot current) {
@@ -107,7 +115,8 @@ public final class DraftPlusChaos {
         }
         if (current.has("resource_scarcity")) {
             String category = current.modifiers().stream()
-                .filter(id -> id.startsWith("scarcity_")).findFirst().orElse("");
+                .filter(id -> id.startsWith("resource_scarcity:"))
+                .map(id -> id.substring("resource_scarcity:".length())).findFirst().orElse("");
             if (matchesScarcityTable(holder, category)) {
                 double reduction = switch (current.difficulty()) {
                     case 0 -> 0.10;
@@ -131,13 +140,13 @@ public final class DraftPlusChaos {
         if (key == null) return false;
         String path = key.location().getPath();
         return switch (category) {
-            case "scarcity_ores" -> path.contains("_ore");
-            case "scarcity_crops" -> path.contains("wheat") || path.contains("carrot")
+            case "ores" -> path.contains("_ore");
+            case "crops" -> path.contains("wheat") || path.contains("carrot")
                 || path.contains("potato") || path.contains("beetroot") || path.contains("nether_wart")
                 || path.contains("sweet_berry");
-            case "scarcity_wood" -> path.contains("log") || path.contains("wood")
+            case "wood" -> path.contains("log") || path.contains("wood")
                 || path.contains("stem") || path.contains("hyphae");
-            case "scarcity_mob_drops" -> path.startsWith("entities/");
+            case "mob_drops" -> path.startsWith("entities/");
             default -> false;
         };
     }
