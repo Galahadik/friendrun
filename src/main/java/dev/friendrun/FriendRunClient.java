@@ -867,7 +867,7 @@ public final class FriendRunClient implements ClientModInitializer {
         STATE.draftPlusRolesEnabled = rolesEnabled;
         STATE.draftPlusRated = rated;
         STATE.draftPlusChaosEnabled = chaosEnabled;
-        STATE.draftPlusChaosCount = Math.max(1, Math.min(4, chaosCount));
+        STATE.draftPlusChaosCount = Math.max(1, Math.min(3, chaosCount));
         STATE.draftPlusChaosDifficulty = Math.max(0, Math.min(2, chaosDifficulty));
         lobby.setDraftPlusSettings(STATE.draftPlusRolesEnabled, STATE.draftPlusRated,
             STATE.draftPlusChaosEnabled, STATE.draftPlusChaosCount, STATE.draftPlusChaosDifficulty);
