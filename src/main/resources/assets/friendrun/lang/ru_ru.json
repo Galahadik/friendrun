@@ -185,5 +185,19 @@
   "friendrun.draft_plus.detail.mmr_value": "%s (%s)",
   "friendrun.draft_plus.detail.team_format": "Команды",
   "friendrun.draft_plus.detail.mmr": "MMR",
-  "friendrun.draft_plus.role.none": "без роли"
+  "friendrun.draft_plus.role.none": "без роли",
+  "friendrun.draft_plus.team.title": "Draft+ · Команды",
+  "friendrun.draft_plus.team.roster_rule": "Составы и капитаны определяются по времени входа в лобби",
+  "friendrun.draft_plus.team.you_a": "Вы в команде A",
+  "friendrun.draft_plus.team.join_a": "Вступить в A",
+  "friendrun.draft_plus.team.you_b": "Вы в команде B",
+  "friendrun.draft_plus.team.join_b": "Вступить в B",
+  "friendrun.draft_plus.team.leave": "Покинуть текущую команду",
+  "friendrun.draft_plus.team.randomize": "Случайно распределить игроков",
+  "friendrun.draft_plus.team.randomize_host": "Случайное распределение — только хост",
+  "friendrun.draft_plus.team.rename": "Переименовать",
+  "friendrun.draft_plus.team.name_hint": "Название команды",
+  "friendrun.draft_plus.team.name_captain_only": "Имя команды (только капитан)",
+  "friendrun.draft_plus.team.name_available_captain": "Имя команды (доступно капитану)",
+  "friendrun.draft_plus.team.players": "Игроки:"
 }
