@@ -242,8 +242,7 @@ public final class DraftPlusFlow {
         while ((state.phase() == Phase.BANS || state.phase() == Phase.DRAFT)
             && state.forfeitedPlayers().contains(state.currentActor())) {
             long turnIndex = state.phase() == Phase.BANS ? state.banIndex() + 1L : state.pickIndex() + 1L;
-            long salt = state.phase() == Phase.BANS ? 0x9E3779B97F4A7C15L : 0xC2B2AE3D27D4EB4FL;
-            Random autoRandom = new Random(matchSeed ^ (salt * turnIndex));
+            Random autoRandom = new Random(matchSeed ^ (0x9E3779B97F4A7C15L * turnIndex));
             if (state.phase() == Phase.BANS)
                 state = ban(state, state.currentActor(), state.offerA(), completedAdvancements, autoRandom);
             else
