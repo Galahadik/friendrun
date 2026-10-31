@@ -75,4 +75,16 @@ final class FirebaseConditionalStateTest {
         assertFalse(FirebaseConditionalState.putIfUnchanged(transport, NODE, current, new JsonObject()));
         assertEquals(2, transport.requests.size());
     }
+    @Test
+    void canCreateAnAbsentHistoryNodeWithFirebaseNullEtag() throws Exception {
+        JsonObject history = new JsonObject();
+        history.addProperty("id", "match-1");
+        FakeTransport transport = new FakeTransport()
+            .response(200, "null", "null_etag")
+            .response(200, history.toString(), null);
+
+        assertTrue(FirebaseConditionalState.putIfUnchanged(transport, NODE, com.google.gson.JsonNull.INSTANCE, history));
+        assertEquals("null_etag", transport.requests.get(1).headers().firstValue("If-Match").orElseThrow());
+    }
+
 }
