@@ -1,0 +1,11 @@
+-proc:none
+-Xmaxerrs
+2000
+-d
+../out
+-sourcepath
+src/main/java
+src/main/java/dev/friendrun/LobbyMenuScreen.java
+src/main/java/dev/friendrun/LobbyRoomScreen.java
+src/main/java/dev/friendrun/Ui.java
+src/main/java/dev/friendrun/Tr.java
