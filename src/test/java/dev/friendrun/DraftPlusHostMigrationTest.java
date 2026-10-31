@@ -147,6 +147,60 @@ final class DraftPlusHostMigrationTest {
         assertTrue(Lobby.isValidDraftPlusHostMigration(doc, "bob", transfer));
     }
     @Test
+    void repeatedTakeoversPreserveAnUnsettledCompletedMatch() {
+        JsonObject doc = ratedMatch();
+        doc.addProperty("host", "alice");
+        doc.addProperty("hostSeen", 1_000);
+        doc.addProperty("hostEpoch", 3);
+        doc.addProperty("draftPlusSeed", "match-42");
+        doc.addProperty("draftPlusSettledSeed", "");
+        JsonObject state = new JsonObject();
+        state.addProperty("phase", "COMPLETE");
+        state.addProperty("pickIndex", 25);
+        doc.add("draftPlusState", state);
+        JsonObject frozen = new JsonObject();
+        frozen.addProperty("rated", true);
+        frozen.addProperty("rolesEnabled", true);
+        doc.add("draftPlusFrozenSettings", frozen);
+        JsonObject players = new JsonObject();
+        JsonObject alice = new JsonObject();
+        alice.addProperty("joinedAt", 1);
+        alice.addProperty("lastSeen", 1_000);
+        players.add("alice", alice);
+        JsonObject bob = new JsonObject();
+        bob.addProperty("joinedAt", 2);
+        bob.addProperty("lastSeen", 20_000);
+        players.add("bob", bob);
+        JsonObject cara = new JsonObject();
+        cara.addProperty("joinedAt", 3);
+        cara.addProperty("lastSeen", 40_000);
+        players.add("cara", cara);
+        doc.add("players", players);
+
+        JsonObject firstTransfer = new JsonObject();
+        firstTransfer.addProperty("host", "bob");
+        firstTransfer.addProperty("hostSeen", 20_000);
+        firstTransfer.addProperty("hostMigrationAt", 20_000);
+        firstTransfer.addProperty("hostEpoch", 4);
+        assertTrue(Lobby.isValidDraftPlusHostMigration(doc, "bob", firstTransfer));
+        Lobby.applyFirebasePatch(doc, firstTransfer);
+
+        JsonObject secondTransfer = new JsonObject();
+        secondTransfer.addProperty("host", "cara");
+        secondTransfer.addProperty("hostSeen", 40_000);
+        secondTransfer.addProperty("hostMigrationAt", 40_000);
+        secondTransfer.addProperty("hostEpoch", 5);
+        assertTrue(Lobby.isValidDraftPlusHostMigration(doc, "cara", secondTransfer));
+        Lobby.applyFirebasePatch(doc, secondTransfer);
+
+        assertTrue("cara".equals(Lobby.str(doc, "host")));
+        assertTrue(Lobby.num(doc, "hostEpoch") == 5);
+        assertTrue("COMPLETE".equals(Lobby.str(Lobby.obj(doc, "draftPlusState"), "phase")));
+        assertTrue("match-42".equals(Lobby.str(doc, "draftPlusSeed")));
+        assertTrue(Lobby.str(doc, "draftPlusSettledSeed").isBlank());
+        assertTrue(Lobby.bool(Lobby.obj(doc, "draftPlusFrozenSettings"), "rated"));
+    }
+    @Test
     void candidateCannotTakeOverWhileCurrentHostLeaseIsStillLive() {
         JsonObject doc = ratedMatch();
         doc.addProperty("host", "alice");
