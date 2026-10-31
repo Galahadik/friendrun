@@ -426,6 +426,8 @@ public final class FriendRunClient implements ClientModInitializer {
                             + s.cfgConvSlotMs / 60_000L + " мин. Первый: " + ItemInfo.name(s.target));
                     } else if (s.roundGame == Game.SINGLE_SPEEDRUN) {
                         chat("Одиночный спидран: предстартовый отсчёт. После GO таймер запустится автоматически. Играйте до финальных титров; незавершённые попытки не записываются.");
+                    } else if (s.roundGame == Game.DRAFT_PLUS) {
+                        chat("Draft+ начинается через несколько секунд. Выполняйте цели и захватывайте клетки; доска: /rr card.");
                     } else {
                         chat("Забег начинается! Ищите: " + ItemInfo.name(s.target));
                     }
