@@ -135,8 +135,12 @@ public final class DraftPlusScreen extends Screen {
             case COMPLETE -> "ЗАВЕРШЕНО";
         };
         Gfx.centered(g, "DRAFT+ · " + format + " · " + phase, width / 2, panel.y() + 10, Ui.GOLD);
-        Gfx.centered(g, "Поле 5×5 · выбрано " + state.boardGoals().size() + " / 25 · банов " + state.bannedGoals().size(),
-            width / 2, panel.y() + 27, Ui.TEXT);
+        String chaos = FriendRunClient.STATE.draftPlusChaosModifiers.isEmpty() ? "Хаос: выкл"
+            : "Хаос: " + FriendRunClient.STATE.draftPlusChaosModifiers.stream()
+                .map(DraftPlusChaos::displayName).collect(java.util.stream.Collectors.joining(", "));
+        String progress = "Поле 5×5 · выбрано " + state.boardGoals().size() + " / 25 · банов "
+            + state.bannedGoals().size() + " · " + chaos;
+        Gfx.centered(g, Ui.trunc(progress, panel.w() - 32), width / 2, panel.y() + 27, Ui.TEXT);
 
         boolean myTurn = FriendRunClient.myName().equals(state.currentActor());
         boolean active = myTurn && state.phase() != DraftPlusFlow.Phase.COMPLETE;
@@ -152,10 +156,13 @@ public final class DraftPlusScreen extends Screen {
                 : "Сейчас выбирает: " + state.currentActor();
         }
         Gfx.centered(g, status, width / 2, panel.y() + 46, active ? Ui.GREEN : Ui.MUTED);
-        String chaos = FriendRunClient.STATE.draftPlusChaosModifiers.isEmpty() ? "Хаос-моды: выключены"
-            : "Хаос: " + FriendRunClient.STATE.draftPlusChaosModifiers.stream()
-                .map(DraftPlusChaos::displayName).collect(java.util.stream.Collectors.joining(", "));
-        Gfx.centered(g, Ui.trunc(chaos, panel.w() - 32), width / 2, panel.y() + 63, Ui.MUTED);
+        int lastPick = -1;
+        for (int i = state.pickers().size() - 1; i >= 0; i--)
+            if (!state.pickers().get(i).isBlank()) { lastPick = i; break; }
+        String lastSelection = lastPick < 0 ? "Выборы начнутся после банов"
+            : "Последний выбор: " + state.pickers().get(lastPick) + " — "
+                + java.util.Objects.requireNonNullElse(DraftGoal.parse(state.boardGoals().get(lastPick)), DraftGoal.parse("")).displayName();
+        Gfx.centered(g, Ui.trunc(lastSelection, panel.w() - 32), width / 2, panel.y() + 63, Ui.MUTED);
         drawBoard(g, state, FriendRunClient.STATE.draftGoals, panel.x() + 18, panel.y() + 82);
 
         boolean ban = state.phase() == DraftPlusFlow.Phase.BANS;
