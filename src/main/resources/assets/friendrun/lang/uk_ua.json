@@ -185,5 +185,19 @@
   "friendrun.draft_plus.detail.mmr_value": "%s (%s)",
   "friendrun.draft_plus.detail.team_format": "Команди",
   "friendrun.draft_plus.detail.mmr": "MMR",
-  "friendrun.draft_plus.role.none": "без ролі"
+  "friendrun.draft_plus.role.none": "без ролі",
+  "friendrun.draft_plus.team.title": "Draft+ · Команди",
+  "friendrun.draft_plus.team.roster_rule": "Склад команд і капітани визначаються за часом входу до лобі",
+  "friendrun.draft_plus.team.you_a": "Ви в команді A",
+  "friendrun.draft_plus.team.join_a": "Приєднатися до A",
+  "friendrun.draft_plus.team.you_b": "Ви в команді B",
+  "friendrun.draft_plus.team.join_b": "Приєднатися до B",
+  "friendrun.draft_plus.team.leave": "Покинути поточну команду",
+  "friendrun.draft_plus.team.randomize": "Випадково розподілити гравців",
+  "friendrun.draft_plus.team.randomize_host": "Випадковий розподіл — лише хост",
+  "friendrun.draft_plus.team.rename": "Перейменувати",
+  "friendrun.draft_plus.team.name_hint": "Назва команди",
+  "friendrun.draft_plus.team.name_captain_only": "Назва команди (лише капітан)",
+  "friendrun.draft_plus.team.name_available_captain": "Назва команди (доступна капітану)",
+  "friendrun.draft_plus.team.players": "Гравці:"
 }
