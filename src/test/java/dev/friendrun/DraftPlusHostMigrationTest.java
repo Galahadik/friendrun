@@ -401,6 +401,33 @@ final class DraftPlusHostMigrationTest {
     }
 
     @Test
+    void staleCleanupPreservesUnsettledRatedDraftPlusButRemovesSettledStaleLobby() {
+        JsonObject pending = ratedMatch();
+        pending.addProperty("host", "");
+        pending.addProperty("hostSeen", 0);
+        pending.addProperty("draftPlusSeed", "match-pending");
+        pending.addProperty("draftPlusSettledSeed", "");
+        pending.addProperty("roundId", 42);
+        JsonObject state = new JsonObject();
+        state.addProperty("phase", "PLAY");
+        pending.add("draftPlusState", state);
+
+        assertFalse(Lobby.shouldCleanupStaleLobby(pending, 1_000_000L));
+
+        JsonObject settled = ratedMatch();
+        settled.addProperty("host", "alice");
+        settled.addProperty("hostSeen", 1);
+        settled.addProperty("draftPlusSeed", "match-done");
+        settled.addProperty("draftPlusSettledSeed", "match-done");
+        JsonObject complete = new JsonObject();
+        complete.addProperty("phase", "COMPLETE");
+        settled.add("draftPlusState", complete);
+
+        assertTrue(Lobby.shouldCleanupStaleLobby(settled, 1_000_000L));
+        assertTrue(Lobby.shouldCleanupStaleLobby(new JsonObject(), 1_000_000L));
+    }
+
+    @Test
     void staleHostHeartbeatCannotRenewLeaseAfterReplacement() {
         JsonObject persisted = ratedMatch();
         persisted.addProperty("host", "bob");
