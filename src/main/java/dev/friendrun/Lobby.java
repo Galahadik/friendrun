@@ -1580,6 +1580,12 @@ public final class Lobby {
         return firebaseKey(name) + "_" + firebaseKey(session) + "_" + firebaseKey(seed);
     }
 
+    /** True when this match already has an authoritative atomic settlement marker. */
+    static boolean hasDraftPlusSettlementMarker(JsonObject ratings, String historyId) {
+        return ratings != null && historyId != null && !historyId.isBlank()
+            && obj(ratings, "__friendrun_draftplus_settlements_v1__").has(historyId);
+    }
+
     /**
      * Persists isolated Draft+ rating and history. Profiles plus the idempotency marker
      * are committed atomically with Firebase ETag conditional PUT; history is repairable
@@ -1636,7 +1642,7 @@ public final class Lobby {
                 JsonObject currentRatings = existing != null && existing.isJsonObject()
                     ? existing.getAsJsonObject().deepCopy() : new JsonObject();
                 JsonObject currentSettlements = obj(currentRatings, "__friendrun_draftplus_settlements_v1__");
-                if (currentSettlements.has(historyId)) {
+                if (hasDraftPlusSettlementMarker(currentRatings, historyId)) {
                     JsonObject saved = obj(currentSettlements, historyId);
                     JsonObject savedHistory = obj(saved, "history");
                     ensureDraftPlusHistory(historyUrl, savedHistory);
