@@ -482,7 +482,16 @@ public final class Lobby {
     public void setFlag(String key, boolean v) { JsonObject o = new JsonObject(); o.addProperty(key, v); patch("", o); }
     static boolean draftPlusEditable(JsonObject doc) {
         if (doc == null || !bool(doc, "launched")) return true;
-        return str(obj(doc, "draftPlusState"), "phase").equals(DraftPlusFlow.Phase.COMPLETE.name());
+        return str(obj(doc, "draftPlusState"), "phase").equals(DraftPlusFlow.Phase.COMPLETE.name())
+            && draftPlusSettlementConfirmed(doc);
+    }
+
+    /** The current completed match remains authoritative until its result is durable. */
+    static boolean draftPlusSettlementConfirmed(JsonObject doc) {
+        if (doc == null) return false;
+        String matchSeed = str(doc, "draftPlusSeed");
+        if (matchSeed.isBlank()) matchSeed = Long.toString(num(doc, "roundId"));
+        return matchSeed.equals(str(doc, "draftPlusSettledSeed"));
     }
 
     public void setDraftPlusConfig(int format, int teamSize) {
