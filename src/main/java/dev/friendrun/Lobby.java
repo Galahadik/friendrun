@@ -1736,6 +1736,9 @@ public final class Lobby {
                 updates.addProperty("draftPlusLastActionId", "");
                 updates.addProperty("draftPlusStartError", "");
                 updates.addProperty("draftPlusPrepared", false);
+                updates.addProperty("prepareRound", 0);
+                updates.addProperty("startAt", 0);
+                scheduledStartRound = 0;
                 for (String id : ids) {
                     updates.addProperty("players/" + id + "/ready", false);
                     updates.addProperty("players/" + id + "/draftPlusForfeit", false);
