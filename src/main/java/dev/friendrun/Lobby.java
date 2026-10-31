@@ -939,8 +939,10 @@ public final class Lobby {
 
     private static boolean isRatedDraftPlus(JsonObject doc) {
         if (!bool(doc, "launched") || num(doc, "gameMode") != Game.DRAFT_PLUS) return false;
+        boolean complete = str(obj(doc, "draftPlusState"), "phase")
+            .equals(DraftPlusFlow.Phase.COMPLETE.name());
         JsonObject frozen = obj(doc, "draftPlusFrozenSettings");
-        return bool(frozen.isEmpty() ? doc : frozen, frozen.isEmpty() ? "draftPlusRated" : "rated");
+        return complete || frozen.isEmpty() ? bool(doc, "draftPlusRated") : bool(frozen, "rated");
     }
 
     /** Deterministic election: the oldest currently connected participant takes over. */
