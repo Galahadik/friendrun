@@ -596,7 +596,7 @@ public final class FriendRunClient implements ClientModInitializer {
         if (lobby == null || !STATE.amHost || STATE.gameMode != Game.DRAFT_PLUS
             || STATE.draftPlusFormat != 1 || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
         if (lobby.randomizeDraftPlusTeams(STATE.draftPlusTeamSize))
-            chat("Составы команд случайно распределены.");
+            chat("Запрос на случайное распределение команд отправлен.");
         else
             chat("Не удалось распределить команды: проверьте число игроков и свободные места.");
     }
