@@ -185,5 +185,19 @@
   "friendrun.draft_plus.detail.mmr_value": "%s (%s)",
   "friendrun.draft_plus.detail.team_format": "Teams",
   "friendrun.draft_plus.detail.mmr": "MMR",
-  "friendrun.draft_plus.role.none": "No role"
+  "friendrun.draft_plus.role.none": "No role",
+  "friendrun.draft_plus.team.title": "Draft+ Teams",
+  "friendrun.draft_plus.team.roster_rule": "Roster and captains are determined by lobby join time",
+  "friendrun.draft_plus.team.you_a": "You are on Team A",
+  "friendrun.draft_plus.team.join_a": "Join A",
+  "friendrun.draft_plus.team.you_b": "You are on Team B",
+  "friendrun.draft_plus.team.join_b": "Join B",
+  "friendrun.draft_plus.team.leave": "Leave current team",
+  "friendrun.draft_plus.team.randomize": "Randomly assign players",
+  "friendrun.draft_plus.team.randomize_host": "Random assignment — host only",
+  "friendrun.draft_plus.team.rename": "Rename",
+  "friendrun.draft_plus.team.name_hint": "Team name",
+  "friendrun.draft_plus.team.name_captain_only": "Team name (captain only)",
+  "friendrun.draft_plus.team.name_available_captain": "Team name (available to captain)",
+  "friendrun.draft_plus.team.players": "Players:"
 }
