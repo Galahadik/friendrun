@@ -106,6 +106,12 @@ public final class LobbyRoomScreen extends Screen {
     /** Настройки выбранного режима вместо рулетки: у каждого режима свои. */
     private void drawSettings(GuiGraphicsExtractor g, RunState s, int mx, int my, boolean canSet, int cx) {
         int tmax = lw - 20;
+        if (s.gameMode == Game.DRAFT_PLUS) {
+            Ui.frame(g, rSetA.x(), rSetA.y(), rSetA.w(), rSetA.h(), Ui.SECTION, Ui.LINE);
+            String format = s.draftPlusFormat == 0 ? "FFA · до 10 игроков" : "Команды " + s.draftPlusTeamSize + "×" + s.draftPlusTeamSize;
+            Gfx.text(g, Ui.trunc(format + " · поле 5×5 · цель 13 клеток", tmax), rSetA.x() + 8, rSetA.cy() - 4, Ui.TEXT);
+            return;
+        }
         if (s.gameMode == Game.SINGLE_SPEEDRUN) {
             Ui.frame(g, rSetA.x(), rSetA.y(), rSetA.w(), rSetA.h(), Ui.SECTION, Ui.LINE);
             Gfx.text(g, Ui.trunc(Tr.t("friendrun.ui.solo_info", "Один игрок · выживание · до титров"), tmax), rSetA.x() + 8, rSetA.cy() - 4, Ui.TEXT);
@@ -160,17 +166,17 @@ public final class LobbyRoomScreen extends Screen {
         boolean canSet = host && !s.launched && s.phase == RunState.Phase.IDLE;
         boolean canStart = open && s.gameMode != Game.DRAFT_PLUS && (!soloSpeedrun || s.players.size() == 1) && (s.gameMode != Game.MANHUNT || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2))
             && (s.gameMode != Game.PILLARS || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2));
-        bSetA.visible = !speed && !soloSpeedrun && s.gameMode != Game.PILLARS;
-        bSetB.visible = !speed && !soloSpeedrun && s.gameMode != Game.CHAIN && s.gameMode != Game.PILLARS;
+        bSetA.visible = !speed && !soloSpeedrun && s.gameMode != Game.PILLARS && s.gameMode != Game.DRAFT_PLUS;
+        bSetB.visible = !speed && !soloSpeedrun && s.gameMode != Game.CHAIN && s.gameMode != Game.PILLARS && s.gameMode != Game.DRAFT_PLUS;
         bSetA.active = canSet;
         bSetB.active = canSet;
         boolean pillars = s.gameMode == Game.PILLARS;
         boolean canRollChaos = host && !pillars && !soloSpeedrun && s.chaos && !ChaosRoll.running();
         bGame.active = host;
-        bMode.active = open && !soloSpeedrun && s.gameMode != Game.MANHUNT && s.gameMode != Game.PILLARS;
-        bRollItem.active = canRollItem && !pillars && !soloSpeedrun;
-        bRollChaos.active = canRollChaos && !soloSpeedrun;
-        bToggle.active = host && !pillars && !soloSpeedrun;
+        bMode.active = open && !soloSpeedrun && s.gameMode != Game.MANHUNT && s.gameMode != Game.PILLARS && s.gameMode != Game.DRAFT_PLUS;
+        bRollItem.active = canRollItem && !pillars && !soloSpeedrun && s.gameMode != Game.DRAFT_PLUS;
+        bRollChaos.active = canRollChaos && !soloSpeedrun && s.gameMode != Game.DRAFT_PLUS;
+        bToggle.active = host && !pillars && !soloSpeedrun && s.gameMode != Game.DRAFT_PLUS;
         bStart.active = canStart;
 
         int lcx = lx + lw / 2;

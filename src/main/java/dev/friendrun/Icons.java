@@ -43,6 +43,7 @@ public final class Icons {
             case Game.MANHUNT -> MODE_MANHUNT;
             case Game.PILLARS -> MODE_PILLARS;
             case Game.DRAFT -> MODE_DRAFT;
+            case Game.DRAFT_PLUS -> MODE_DRAFT;
             case Game.SINGLE_SPEEDRUN -> MODE_SPEEDRUN;
             default -> MODE_SPEEDRUN;
         };
