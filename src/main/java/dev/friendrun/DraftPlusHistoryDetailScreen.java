@@ -109,7 +109,8 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
             String team = (int) Lobby.num(player, "team") == DraftPlusTeams.TEAM_A ? "A"
                 : (int) Lobby.num(player, "team") == DraftPlusTeams.TEAM_B ? "B" : "";
             String name = team.isBlank() ? id : id + " · " + team;
-            if (Lobby.bool(player, "forfeited")) name += " · AFK/поражение";
+            if (Lobby.bool(data, "globalTimeout")) name += " · все отключились";
+            else if (Lobby.bool(player, "forfeited")) name += " · AFK/поражение";
             Gfx.text(g, Ui.trunc(name, panel.w() - 330), panel.x() + 20, y, Ui.TEXT);
             String cellsAndPicks = (int) Lobby.num(player, "cells") + " / "
                 + (int) Lobby.num(player, "successfulDraftPicks");
