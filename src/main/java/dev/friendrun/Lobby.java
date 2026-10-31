@@ -770,7 +770,20 @@ public final class Lobby {
     }
     public void setLanAddress(String addr) { JsonObject o = new JsonObject(); o.addProperty("lanAddress", addr); patch("", o); }
     /** Хост сообщает, находится ли он в игровом мире; это позволяет снизить частоту опроса в меню. */
-    public void setHostInGame(boolean inGame) { if (!host) return; JsonObject o = new JsonObject(); o.addProperty("hostInGame", inGame); patch("", o); }
+    public void setHostInGame(boolean inGame) {
+        if (!host || closed) return;
+        JsonObject update = new JsonObject();
+        update.addProperty("hostInGame", inGame);
+        JsonObject snapshot = latestSnapshot();
+        if (snapshot != null && isRatedDraftPlus(snapshot)) {
+            try {
+                writeEx.execute(() -> {
+                    try { commitDraftPlusHostSnapshot(snapshot, update); }
+                    catch (IOException ex) { fail(ex); }
+                });
+            } catch (RejectedExecutionException ignored) {}
+        } else patch("", update);
+    }
 
     /**
      * Хост штатно вышел из игрового мира: останавливаем текущую игру во всём лобби,
@@ -787,7 +800,12 @@ public final class Lobby {
             transfer.addProperty("hostInGame", false);
             transfer.addProperty("hostMigrationFrom", me);
             transfer.addProperty("hostMigrationAt", System.currentTimeMillis());
-            patch("", transfer);
+            transfer.addProperty("hostEpoch", num(current, "hostEpoch") + 1);
+            try {
+                commitDraftPlusHostSnapshot(current, transfer);
+            } catch (IOException ex) {
+                fail(ex);
+            }
             host = false;
             return; // Keep the rated Draft+ match and all frozen settings intact.
         }
@@ -880,8 +898,9 @@ public final class Lobby {
                         transfer.addProperty("hostInGame", false);
                         transfer.addProperty("hostMigrationFrom", me);
                         transfer.addProperty("hostMigrationAt", System.currentTimeMillis());
-                        request("PATCH", "", transfer.toString());
-                        request("DELETE", "/players/" + me, null);
+                        transfer.addProperty("hostEpoch", num(current, "hostEpoch") + 1);
+                        if (commitDraftPlusHostSnapshot(current, transfer))
+                            request("DELETE", "/players/" + me, null);
                     } else request("DELETE", host ? "" : "/players/" + me, null);
                 } catch (IOException ignored) {}
             });
@@ -925,7 +944,7 @@ public final class Lobby {
             JsonObject timeout = new JsonObject();
             timeout.addProperty("draftPlusAllDisconnectedTimeout", true);
             timeout.addProperty("hostSeen", nowMs);
-            try { request("PATCH", "", timeout.toString()); }
+            try { commitDraftPlusHostSnapshot(doc, timeout); }
             catch (IOException ex) { fail(ex); }
             nextDelay = 1000;
             return; // The returning host finalizes the persisted board after the five-minute global timeout.
@@ -1033,7 +1052,8 @@ public final class Lobby {
         transfer.addProperty("hostMigrationAt", now);
         if (shouldMarkDraftPlusGlobalTimeout(doc, me, now, draftPlusWasOfflineForFiveMinutes))
             transfer.addProperty("draftPlusAllDisconnectedTimeout", true);
-        request("PATCH", "", transfer.toString());
+        transfer.addProperty("hostEpoch", num(doc, "hostEpoch") + 1);
+        if (!commitDraftPlusHostSnapshot(doc, transfer)) return false;
         draftPlusWasOfflineForFiveMinutes = false;
         host = true;
         return true;
@@ -1209,7 +1229,12 @@ public final class Lobby {
                     if (host) {
                         JsonObject hostBeat = new JsonObject();
                         hostBeat.addProperty("hostSeen", now);
-                        request("PATCH", "", hostBeat.toString());
+                        JsonObject snapshot = latestSnapshot();
+                        if (snapshot != null && isRatedDraftPlus(snapshot)) {
+                            commitDraftPlusHostSnapshot(snapshot, hostBeat);
+                        } else if (snapshot != null && str(snapshot, "host").equals(me)) {
+                            request("PATCH", "", hostBeat.toString());
+                        }
                     }
                 } catch (IOException e) {
                     fail(e);
@@ -1401,18 +1426,27 @@ public final class Lobby {
                 }
             }
         }
-        if (updates.has("draftPlusState")) {
-            JsonElement nextState = updates.remove("draftPlusState");
-            if (!commitDraftPlusState(doc.get("draftPlusState"), nextState)) {
-                FriendRunClient.LOG.debug("FRun: concurrent Draft+ state update detected; retrying from fresh snapshot");
-                return;
-            }
-        }
         if (updates.size() > 0) {
-            request("PATCH", "", updates.toString());
-            if (updates.has("startAt") && num(updates, "startAt") > 0) {
-                scheduledStartRound = num(doc, "prepareRound");
+            if (isRatedDraftPlus(doc)) {
+                // One root-document CAS fences every authoritative write (including
+                // Draft+ state) against a concurrent host migration. A former host's
+                // stale snapshot cannot commit after the host/epoch changes.
+                if (!commitDraftPlusHostSnapshot(doc, updates)) {
+                    FriendRunClient.LOG.debug("FRun: stale Draft+ host snapshot rejected; waiting for a fresh snapshot");
+                    return;
+                }
+            } else {
+                if (updates.has("draftPlusState")) {
+                    JsonElement nextState = updates.remove("draftPlusState");
+                    if (!commitDraftPlusState(doc.get("draftPlusState"), nextState)) {
+                        FriendRunClient.LOG.debug("FRun: concurrent Draft+ state update detected; retrying from fresh snapshot");
+                        return;
+                    }
+                }
+                if (updates.size() > 0) request("PATCH", "", updates.toString());
             }
+            if (updates.has("startAt") && num(updates, "startAt") > 0)
+                scheduledStartRound = num(doc, "prepareRound");
         }
     }
 
@@ -2338,6 +2372,44 @@ public final class Lobby {
      * snapshot used by hostLogic. This prevents a stale host (including one racing a
      * host migration) from overwriting another host's accepted action or cell claim.
      */
+    /** True only for the currently persisted owner of a rated Draft+ host lease. */
+    static boolean isCurrentRatedDraftPlusHost(JsonObject doc, String actor) {
+        return actor != null && actor.equals(str(doc, "host")) && isRatedDraftPlus(doc);
+    }
+
+    /**
+     * Atomically applies host-authoritative updates to the complete lobby document.
+     * The root ETag makes the host check and all resulting changes one compare-and-swap:
+     * if migration or any concurrent player write changed the snapshot, nothing is written.
+     */
+    private boolean commitDraftPlusHostSnapshot(JsonObject expected, JsonObject updates) throws IOException {
+        if (expected == null || updates == null || updates.isEmpty()
+            || !isCurrentRatedDraftPlusHost(expected, me)) return false;
+        JsonObject replacement = expected.deepCopy();
+        applyFirebasePatch(replacement, updates);
+        return conditionalFirebasePut(base, expected, replacement);
+    }
+
+    private static void applyFirebasePatch(JsonObject target, JsonObject patch) {
+        for (Map.Entry<String, JsonElement> entry : patch.entrySet()) {
+            String[] path = entry.getKey().split("/");
+            applyFirebasePatchPath(target, path, 0, entry.getValue());
+        }
+    }
+
+    private static void applyFirebasePatchPath(
+        JsonObject target, String[] path, int index, JsonElement value
+    ) {
+        if (index == path.length - 1) {
+            if (value == null || value.isJsonNull()) target.remove(path[index]);
+            else target.add(path[index], value.deepCopy());
+            return;
+        }
+        JsonObject child = obj(target, path[index]).deepCopy();
+        applyFirebasePatchPath(child, path, index + 1, value);
+        target.add(path[index], child);
+    }
+
     private boolean commitDraftPlusState(JsonElement expected, JsonElement replacement) throws IOException {
         URI stateUri = URI.create(base + "/draftPlusState.json");
         return FirebaseConditionalState.putIfUnchanged(request -> {
