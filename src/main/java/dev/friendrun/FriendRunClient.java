@@ -487,6 +487,7 @@ public final class FriendRunClient implements ClientModInitializer {
     }
 
     public static void toggleChaos() {
+        if (STATE.gameMode == Game.DRAFT_PLUS) { chat("В Draft+ будут отдельные хаос-модификаторы; обычные модификаторы отключены."); return; }
         if (lobby == null || !STATE.amHost) return;
         if (!STATE.chaos && Chaos.enabledIndices(Settings.localOffChaos()).length == 0) {
             status("Все усложнения выключены в настройках мода (кнопка «Настройки»).");
@@ -673,6 +674,7 @@ public final class FriendRunClient implements ClientModInitializer {
     public static void cycleGame() { setGameMode(STATE.gameMode + 1); }
 
     public static void rollChaos() {
+        if (STATE.gameMode == Game.DRAFT_PLUS) return;
         if (lobby != null && STATE.amHost && STATE.chaos) lobby.rollChaos();
     }
 
