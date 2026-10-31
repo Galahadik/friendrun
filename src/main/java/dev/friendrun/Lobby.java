@@ -1537,6 +1537,8 @@ public final class Lobby {
             history.addProperty("timestamp", System.currentTimeMillis());
             history.addProperty("durationMs", num(obj(doc, "winner"), "ms"));
             history.addProperty("format", ffa ? "FFA" : "TEAM");
+            history.addProperty("firstBanActor", state.firstBanActor());
+            history.addProperty("firstDraftActor", state.firstDraftActor());
             history.addProperty("rated", rated);
             history.addProperty("cancelled", cancelled);
             history.addProperty("globalTimeout", bool(doc, "draftPlusAllDisconnectedTimeout"));
