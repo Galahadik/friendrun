@@ -505,12 +505,12 @@ public final class Lobby {
                                      int chaosCount, int chaosDifficulty) {
         if (!host || closed) return;
         JsonObject current = latestSnapshot();
-        if (current != null && bool(current, "launched")) return;
+        if (current != null && !draftPlusEditable(current)) return;
         JsonObject o = new JsonObject();
         o.addProperty("draftPlusRolesEnabled", rolesEnabled);
         o.addProperty("draftPlusRated", rated);
         o.addProperty("draftPlusChaosEnabled", chaosEnabled);
-        o.addProperty("draftPlusChaosCount", Math.max(1, Math.min(4, chaosCount)));
+        o.addProperty("draftPlusChaosCount", Math.max(1, Math.min(3, chaosCount)));
         o.addProperty("draftPlusChaosDifficulty", Math.max(0, Math.min(2, chaosDifficulty)));
         patch("", o);
     }
@@ -672,7 +672,7 @@ public final class Lobby {
             frozenSettings.addProperty("rolesEnabled", !current.has("draftPlusRolesEnabled") || bool(current, "draftPlusRolesEnabled"));
             frozenSettings.addProperty("rated", rated);
             frozenSettings.addProperty("chaosEnabled", !current.has("draftPlusChaosEnabled") || bool(current, "draftPlusChaosEnabled"));
-            frozenSettings.addProperty("chaosCount", Math.max(1, Math.min(4, (int) orDef(num(current, "draftPlusChaosCount"), 1))));
+            frozenSettings.addProperty("chaosCount", Math.max(1, Math.min(3, (int) orDef(num(current, "draftPlusChaosCount"), 1))));
             frozenSettings.addProperty("chaosDifficulty", Math.max(0, Math.min(2, (int) num(current, "draftPlusChaosDifficulty"))));
             o.add("draftPlusFrozenSettings", frozenSettings);
             int teamSize = Math.max(1, Math.min(5, (int) orDef(num(current, "draftPlusTeamSize"), 1)));
