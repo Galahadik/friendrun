@@ -329,6 +329,12 @@ public final class Lobby {
         doc.addProperty("draftPlusTeamSize", 1);
         doc.addProperty("draftPlusTeamNameA", "Команда A");
         doc.addProperty("draftPlusTeamNameB", "Команда B");
+        doc.addProperty("draftPlusBansEnabled", true);
+        doc.addProperty("draftPlusRolesEnabled", true);
+        doc.addProperty("draftPlusRated", false);
+        doc.addProperty("draftPlusChaosEnabled", true);
+        doc.addProperty("draftPlusChaosCount", 1);
+        doc.addProperty("draftPlusChaosDifficulty", 0);
         doc.addProperty("soloLock", false);
         doc.addProperty("convTotal", 20);
         doc.addProperty("convSlot", 3);
@@ -434,6 +440,19 @@ public final class Lobby {
         if (!host || closed) return;
         JsonObject o = new JsonObject();
         o.addProperty("draftPlusBansEnabled", enabled);
+        patch("", o);
+    }
+
+    /** Host-only Draft+ match settings; all values are published atomically. */
+    public void setDraftPlusSettings(boolean rolesEnabled, boolean rated, boolean chaosEnabled,
+                                     int chaosCount, int chaosDifficulty) {
+        if (!host || closed) return;
+        JsonObject o = new JsonObject();
+        o.addProperty("draftPlusRolesEnabled", rolesEnabled);
+        o.addProperty("draftPlusRated", rated);
+        o.addProperty("draftPlusChaosEnabled", chaosEnabled);
+        o.addProperty("draftPlusChaosCount", Math.max(1, Math.min(4, chaosCount)));
+        o.addProperty("draftPlusChaosDifficulty", Math.max(0, Math.min(2, chaosDifficulty)));
         patch("", o);
     }
 
@@ -569,14 +588,42 @@ public final class Lobby {
         JsonObject current = latestSnapshot();
         if (current != null && num(current, "gameMode") == Game.DRAFT_PLUS) {
             JsonObject currentPlayers = obj(current, "players");
-            JsonObject frozenRoles = new JsonObject();
-            for (String id : currentPlayers.keySet()) {
-                String roleId = str(obj(currentPlayers, id), "draftPlusRole");
-                if (DraftPlusRole.byId(roleId) == null) {
-                    FriendRunClient.chat("Draft+: каждый игрок должен выбрать роль перед стартом.");
+            boolean rated = bool(current, "draftPlusRated");
+            int format = (int) num(current, "draftPlusFormat");
+            int teamSize = Math.max(1, Math.min(5, (int) orDef(num(current, "draftPlusTeamSize"), 1)));
+            if (format == 0) {
+                if (currentPlayers.size() < 1 || currentPlayers.size() > 10
+                    || (rated && currentPlayers.size() < 2)) {
+                    FriendRunClient.chat(rated
+                        ? "Рейтинговый FFA требует от 2 до 10 игроков. Для одного игрока выберите Training."
+                        : "Draft+ FFA требует от 1 до 10 игроков.");
                     return;
                 }
-                frozenRoles.addProperty(id, roleId);
+            } else {
+                List<DraftPlusTeams.Member> members = new ArrayList<>();
+                for (String id : currentPlayers.keySet()) {
+                    JsonObject player = obj(currentPlayers, id);
+                    members.add(new DraftPlusTeams.Member(id, num(player, "joinedAt"),
+                        (int) num(player, "draftPlusTeam")));
+                }
+                if (!DraftPlusTeams.isReady(members, teamSize) || (rated && teamSize < 2)) {
+                    FriendRunClient.chat(rated
+                        ? "Рейтинговый Team требует минимум 2 игрока в каждой команде."
+                        : "Draft+ Команды: заполните обе команды до выбранного размера.");
+                    return;
+                }
+            }
+            JsonObject frozenRoles = new JsonObject();
+            boolean rolesEnabled = !current.has("draftPlusRolesEnabled") || bool(current, "draftPlusRolesEnabled");
+            if (rolesEnabled) {
+                for (String id : currentPlayers.keySet()) {
+                    String roleId = str(obj(currentPlayers, id), "draftPlusRole");
+                    if (DraftPlusRole.byId(roleId) == null) {
+                        FriendRunClient.chat("Draft+: каждый игрок должен выбрать роль перед стартом.");
+                        return;
+                    }
+                    frozenRoles.addProperty(id, roleId);
+                }
             }
             o.add("draftPlusRoles", frozenRoles);
             o.add("draftPlusState", JsonNull.INSTANCE);
