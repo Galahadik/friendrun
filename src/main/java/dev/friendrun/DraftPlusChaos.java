@@ -230,7 +230,8 @@ public final class DraftPlusChaos {
         };
         if (serverPlayer.getRandom().nextFloat() >= chance) return;
         ItemStack bonus = crafted.copy();
-        if (!serverPlayer.getInventory().add(bonus))
-            spawnDrop(serverPlayer.serverLevel(), serverPlayer.blockPosition(), bonus);
+        if (!serverPlayer.getInventory().add(bonus)
+            && serverPlayer.level() instanceof ServerLevel serverLevel)
+            spawnDrop(serverLevel, serverPlayer.blockPosition(), bonus);
     }
 }
