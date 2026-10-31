@@ -302,8 +302,13 @@ public final class FriendRunClient implements ClientModInitializer {
         s.mode = Lobby.num(doc, "mode") == 1 ? RunState.Mode.HOST_WORLD : RunState.Mode.SEPARATE_WORLDS;
         s.gameMode = (int) Lobby.num(doc, "gameMode");
         JsonObject frozenDraftPlus = Lobby.obj(doc, "draftPlusFrozenSettings");
-        JsonObject draftPlusSettings = Lobby.bool(doc, "launched") && !frozenDraftPlus.isEmpty() ? frozenDraftPlus : doc;
-        boolean frozen = draftPlusSettings == frozenDraftPlus;
+        JsonObject draftPlusStateDoc = Lobby.obj(doc, "draftPlusState");
+        boolean draftPlusMatchComplete = Lobby.str(draftPlusStateDoc, "phase")
+            .equals(DraftPlusFlow.Phase.COMPLETE.name());
+        boolean useFrozenDraftPlus = Lobby.bool(doc, "launched") && !draftPlusMatchComplete
+            && !frozenDraftPlus.isEmpty();
+        JsonObject draftPlusSettings = useFrozenDraftPlus ? frozenDraftPlus : doc;
+        boolean frozen = useFrozenDraftPlus;
         s.draftPlusFormat = (int) Lobby.orDef(Lobby.num(draftPlusSettings, frozen ? "format" : "draftPlusFormat"), 0);
         s.draftPlusTeamSize = (int) Math.max(1, Math.min(5,
             Lobby.orDef(Lobby.num(draftPlusSettings, frozen ? "teamSize" : "draftPlusTeamSize"), 1)));
