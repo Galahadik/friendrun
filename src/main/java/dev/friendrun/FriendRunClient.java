@@ -364,8 +364,9 @@ public final class FriendRunClient implements ClientModInitializer {
         if (startAt > 0 && startAt != lastStartAt) {
             lastStartAt = startAt;
             long hostNow = System.currentTimeMillis() - (s.amHost ? 0 : hostClockOffsetMs);
-            if ((hostNow - startAt < 10_000 || (int) Lobby.num(doc, "roundGame") == Game.DRAFT_PLUS)
-                && s.phase == RunState.Phase.IDLE) {
+            int incomingRoundGame = (int) Lobby.num(doc, "roundGame");
+            if ((hostNow - startAt < 10_000 || incomingRoundGame == Game.DRAFT_PLUS)
+                && (s.phase == RunState.Phase.IDLE || incomingRoundGame == Game.DRAFT_PLUS)) {
                 String rs = Lobby.str(doc, "roundSeed");
                 try {
                     long seed = Long.parseLong(rs);
