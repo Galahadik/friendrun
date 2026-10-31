@@ -37,7 +37,7 @@ public final class Lobby {
 
     public final String name;
     public final String me;
-    public final boolean host;
+    public volatile boolean host;
     private final String base;
     private final Listener listener;
     // Polling must never wait behind UI-triggered writes (settings, ready, scores, etc.).
@@ -757,6 +757,19 @@ public final class Lobby {
      */
     public void endBecauseHostLeftWorld() {
         if (!host || closed) return;
+        JsonObject current = latestSnapshot();
+        if (current != null && isRatedDraftPlus(current)) {
+            String nextHost = electDraftPlusHost(current, System.currentTimeMillis(), me);
+            JsonObject transfer = new JsonObject();
+            transfer.addProperty("host", nextHost == null ? "" : nextHost);
+            transfer.addProperty("hostSeen", nextHost == null ? 0 : System.currentTimeMillis());
+            transfer.addProperty("hostInGame", false);
+            transfer.addProperty("hostMigrationFrom", me);
+            transfer.addProperty("hostMigrationAt", System.currentTimeMillis());
+            patch("", transfer);
+            host = false;
+            return; // Keep the rated Draft+ match and all frozen settings intact.
+        }
         JsonObject o = new JsonObject();
         o.addProperty("launched", false);
         o.addProperty("hostInGame", false);
@@ -831,11 +844,25 @@ public final class Lobby {
 
     public void close() {
         if (closed) return;
+        JsonObject current = latestSnapshot();
+        boolean migrate = host && current != null && isRatedDraftPlus(current);
+        String nextHost = migrate ? electDraftPlusHost(current, System.currentTimeMillis(), me) : null;
         closed = true;
         if (poller != null) poller.cancel(false);
         try {
             writeEx.execute(() -> {
-                try { request("DELETE", host ? "" : "/players/" + me, null); } catch (IOException ignored) {}
+                try {
+                    if (migrate) {
+                        JsonObject transfer = new JsonObject();
+                        transfer.addProperty("host", nextHost == null ? "" : nextHost);
+                        transfer.addProperty("hostSeen", nextHost == null ? 0 : System.currentTimeMillis());
+                        transfer.addProperty("hostInGame", false);
+                        transfer.addProperty("hostMigrationFrom", me);
+                        transfer.addProperty("hostMigrationAt", System.currentTimeMillis());
+                        request("PATCH", "", transfer.toString());
+                        request("DELETE", "/players/" + me, null);
+                    } else request("DELETE", host ? "" : "/players/" + me, null);
+                } catch (IOException ignored) {}
             });
         } catch (RejectedExecutionException ignored) {}
         pollEx.shutdownNow();
@@ -871,7 +898,21 @@ public final class Lobby {
             return; // wait for the initial SSE snapshot
         }
         long nowMs = System.currentTimeMillis();
-        if (!host && nowMs - num(doc, "hostSeen") > 20_000) {
+        host = str(doc, "host").equals(me);
+        long hostTimeout = isRatedDraftPlus(doc) ? 12_000 : 20_000;
+        if (!host && nowMs - num(doc, "hostSeen") > hostTimeout) {
+            if (isRatedDraftPlus(doc)) {
+                try {
+                    if (tryDraftPlusHostMigration(doc, nowMs)) {
+                        nextDelay = 1000;
+                        return; // Wait for the authoritative host-change snapshot.
+                    }
+                } catch (IOException ex) {
+                    fail(ex);
+                }
+                nextDelay = 1000; // Do not destroy a rated Draft+ match while waiting for the elected host.
+                return;
+            }
             shutdown("Хост отключился от лобби");
             return;
         }
@@ -886,6 +927,41 @@ public final class Lobby {
         // Host timer checks stay responsive while active; no Firebase GET is performed here.
         nextDelay = !hostInGame ? (bool(doc, "launched") ? 2000 : 5000)
             : (startAt == 0 ? 1000 : 250);
+    }
+
+    private static boolean isRatedDraftPlus(JsonObject doc) {
+        if (!bool(doc, "launched") || num(doc, "gameMode") != Game.DRAFT_PLUS) return false;
+        JsonObject frozen = obj(doc, "draftPlusFrozenSettings");
+        return bool(frozen.isEmpty() ? doc : frozen, frozen.isEmpty() ? "draftPlusRated" : "rated");
+    }
+
+    /** Deterministic election: the oldest currently connected participant takes over. */
+    private static String electDraftPlusHost(JsonObject doc, long now, String excluded) {
+        JsonObject players = obj(doc, "players");
+        List<String> candidates = new ArrayList<>();
+        for (String id : players.keySet()) {
+            if (id.equals(excluded) || now - num(obj(players, id), "lastSeen") > 12_000) continue;
+            candidates.add(id);
+        }
+        candidates.sort(java.util.Comparator
+            .comparingLong((String id) -> num(obj(players, id), "joinedAt"))
+            .thenComparing(id -> id));
+        return candidates.isEmpty() ? null : candidates.get(0);
+    }
+
+    private boolean tryDraftPlusHostMigration(JsonObject doc, long now) throws IOException {
+        String currentHost = str(doc, "host");
+        String elected = electDraftPlusHost(doc, now, currentHost);
+        if (elected == null || !elected.equals(me)) return false;
+        JsonObject transfer = new JsonObject();
+        transfer.addProperty("host", me);
+        transfer.addProperty("hostSeen", now);
+        transfer.addProperty("hostInGame", false);
+        transfer.addProperty("hostMigrationFrom", currentHost);
+        transfer.addProperty("hostMigrationAt", now);
+        request("PATCH", "", transfer.toString());
+        host = true;
+        return true;
     }
 
     private JsonObject latestSnapshot() {
@@ -970,6 +1046,7 @@ public final class Lobby {
                     }
                 }
                 snapshotVersion++;
+                host = str(latestDoc, "host").equals(me);
             }
             queueSnapshotDelivery();
         } catch (RuntimeException e) {
