@@ -879,7 +879,10 @@ public final class FriendRunClient implements ClientModInitializer {
         if (teamIndex != DraftPlusTeams.NO_TEAM && teamIndex != DraftPlusTeams.TEAM_A
             && teamIndex != DraftPlusTeams.TEAM_B) return;
         if (teamIndex != DraftPlusTeams.NO_TEAM) {
-            long occupied = STATE.players.stream().filter(p -> p.draftPlusTeam() == teamIndex).count();
+            long occupied = STATE.players.stream()
+                .filter(p -> !STATE.draftPlusDisconnectedPlayers.contains(p.name())
+                    && !STATE.draftPlusForfeitedPlayers.contains(p.name()))
+                .filter(p -> p.draftPlusTeam() == teamIndex).count();
             RunState.PlayerInfo me = STATE.players.stream().filter(p -> p.name().equals(myName())).findFirst().orElse(null);
             if ((me == null || me.draftPlusTeam() != teamIndex) && occupied >= STATE.draftPlusTeamSize) {
                 chat("В этой команде нет свободных мест.");
