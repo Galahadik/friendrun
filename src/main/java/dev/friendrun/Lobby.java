@@ -1109,7 +1109,7 @@ public final class Lobby {
     /** A candidate may claim an expired lease, but only the deterministic election winner may do so. */
     static boolean isValidDraftPlusHostMigration(JsonObject expected, String candidate, JsonObject updates) {
         if (expected == null || updates == null || !isRatedDraftPlus(expected)
-            || candidate == null || candidate.isBlank() || str(expected, "host").isBlank()
+            || candidate == null || candidate.isBlank()
             || !candidate.equals(str(updates, "host"))) return false;
         long migrationAt = num(updates, "hostMigrationAt");
         // Never allow a takeover while the persisted owner's lease is still live.
