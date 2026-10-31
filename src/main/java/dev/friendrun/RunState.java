@@ -86,6 +86,8 @@ public final class RunState {
     public boolean draftPlusBoardPersonalized;
     // Monotonic item acquisition tracking for Draft+: pickup packets and inventory increases.
     public final java.util.Map<String, Integer> draftPlusAcquired = new java.util.HashMap<>();
+    // Firebase snapshot used to resume contribution tracking after a client reconnect.
+    public final java.util.Map<String, Integer> draftPlusPersistedAcquired = new java.util.HashMap<>();
     public final java.util.Map<String, Integer> draftPlusLastInventory = new java.util.HashMap<>();
     public final java.util.Map<String, Integer> draftPlusPickupPending = new java.util.HashMap<>();
     public String draftPlusStatsSignature = "";
@@ -134,6 +136,7 @@ public final class RunState {
         draftPlusNeedsBaseline = false;
         draftPlusBoardPersonalized = false;
         draftPlusAcquired.clear();
+        draftPlusPersistedAcquired.clear();
         draftPlusLastInventory.clear();
         draftPlusPickupPending.clear();
         draftPlusStatsSignature = "";
