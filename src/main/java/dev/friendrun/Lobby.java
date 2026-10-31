@@ -878,9 +878,12 @@ public final class Lobby {
                 try {
                     if (path.isEmpty()) {
                         JsonObject snapshot = latestSnapshot();
-                        if (snapshot != null && isRatedDraftPlus(snapshot)) {
+                        // Root-level lobby mutations are host-authoritative. If the
+                        // snapshot is missing or already names another host, fail closed.
+                        if (snapshot == null || !str(snapshot, "host").equals(me)) return;
+                        if (isRatedDraftPlus(snapshot)) {
                             if (!commitDraftPlusHostSnapshot(snapshot, body)) {
-                                FriendRunClient.LOG.debug("FRun: rejected root update from stale Draft+ host/client");
+                                FriendRunClient.LOG.debug("FRun: rejected root update from stale Draft+ host");
                                 return;
                             }
                         } else request("PATCH", path, body.toString());
@@ -893,7 +896,8 @@ public final class Lobby {
     public void close() {
         if (closed) return;
         JsonObject current = latestSnapshot();
-        boolean migrate = host && current != null && isRatedDraftPlus(current);
+        boolean ownsLobby = current != null && str(current, "host").equals(me);
+        boolean migrate = host && ownsLobby && isRatedDraftPlus(current);
         String nextHost = migrate ? electDraftPlusHost(current, System.currentTimeMillis(), me) : null;
         closed = true;
         if (poller != null) poller.cancel(false);
@@ -910,7 +914,11 @@ public final class Lobby {
                         transfer.addProperty("hostEpoch", num(current, "hostEpoch") + 1);
                         if (commitDraftPlusHostSnapshot(current, transfer))
                             request("DELETE", "/players/" + me, null);
-                    } else request("DELETE", host ? "" : "/players/" + me, null);
+                    } else if (!host) {
+                        request("DELETE", "/players/" + me, null);
+                    } else if (ownsLobby) {
+                        request("DELETE", "", null);
+                    }
                 } catch (IOException ignored) {}
             });
         } catch (RejectedExecutionException ignored) {}
