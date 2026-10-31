@@ -448,15 +448,57 @@ public final class Lobby {
         int i = 2;
         while (players.has(nick)) nick = me + i++;
         Lobby lb = new Lobby(dbUrl, name, nick, false, l);
-        lb.request("PUT", "/players/" + nick, player().toString());
-        // Повторная проверка закрывает гонку, если хост включил soloLock между GET и PUT.
+        String joinNonce = Long.toUnsignedString(RNG.nextLong(), 36)
+            + Long.toUnsignedString(System.nanoTime(), 36);
+        JsonObject joiningPlayer = player();
+        joiningPlayer.addProperty("joinNonce", joinNonce);
+        lb.request("PUT", "/players/" + nick, joiningPlayer.toString());
+
+        // Recheck the original session, not only its settings. A child PUT can recreate
+        // a deleted Firebase parent, so a closed/replaced lobby must never be accepted.
         JsonElement verify = lb.request("GET", "", null);
-        if (verify != null && verify.isJsonObject() && (bool(verify.getAsJsonObject(), "soloLock") || num(verify.getAsJsonObject(), "gameMode") == Game.SINGLE_SPEEDRUN)) {
-            lb.request("DELETE", "/players/" + nick, null);
-            throw new IOException("Хост включил одиночный спидран — вход в лобби закрыт");
+        JsonObject verified = verify != null && verify.isJsonObject() ? verify.getAsJsonObject() : null;
+        if (!isJoinSnapshotValid(doc, verified, nick, joinNonce, System.currentTimeMillis())) {
+            lb.cleanupRejectedJoin(verified, nick, joinNonce);
+            throw new IOException("Лобби изменилось или было закрыто во время входа");
         }
         lb.startPolling();
         return lb;
+    }
+
+    static boolean isJoinSnapshotValid(
+        JsonObject original, JsonObject current, String nick, String joinNonce, long nowMs
+    ) {
+        if (original == null || current == null || nick == null || joinNonce == null) return false;
+        String originalSession = str(original, "sessionId");
+        boolean sameSession = originalSession.isBlank()
+            ? str(current, "sessionId").isBlank()
+                && str(original, "host").equals(str(current, "host"))
+                && num(original, "hostSeen") == num(current, "hostSeen")
+            : originalSession.equals(str(current, "sessionId"));
+        long hostSeen = num(current, "hostSeen");
+        JsonObject joined = obj(obj(current, "players"), nick);
+        return sameSession
+            && !str(current, "host").isBlank()
+            && hostSeen > 0L && nowMs - hostSeen <= 20_000L
+            && !bool(current, "launched")
+            && !bool(current, "soloLock")
+            && num(current, "gameMode") != Game.SINGLE_SPEEDRUN
+            && joinNonce.equals(str(joined, "joinNonce"));
+    }
+
+    private void cleanupRejectedJoin(JsonObject verified, String nick, String joinNonce) throws IOException {
+        if (verified == null) return;
+        // If the parent was recreated by this child write after its original lobby
+        // disappeared, remove that orphan root conditionally. Valid lobbies always
+        // carry both a host and a session id; CAS protects a concurrent real creation.
+        if (str(verified, "host").isBlank() && str(verified, "sessionId").isBlank()) {
+            conditionalFirebaseDelete(base, verified);
+            return;
+        }
+        JsonObject joined = obj(obj(verified, "players"), nick);
+        if (joinNonce.equals(str(joined, "joinNonce")))
+            conditionalFirebaseDelete(base + "/players/" + nick, joined);
     }
 
     private static JsonObject player() {
