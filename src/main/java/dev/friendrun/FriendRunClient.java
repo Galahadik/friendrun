@@ -181,6 +181,7 @@ public final class FriendRunClient implements ClientModInitializer {
         String nextDraftPlusError = Lobby.str(doc, "draftPlusStartError");
         if (!previousDraftPlusError.equals(nextDraftPlusError)) s.draftPlusScreenDismissed = false;
         s.draftPlusState = nextDraftPlus;
+        s.draftPlusMatchSeed = Lobby.str(doc, "draftPlusSeed");
         s.draftPlusStartError = nextDraftPlusError;
         s.draftActive = Lobby.bool(doc, "draftActive");
         s.draftComplete = Lobby.bool(doc, "draftComplete");
@@ -637,14 +638,14 @@ public final class FriendRunClient implements ClientModInitializer {
         if (lobby == null || state == null || state.phase() != DraftPlusFlow.Phase.BANS
             || !myName().equals(state.currentActor()) || goalId == null
             || !state.availableGoals().contains(goalId)) return;
-        lobby.submitDraftPlusAction("BAN", goalId, -1, state.banIndex());
+        lobby.submitDraftPlusAction("BAN", goalId, -1, state.banIndex(), STATE.draftPlusMatchSeed);
     }
 
     public static void submitDraftPlusPick(int choice) {
         DraftPlusFlow.State state = STATE.draftPlusState;
         if (lobby == null || state == null || state.phase() != DraftPlusFlow.Phase.DRAFT
             || !myName().equals(state.currentActor()) || (choice != 0 && choice != 1)) return;
-        lobby.submitDraftPlusAction("PICK", "", choice, state.pickIndex());
+        lobby.submitDraftPlusAction("PICK", "", choice, state.pickIndex(), STATE.draftPlusMatchSeed);
     }
 
     public static void setDraftPlusConfig(int format, int teamSize) {
