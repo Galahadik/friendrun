@@ -53,6 +53,7 @@ public final class FriendRunClient implements ClientModInitializer {
         Commands.register();
         Hud.register();
         DraftPlusRoles.register();
+        DraftPlusChaos.register();
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> E4mc.scan(message.getString()));
         ClientTickEvents.END_CLIENT_TICK.register(FriendRunClient::tick);
     }
@@ -326,7 +327,7 @@ public final class FriendRunClient implements ClientModInitializer {
         s.draftPlusRated = Lobby.bool(draftPlusSettings, frozen ? "rated" : "draftPlusRated");
         s.draftPlusChaosEnabled = !draftPlusSettings.has(frozen ? "chaosEnabled" : "draftPlusChaosEnabled")
             || Lobby.bool(draftPlusSettings, frozen ? "chaosEnabled" : "draftPlusChaosEnabled");
-        s.draftPlusChaosCount = Math.max(1, Math.min(3, (int) Lobby.orDef(
+        s.draftPlusChaosCount = Math.max(1, Math.min(4, (int) Lobby.orDef(
             Lobby.num(draftPlusSettings, frozen ? "chaosCount" : "draftPlusChaosCount"), 1)));
         s.draftPlusChaosDifficulty = Math.max(0, Math.min(2,
             (int) Lobby.num(draftPlusSettings, frozen ? "chaosDifficulty" : "draftPlusChaosDifficulty")));
@@ -343,6 +344,11 @@ public final class FriendRunClient implements ClientModInitializer {
         String previousDraftPlusError = s.draftPlusStartError;
         String nextDraftPlusError = Lobby.str(doc, "draftPlusStartError");
         if (!previousDraftPlusError.equals(nextDraftPlusError)) s.draftPlusScreenDismissed = false;
+        java.util.List<String> chaosModifiers = new ArrayList<>();
+        if (doc.has("draftPlusChaosMods") && doc.get("draftPlusChaosMods").isJsonArray())
+            for (var value : doc.getAsJsonArray("draftPlusChaosMods"))
+                if (value.isJsonPrimitive()) chaosModifiers.add(value.getAsString());
+        s.draftPlusChaosModifiers = java.util.List.copyOf(chaosModifiers);
         s.draftPlusState = nextDraftPlus;
         if (s.draftPlusState != null)
             s.draftPlusForfeitedPlayers.addAll(s.draftPlusState.forfeitedPlayers());
@@ -661,6 +667,7 @@ public final class FriendRunClient implements ClientModInitializer {
             }
         }
         DraftPlusRoles.publish(s);
+        DraftPlusChaos.publish(s);
     }
 
     // ---------- настройки лобби (только хост) ----------
@@ -1068,6 +1075,7 @@ public final class FriendRunClient implements ClientModInitializer {
         lastDraftPlusAdvancementReport = "";
         lastDraftPlusAdvancementReportAtNanos = 0;
         DraftPlusRoles.clear();
+        DraftPlusChaos.clear();
         STATE.resetAll();
         Settings.clearLobby();
     }
