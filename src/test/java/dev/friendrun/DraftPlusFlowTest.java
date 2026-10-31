@@ -59,6 +59,10 @@ final class DraftPlusFlowTest {
         assertEquals(DraftPlusRules.CELL_COUNT, Set.copyOf(state.boardGoals()).size());
         assertEquals(DraftPlusRules.CELL_COUNT, state.owners().size());
         assertTrue(state.owners().stream().allMatch("-"::equals));
+        assertEquals(DraftPlusRules.CELL_COUNT, state.pickers().size());
+        assertTrue(state.pickers().stream().allMatch(id ->
+            FFA_PLAYERS.stream().anyMatch(player -> player.id().equals(id))));
+        assertEquals(state.pickers(), DraftPlusCodec.decode(DraftPlusCodec.encode(state)).pickers());
     }
 
     @Test
