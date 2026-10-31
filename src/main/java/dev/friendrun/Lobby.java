@@ -524,8 +524,7 @@ public final class Lobby {
         int currentTeam = (int) num(obj(players, me), "draftPlusTeam");
         long occupied = players.keySet().stream()
             .filter(id -> !id.equals(me))
-            .filter(id -> !bool(obj(players, id), "draftPlusDisconnected")
-                && !bool(obj(players, id), "draftPlusForfeit"))
+            .filter(id -> !bool(obj(players, id), "draftPlusDisconnected"))
             .filter(id -> num(obj(players, id), "draftPlusTeam") == teamIndex).count();
         int capacity = Math.max(1, Math.min(5, (int) orDef(num(current, "draftPlusTeamSize"), 1)));
         if (teamIndex != DraftPlusTeams.NO_TEAM && currentTeam != teamIndex && occupied >= capacity) return;
@@ -557,7 +556,7 @@ public final class Lobby {
         for (String id : players.keySet()) {
             JsonObject p = obj(players, id);
             if (System.currentTimeMillis() - num(p, "lastSeen") > 20_000
-                || bool(p, "draftPlusDisconnected") || bool(p, "draftPlusForfeit")) continue;
+                || bool(p, "draftPlusDisconnected")) continue;
             roster.add(new DraftPlusTeams.Member(id, num(p, "joinedAt"), (int) num(p, "draftPlusTeam")));
         }
         try {
@@ -1234,7 +1233,15 @@ public final class Lobby {
                     updates.addProperty("players/" + p + "/draftPlusDisconnected", false);
                 }
             } else if (draftPlusLaunched) {
-                // The match is already complete; keep the lobby roster without turning a post-match disconnect into a loss.
+                // A returning player is eligible for the next match; the previous match's forfeit remains in history/state.
+                if (staleMs <= 20_000 && (bool(player, "draftPlusDisconnected") || bool(player, "draftPlusForfeit"))) {
+                    player.addProperty("draftPlusDisconnected", false);
+                    player.addProperty("draftPlusForfeit", false);
+                    player.add("draftPlusForfeitAt", JsonNull.INSTANCE);
+                    updates.addProperty("players/" + p + "/draftPlusDisconnected", false);
+                    updates.addProperty("players/" + p + "/draftPlusForfeit", false);
+                    updates.add("players/" + p + "/draftPlusForfeitAt", JsonNull.INSTANCE);
+                }
             } else if (staleMs > 20_000) {
                 players.remove(p);
                 updates.add("players/" + p, JsonNull.INSTANCE);
