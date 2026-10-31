@@ -827,8 +827,13 @@ public final class FriendRunClient implements ClientModInitializer {
         lobby.submitDraftPlusAction("PICK", "", choice, state.pickIndex(), STATE.draftPlusMatchSeed);
     }
 
+    private static boolean draftPlusEditable() {
+        return !STATE.launched || (STATE.draftPlusState != null
+            && STATE.draftPlusState.phase() == DraftPlusFlow.Phase.COMPLETE);
+    }
+
     public static void setDraftPlusConfig(int format, int teamSize) {
-        if (lobby == null || !STATE.amHost || STATE.phase != RunState.Phase.IDLE) return;
+        if (lobby == null || !STATE.amHost || STATE.phase != RunState.Phase.IDLE || !draftPlusEditable()) return;
         STATE.draftPlusFormat = Math.max(0, Math.min(1, format));
         STATE.draftPlusTeamSize = Math.max(1, Math.min(5, teamSize));
         lobby.setDraftPlusConfig(STATE.draftPlusFormat, STATE.draftPlusTeamSize);
@@ -836,7 +841,7 @@ public final class FriendRunClient implements ClientModInitializer {
 
     public static void setDraftPlusBansEnabled(boolean enabled) {
         if (lobby == null || !STATE.amHost || STATE.gameMode != Game.DRAFT_PLUS
-            || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
+            || !draftPlusEditable() || STATE.phase != RunState.Phase.IDLE) return;
         STATE.draftPlusBansEnabled = enabled;
         lobby.setDraftPlusBansEnabled(enabled);
     }
