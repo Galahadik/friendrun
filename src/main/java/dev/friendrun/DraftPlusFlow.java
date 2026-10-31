@@ -73,8 +73,9 @@ public final class DraftPlusFlow {
             int firstBanActor = format == DraftPlusRules.Format.FFA
                 ? random.nextInt(players.size()) : random.nextInt(2);
             DraftPlusRules.Player actor = DraftPlusRules.banActor(format, players, firstBanActor, 0);
+            String[] offers = drawOffers(pool, random);
             return new State(format, players, pool, List.of(), List.of(), List.of(),
-                Phase.BANS, 0, firstBanActor, -1, 0, actor.id(), "", "", "");
+                Phase.BANS, 0, firstBanActor, -1, 0, actor.id(), offers[0], offers[1], "");
         }
         return beginDraft(format, players, pool, List.of(), random);
     }
@@ -84,8 +85,9 @@ public final class DraftPlusFlow {
         requirePhase(state, Phase.BANS);
         Objects.requireNonNull(random, "random");
         requireActor(state, actorId);
-        if (goalId == null || !state.availableGoals().contains(goalId))
-            throw new IllegalArgumentException("Goal is not available to ban");
+        if (goalId == null || (!goalId.equals(state.offerA()) && !goalId.equals(state.offerB()))
+            || !state.availableGoals().contains(goalId))
+            throw new IllegalArgumentException("Goal is not one of the current ban offers");
 
         List<String> available = new ArrayList<>(state.availableGoals());
         available.remove(goalId);
@@ -97,9 +99,10 @@ public final class DraftPlusFlow {
 
         DraftPlusRules.Player next = DraftPlusRules.banActor(
             state.format(), state.players(), state.firstBanActor(), nextBan);
+        String[] offers = drawOffers(available, random);
         return new State(state.format(), state.players(), available, banned,
             state.boardGoals(), state.owners(), Phase.BANS, nextBan,
-            state.firstBanActor(), -1, 0, next.id(), "", "", "");
+            state.firstBanActor(), -1, 0, next.id(), offers[0], offers[1], "");
     }
 
     /** Applies the current player's choice (0 = A, 1 = B). */
