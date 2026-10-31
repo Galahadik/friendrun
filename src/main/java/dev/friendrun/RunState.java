@@ -74,6 +74,7 @@ public final class RunState {
     public boolean[] draftClaimPending = new boolean[49];
     public int draftPlusClaimPendingIndex = -1;
     public long draftPlusClaimSentAtNanos;
+    public boolean draftPlusNeedsBaseline;
     public int[] bingoBase = new int[25];           // бинго: сколько штук было в инвентаре на старте
     public long countdownEndNanos;
     public long startNanos;
@@ -114,6 +115,7 @@ public final class RunState {
         draftClaimPending = new boolean[49];
         draftPlusClaimPendingIndex = -1;
         draftPlusClaimSentAtNanos = 0;
+        draftPlusNeedsBaseline = false;
     }
 
     public void resetAll() {
