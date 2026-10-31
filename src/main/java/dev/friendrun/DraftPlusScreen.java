@@ -128,6 +128,7 @@ public final class DraftPlusScreen extends Screen {
         String phase = switch (state.phase()) {
             case BANS -> "БАНЫ";
             case DRAFT -> "ДРАФТ";
+            case PLAY -> "ИГРА";
             case COMPLETE -> "ЗАВЕРШЕНО";
         };
         Gfx.centered(g, "DRAFT+ · " + format + " · " + phase, width / 2, panel.y() + 10, Ui.GOLD);
