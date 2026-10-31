@@ -114,6 +114,11 @@ public final class Lobby {
 
     /** Выполняет расчёт рейтинга не более одного раза для конкретного режима и раунда за жизнь хоста. */
     private String settleOnce(int game, long roundId, java.util.function.Supplier<String> calculation) {
+        // Draft+ has its own rating design and must never fall through to the legacy MMR tables.
+        if (game == Game.DRAFT_PLUS) {
+            FriendRunClient.LOG.warn("FRun: Draft+ rating settlement is disabled (round {})", roundId);
+            return "";
+        }
         String key = game + ":" + roundId;
         if (!ratingAttempts.add(key)) {
             FriendRunClient.LOG.debug("FRun: повторный расчёт рейтинга пропущен (режим {}, раунд {})", game, roundId);
