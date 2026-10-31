@@ -235,6 +235,45 @@ public final class DraftPlusFlow {
             state.currentActor(), state.offerA(), state.offerB(), winner);
     }
 
+    /**
+     * Completes a match after the entire roster has been offline for five minutes.
+     * This special case is decided strictly from the persisted board, not by the
+     * order in which individual player forfeits are processed.
+     */
+    public static State completeAfterGlobalTimeout(State state) {
+        if (state == null || state.phase() == Phase.COMPLETE) return state;
+        List<String> forfeited = state.players().stream().map(DraftPlusRules.Player::id).toList();
+        String winner = "";
+        if (state.owners().stream().anyMatch(owner -> !"-".equals(owner))) {
+            if (state.format() == DraftPlusRules.Format.FFA) {
+                long best = -1;
+                String leader = "";
+                boolean tied = false;
+                for (DraftPlusRules.Player player : state.players()) {
+                    long owned = state.owners().stream().filter(player.id()::equals).count();
+                    if (owned > best) { best = owned; leader = player.id(); tied = false; }
+                    else if (owned == best) tied = true;
+                }
+                if (!tied && !leader.isBlank()) winner = "player:" + leader;
+            } else {
+                long teamA = 0, teamB = 0;
+                for (String owner : state.owners()) {
+                    for (DraftPlusRules.Player player : state.players()) {
+                        if (!player.id().equals(owner)) continue;
+                        if (player.teamIndex() == DraftPlusTeams.TEAM_A) teamA++;
+                        else if (player.teamIndex() == DraftPlusTeams.TEAM_B) teamB++;
+                        break;
+                    }
+                }
+                if (teamA != teamB) winner = teamA > teamB ? "team:0" : "team:1";
+            }
+        }
+        return new State(state.format(), state.players(), state.availableGoals(), state.bannedGoals(),
+            state.boardGoals(), state.owners(), forfeited, Phase.COMPLETE, state.banIndex(),
+            state.firstBanActor(), state.firstDraftActor(), state.pickIndex(),
+            state.currentActor(), state.offerA(), state.offerB(), winner);
+    }
+
     /** Whether this player has already forfeited the current match. */
     public static boolean isForfeited(State state, String playerId) {
         return state != null && state.forfeitedPlayers().contains(playerId);
