@@ -1655,7 +1655,7 @@ public final class Lobby {
                 Thread.currentThread().interrupt();
                 throw new IOException("Firebase conditional write interrupted", interrupted);
             }
-        }, URI.create(url), expected, replacement);
+        }, URI.create(url.endsWith(".json") ? url : url + ".json"), expected, replacement);
     }
 
     private static void writeDraftPlusWinnerFields(
