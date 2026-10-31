@@ -543,6 +543,13 @@ public final class Lobby {
             o.add("draftPlusState", JsonNull.INSTANCE);
             o.addProperty("draftPlusLastActionId", "");
             o.addProperty("draftPlusStartError", "");
+            JsonObject currentPlayers = obj(current, "players");
+            for (String id : currentPlayers.keySet()) {
+                o.add("players/" + id + "/draftPlusActionId", JsonNull.INSTANCE);
+                o.add("players/" + id + "/draftPlusAction", JsonNull.INSTANCE);
+                o.add("players/" + id + "/draftPlusGoal", JsonNull.INSTANCE);
+                o.add("players/" + id + "/draftPlusChoice", JsonNull.INSTANCE);
+            }
         }
         patch("", o);
     }
@@ -574,6 +581,9 @@ public final class Lobby {
         o.addProperty("prepareRound", 0);
         o.addProperty("draftActive", false);
         o.addProperty("draftComplete", false);
+        o.add("draftPlusState", JsonNull.INSTANCE);
+        o.addProperty("draftPlusLastActionId", "");
+        o.addProperty("draftPlusStartError", "");
         o.addProperty("draftPickCount", 0);
         o.addProperty("draftTurn", "");
         o.addProperty("draftSeed", "0");
