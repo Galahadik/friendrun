@@ -211,6 +211,7 @@ public final class FriendRunClient implements ClientModInitializer {
     // ---------- применение документа лобби ----------
     private static void apply(JsonObject doc) {
         if (lobby == null) return;
+        Minecraft mc = Minecraft.getInstance();
         RunState s = STATE;
 
         // настройки пула предметов/усложнений от хоста — первыми: от них зависит выбор предмета ниже
@@ -279,7 +280,10 @@ public final class FriendRunClient implements ClientModInitializer {
         if (s.gameMode == Game.DRAFT_PLUS && nextDraftPlus != null) {
             s.draftBoardIds = String.join(",", nextDraftPlus.boardGoals());
             s.draftOwnersIds = String.join(",", nextDraftPlus.owners());
-            s.draftGoals = parseDraftGoals(s.draftBoardIds);
+            boolean preservePersonalBoard = s.draftPlusBoardPersonalized
+                && (nextDraftPlus.phase() == DraftPlusFlow.Phase.PLAY
+                    || nextDraftPlus.phase() == DraftPlusFlow.Phase.COMPLETE);
+            if (!preservePersonalBoard) s.draftGoals = parseDraftGoals(s.draftBoardIds);
             s.draftOwners = parseDraftOwners(s.draftOwnersIds);
         }
         for (int i = 0; i < s.draftOwners.length; i++) if (!"-".equals(s.draftOwners[i])) s.draftClaimPending[i] = false;
