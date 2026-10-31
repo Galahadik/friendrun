@@ -1234,17 +1234,24 @@ public final class Lobby {
                     long now = System.currentTimeMillis();
                     JsonObject playerBeat = new JsonObject();
                     playerBeat.addProperty("lastSeen", now);
-                    request("PATCH", "/players/" + me, playerBeat.toString());
                     if (host) {
-                        JsonObject hostBeat = new JsonObject();
-                        hostBeat.addProperty("hostSeen", now);
                         JsonObject snapshot = latestSnapshot();
                         if (snapshot != null && isRatedDraftPlus(snapshot)) {
+                            // Commit the root lease before touching the player child: the
+                            // player's own heartbeat changes the root ETag as well.
+                            JsonObject hostBeat = new JsonObject();
+                            hostBeat.addProperty("hostSeen", now);
                             commitDraftPlusHostSnapshot(snapshot, hostBeat);
-                        } else if (snapshot != null && str(snapshot, "host").equals(me)) {
-                            request("PATCH", "", hostBeat.toString());
+                            request("PATCH", "/players/" + me, playerBeat.toString());
+                        } else {
+                            request("PATCH", "/players/" + me, playerBeat.toString());
+                            if (snapshot != null && str(snapshot, "host").equals(me)) {
+                                JsonObject hostBeat = new JsonObject();
+                                hostBeat.addProperty("hostSeen", now);
+                                request("PATCH", "", hostBeat.toString());
+                            }
                         }
-                    }
+                    } else request("PATCH", "/players/" + me, playerBeat.toString());
                 } catch (IOException e) {
                     fail(e);
                 }
