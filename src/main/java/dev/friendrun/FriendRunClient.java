@@ -3,6 +3,8 @@ package dev.friendrun;
 import com.google.gson.JsonObject;
 import java.io.IOException;
 import java.util.Set;
+import java.util.List;
+import java.util.ArrayList;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
