@@ -69,7 +69,13 @@ public final class LobbyRoomScreen extends Screen {
         rLeave = new Ui.R(rx + startW + 4, py + 210, rw - startW - 4, 20);
 
         bSettings = make(rSettings, () -> Mc.setScreen(new SettingsScreen(this)));
-        bSetA = make(rSetA, FriendRunClient::settingA);
+        bSetA = make(rSetA, () -> {
+            RunState current = FriendRunClient.STATE;
+            if (current.gameMode == Game.DRAFT_PLUS && current.draftPlusFormat == 1)
+                Mc.setScreen(new DraftPlusTeamScreen(this));
+            else
+                FriendRunClient.settingA();
+        });
         bSetB = make(rSetB, FriendRunClient::settingB);
         bBoard = make(rBoard, () -> Mc.setScreen(new LeaderboardScreen(this)));
         bGame = make(rGame, () -> Mc.setScreen(new GameModeScreen(this)));
@@ -107,9 +113,20 @@ public final class LobbyRoomScreen extends Screen {
     private void drawSettings(GuiGraphicsExtractor g, RunState s, int mx, int my, boolean canSet, int cx) {
         int tmax = lw - 20;
         if (s.gameMode == Game.DRAFT_PLUS) {
-            Ui.frame(g, rSetA.x(), rSetA.y(), rSetA.w(), rSetA.h(), Ui.SECTION, Ui.LINE);
-            String format = s.draftPlusFormat == 0 ? "FFA · до 10 игроков" : "Команды " + s.draftPlusTeamSize + "×" + s.draftPlusTeamSize;
-            Gfx.text(g, Ui.trunc(format + " · поле 5×5 · цель 13 клеток", tmax), rSetA.x() + 8, rSetA.cy() - 4, Ui.TEXT);
+            String format = s.draftPlusFormat == 0 ? "FFA · до 10 игроков" : "Командный режим " + s.draftPlusTeamSize + "×" + s.draftPlusTeamSize;
+            if (s.draftPlusFormat == 1) {
+                int a = (int) s.players.stream().filter(p -> p.draftPlusTeam() == DraftPlusTeams.TEAM_A).count();
+                int b = (int) s.players.stream().filter(p -> p.draftPlusTeam() == DraftPlusTeams.TEAM_B).count();
+                boolean canOpenTeams = !s.launched && s.phase == RunState.Phase.IDLE;
+                Ui.button(g, rSetA, hv("draftTeams", rSetA, mx, my, canOpenTeams), canOpenTeams, Ui.Kind.NORMAL);
+                Icons.draw(g, Icons.CROWN, rSetA.x() + 8, rSetA.cy() - 3, 1, Ui.GOLD);
+                Gfx.text(g, Ui.trunc("Команды: " + a + "/" + s.draftPlusTeamSize + " · " + b + "/" + s.draftPlusTeamSize, tmax - 20),
+                    rSetA.x() + 24, rSetA.cy() - 4, Ui.TEXT);
+                Icons.draw(g, Icons.CHEV_R, rSetA.x() + rSetA.w() - 12, rSetA.cy() - 3, 1, Ui.MUTED);
+            } else {
+                Ui.frame(g, rSetA.x(), rSetA.y(), rSetA.w(), rSetA.h(), Ui.SECTION, Ui.LINE);
+                Gfx.text(g, Ui.trunc(format + " · поле 5×5 · цель 13 клеток", tmax), rSetA.x() + 8, rSetA.cy() - 4, Ui.TEXT);
+            }
             return;
         }
         if (s.gameMode == Game.SINGLE_SPEEDRUN) {
@@ -166,9 +183,11 @@ public final class LobbyRoomScreen extends Screen {
         boolean canSet = host && !s.launched && s.phase == RunState.Phase.IDLE;
         boolean canStart = open && s.gameMode != Game.DRAFT_PLUS && (!soloSpeedrun || s.players.size() == 1) && (s.gameMode != Game.MANHUNT || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2))
             && (s.gameMode != Game.PILLARS || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2));
-        bSetA.visible = !speed && !soloSpeedrun && s.gameMode != Game.PILLARS && s.gameMode != Game.DRAFT_PLUS;
+        bSetA.visible = (!speed && !soloSpeedrun && s.gameMode != Game.PILLARS && s.gameMode != Game.DRAFT_PLUS)
+            || (s.gameMode == Game.DRAFT_PLUS && s.draftPlusFormat == 1);
         bSetB.visible = !speed && !soloSpeedrun && s.gameMode != Game.CHAIN && s.gameMode != Game.PILLARS && s.gameMode != Game.DRAFT_PLUS;
-        bSetA.active = canSet;
+        bSetA.active = s.gameMode == Game.DRAFT_PLUS && s.draftPlusFormat == 1
+            ? !s.launched && s.phase == RunState.Phase.IDLE : canSet;
         bSetB.active = canSet;
         boolean pillars = s.gameMode == Game.PILLARS;
         boolean canRollChaos = host && !pillars && !soloSpeedrun && s.chaos && !ChaosRoll.running();
