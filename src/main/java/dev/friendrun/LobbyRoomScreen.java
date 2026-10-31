@@ -76,7 +76,12 @@ public final class LobbyRoomScreen extends Screen {
             else
                 FriendRunClient.settingA();
         });
-        bSetB = make(rSetB, FriendRunClient::settingB);
+        bSetB = make(rSetB, () -> {
+            RunState current = FriendRunClient.STATE;
+            if (current.gameMode == Game.DRAFT_PLUS)
+                FriendRunClient.setDraftPlusBansEnabled(!current.draftPlusBansEnabled);
+            else FriendRunClient.settingB();
+        });
         bBoard = make(rBoard, () -> Mc.setScreen(new LeaderboardScreen(this)));
         bGame = make(rGame, () -> Mc.setScreen(new GameModeScreen(this)));
         bMode = make(rMode, () -> FriendRunClient.setMode(s.mode == RunState.Mode.SEPARATE_WORLDS
@@ -127,6 +132,13 @@ public final class LobbyRoomScreen extends Screen {
                 Ui.frame(g, rSetA.x(), rSetA.y(), rSetA.w(), rSetA.h(), Ui.SECTION, Ui.LINE);
                 Gfx.text(g, Ui.trunc(format + " · поле 5×5 · цель 13 клеток", tmax), rSetA.x() + 8, rSetA.cy() - 4, Ui.TEXT);
             }
+            boolean canToggleBans = s.amHost && !s.launched && s.phase == RunState.Phase.IDLE;
+            Ui.button(g, rSetB, hv("draftPlusBans", rSetB, mx, my, canToggleBans), canToggleBans,
+                s.draftPlusBansEnabled ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
+            Gfx.text(g, Ui.trunc("Баны целей: " + (s.draftPlusBansEnabled ? "ВКЛ" : "ВЫКЛ")
+                + (s.draftPlusBansEnabled ? (s.draftPlusFormat == 0 ? " · 3 бана" : " · 4 бана") : ""),
+                tmax - 12), rSetB.x() + 8, rSetB.cy() - 4,
+                canToggleBans ? Ui.TEXT : Ui.MUTED);
             return;
         }
         if (s.gameMode == Game.SINGLE_SPEEDRUN) {
@@ -195,10 +207,12 @@ public final class LobbyRoomScreen extends Screen {
             && (s.gameMode != Game.PILLARS || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2));
         bSetA.visible = (!speed && !soloSpeedrun && s.gameMode != Game.PILLARS && s.gameMode != Game.DRAFT_PLUS)
             || (s.gameMode == Game.DRAFT_PLUS && s.draftPlusFormat == 1);
-        bSetB.visible = !speed && !soloSpeedrun && s.gameMode != Game.CHAIN && s.gameMode != Game.PILLARS && s.gameMode != Game.DRAFT_PLUS;
+        bSetB.visible = (!speed && !soloSpeedrun && s.gameMode != Game.CHAIN && s.gameMode != Game.PILLARS)
+            || s.gameMode == Game.DRAFT_PLUS;
         bSetA.active = s.gameMode == Game.DRAFT_PLUS && s.draftPlusFormat == 1
             ? !s.launched && s.phase == RunState.Phase.IDLE : canSet;
-        bSetB.active = canSet;
+        bSetB.active = s.gameMode == Game.DRAFT_PLUS
+            ? host && !s.launched && s.phase == RunState.Phase.IDLE : canSet;
         boolean pillars = s.gameMode == Game.PILLARS;
         boolean canRollChaos = host && !pillars && !soloSpeedrun && s.chaos && !ChaosRoll.running();
         bGame.active = host;
