@@ -1336,10 +1336,15 @@ public final class Lobby {
         return connectedAtNanos > 0L && nowNanos - connectedAtNanos >= Duration.ofSeconds(30).toNanos();
     }
 
+    static boolean isSupportedSseEvent(String event) {
+        return "put".equals(event) || "patch".equals(event)
+            || "cancel".equals(event) || "auth_revoked".equals(event)
+            || "keep-alive".equals(event);
+    }
+
     private void handleSse(String event, String raw) {
         if (closed || event.equals("keep-alive")) return;
-        if (!event.equals("put") && !event.equals("patch")
-            && !event.equals("cancel") && !event.equals("auth_revoked")) return;
+        if (!isSupportedSseEvent(event)) return;
         if (event.equals("cancel") || event.equals("auth_revoked")) {
             shutdown(event.equals("cancel") ? "Доступ к лобби отменён Firebase" : "Firebase отозвал доступ к лобби");
             return;
