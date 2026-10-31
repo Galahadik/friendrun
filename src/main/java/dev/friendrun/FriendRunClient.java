@@ -1078,10 +1078,11 @@ public final class FriendRunClient implements ClientModInitializer {
                     } else if (System.nanoTime() - s.draftPlusClaimSentAtNanos < 5_000_000_000L) {
                         return;
                     } else {
-                        // Retry an unacknowledged request after a network/host delay.
-                        if (pending < s.draftClaimPending.length) s.draftClaimPending[pending] = false;
-                        s.draftPlusClaimPendingIndex = -1;
-                        s.draftPlusClaimSentAtNanos = 0;
+                        // Retry the same cell even if its progress was transient (e.g. leaving a dimension).
+                        // Keeping it pending also prevents another cell from overwriting this Firebase slot.
+                        s.draftPlusClaimSentAtNanos = System.nanoTime();
+                        lobby.claimDraftGoal(pending, s.roundId, System.currentTimeMillis() - hostClockOffsetMs);
+                        return;
                     }
                 }
                 for (int i = 0; i < DraftPlusRules.CELL_COUNT; i++) {
