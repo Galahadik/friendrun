@@ -1698,6 +1698,11 @@ public final class Lobby {
             updates.add("draftPlusState", DraftPlusCodec.encode(state));
             if (state.phase() == DraftPlusFlow.Phase.COMPLETE) break;
         }
+        DraftPlusFlow.State resolvedForfeits = DraftPlusFlow.resolveForfeitOutcome(state);
+        if (resolvedForfeits != state) {
+            state = resolvedForfeits;
+            updates.add("draftPlusState", DraftPlusCodec.encode(state));
+        }
         if (state.phase() == DraftPlusFlow.Phase.COMPLETE) return;
         String lastActionId = str(doc, "draftPlusLastActionId");
         for (String id : players.keySet()) {
