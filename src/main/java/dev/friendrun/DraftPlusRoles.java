@@ -64,7 +64,7 @@ public final class DraftPlusRoles {
         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             UUID uuid = player.getUUID();
             online.add(uuid);
-            String playerName = player.getGameProfile().getName();
+            String playerName = player.getScoreboardName();
             DraftPlusRole role = current.active() ? DraftPlusRole.byId(current.roles().get(playerName)) : null;
             String desired = role == null ? "" : role.id();
             String previous = APPLIED.get(uuid);
