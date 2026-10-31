@@ -68,25 +68,27 @@ public final class DraftPlusSetupScreen extends Screen {
         Ui.panel(g, panel.x(), panel.y(), panel.w(), panel.h());
         Icons.draw(g, Icons.DICE, panel.x() + 14, panel.y() + 13, 2, Ui.GOLD);
         Ui.bold(g, "Draft+", panel.x() + 36, panel.y() + 12, Ui.GOLD);
-        Gfx.text(g, "Выберите формат матча", panel.x() + 14, panel.y() + 34, Ui.MUTED);
+        Gfx.text(g, Tr.t("friendrun.draft_plus.setup.choose_format", "Выберите формат матча"), panel.x() + 14, panel.y() + 34, Ui.MUTED);
 
         super.extractRenderState(g, mx, my, delta);
 
         Ui.button(g, ffaRect, ffaRect.in(mx, my), editable, selectedFormat == 0 ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
         Gfx.centered(g, "FFA", ffaRect.x() + ffaRect.w() / 2, ffaRect.cy() - 4, selectedFormat == 0 ? Ui.GREEN : Ui.TEXT);
         Ui.button(g, teamRect, teamRect.in(mx, my), editable, teamMode ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
-        Gfx.centered(g, "Команды", teamRect.x() + teamRect.w() / 2, teamRect.cy() - 4, teamMode ? Ui.GREEN : Ui.TEXT);
+        Gfx.centered(g, Tr.t("friendrun.draft_plus.setup.team", "Команды"), teamRect.x() + teamRect.w() / 2, teamRect.cy() - 4, teamMode ? Ui.GREEN : Ui.TEXT);
 
         Ui.button(g, sizeRect, sizeRect.in(mx, my), editable && teamMode, Ui.Kind.NORMAL);
-        String teamSize = "Размер команд: " + selectedTeamSize + " × " + selectedTeamSize + " (нажмите, чтобы изменить)";
-        Gfx.centered(g, teamMode ? teamSize : "FFA: от 1 до 10 игроков · доска 5 × 5",
+        String teamSize = Tr.t("friendrun.draft_plus.setup.team_size",
+            "Размер команд: %s × %s (нажмите, чтобы изменить)", selectedTeamSize, selectedTeamSize);
+        Gfx.centered(g, teamMode ? teamSize
+            : Tr.t("friendrun.draft_plus.setup.ffa_info", "FFA: от 1 до 10 игроков · доска 5 × 5"),
             sizeRect.x() + sizeRect.w() / 2, sizeRect.cy() - 4, teamMode ? Ui.TEXT : Ui.MUTED);
-        Gfx.centered(g, "Победа: захватить 13 из 25 клеток", panel.x() + panel.w() / 2, panel.y() + 139, Ui.MUTED);
+        Gfx.centered(g, Tr.t("friendrun.draft_plus.setup.win_condition", "Победа: захватить 13 из 25 клеток"), panel.x() + panel.w() / 2, panel.y() + 139, Ui.MUTED);
 
         Ui.button(g, confirmRect, confirmRect.in(mx, my), editable, Ui.Kind.GOLD);
-        Gfx.centered(g, "Выбрать", confirmRect.x() + confirmRect.w() / 2, confirmRect.cy() - 4, editable ? 0xFF1A1200 : Ui.MUTED);
+        Gfx.centered(g, Tr.t("friendrun.draft_plus.setup.choose", "Выбрать"), confirmRect.x() + confirmRect.w() / 2, confirmRect.cy() - 4, editable ? 0xFF1A1200 : Ui.MUTED);
         Ui.button(g, backRect, backRect.in(mx, my), true, Ui.Kind.NORMAL);
-        Gfx.centered(g, "Назад", backRect.x() + backRect.w() / 2, backRect.cy() - 4, Ui.TEXT);
+        Gfx.centered(g, Tr.t("friendrun.ui.back", "Назад"), backRect.x() + backRect.w() / 2, backRect.cy() - 4, Ui.TEXT);
 
         ffaButton.active = teamButton.active = editable;
         sizeButton.active = editable && teamMode;
