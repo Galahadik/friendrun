@@ -221,3 +221,14 @@
 - Fabric Events documentation: https://docs.fabricmc.net/develop/events/
 - Fabric Loot Table Events documentation: https://docs.fabricmc.net/develop/events/loot-tables
 - Fabric API 26.3 source/release: https://github.com/FabricMC/fabric-api/tree/26.3
+
+## 16. Disconnects, forfeits, and host migration
+
+- A disconnected Draft+ participant has five minutes to reconnect. The participant remains in the frozen match roster during this window.
+- If the participant does not return, they forfeit. Their FFA cells remain visible but no longer qualify them to win; the remaining active players continue. In Team, their cells remain credited to the team and the remaining teammates continue.
+- If every active member of a Team side forfeits, the other team wins. If only one FFA participant remains active, that participant wins.
+- If a disconnected participant's turn occurs during bans or the draft, the host automatically resolves it using the first offered option so the match can progress without changing the agreed total number of bans or draft picks.
+- A forfeited FFA participant receives a loss regardless of their cell count. In Team, the forfeited participant receives an individual loss; their active teammates receive the normal team result.
+- If all participants are offline for five minutes, the persisted board decides the result: a unique leader wins, a tied score is a draw, and a board with no captured cells is cancelled without MMR changes.
+- During a rated Draft+ match, if the host disappears, the oldest currently connected participant is elected deterministically after the host heartbeat timeout. If the host leaves the world normally, authority is transferred immediately. The new host cannot change the frozen match settings, roles, bans, or chaos modifiers. A returning former host is an ordinary participant.
+- After a match is complete, the host may edit settings and team assignments for the next match. The next match freezes the updated settings and current role choices when all active participants are ready.
