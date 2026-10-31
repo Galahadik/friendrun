@@ -1450,21 +1450,28 @@ public final class Lobby {
             String historyNode = ffa ? "_draft_plus_ffa_history" : "_draft_plus_team_history";
             String ratingNode = ffa ? "_draft_plus_ffa" : "_draft_plus_team";
             String historyUrl = root + "/" + historyNode + "/" + historyId;
-            JsonElement previous = send("GET", historyUrl, null);
-            if (previous != null && previous.isJsonObject())
-                return str(previous.getAsJsonObject(), "deltas");
+            String ratingsUrl = root + "/" + ratingNode;
+
+            // The idempotency marker lives beside profiles in the same CAS-protected node.
+            // This makes profile changes and "already settled" status one atomic operation.
+            JsonElement initial = send("GET", ratingsUrl, null);
+            JsonObject initialObject = initial != null && initial.isJsonObject()
+                ? initial.getAsJsonObject() : new JsonObject();
+            JsonObject settlements = obj(initialObject, "_settlements");
+            if (settlements.has(historyId)) {
+                JsonObject saved = obj(settlements, historyId);
+                JsonObject savedHistory = obj(saved, "history");
+                ensureDraftPlusHistory(historyUrl, savedHistory);
+                return str(saved, "deltas");
+            }
 
             JsonObject frozen = obj(doc, "draftPlusFrozenSettings");
-            boolean configuredRated = bool(frozen.isEmpty() ? doc : frozen, frozen.isEmpty() ? "draftPlusRated" : "rated");
+            boolean configuredRated = bool(frozen.isEmpty() ? doc : frozen,
+                frozen.isEmpty() ? "draftPlusRated" : "rated");
             boolean allForfeited = state.forfeitedPlayers().size() >= state.players().size();
             boolean cancelled = allForfeited && state.owners().stream().allMatch("-"::equals);
             boolean rated = configuredRated && !cancelled;
             Set<String> forfeited = allForfeited ? Set.of() : Set.copyOf(state.forfeitedPlayers());
-            JsonObject currentRatings = new JsonObject();
-            if (rated) {
-                JsonElement existing = send("GET", root + "/" + ratingNode, null);
-                if (existing != null && existing.isJsonObject()) currentRatings = existing.getAsJsonObject();
-            }
 
             Map<String, Integer> cells = new java.util.LinkedHashMap<>();
             for (DraftPlusRules.Player player : state.players()) cells.put(player.id(), 0);
@@ -1487,122 +1494,166 @@ public final class Lobby {
             }
             Map<String, Integer> contributionAdjustments = DraftPlusContribution.adjustments(activeContributionMetrics);
 
-            Map<String, JsonObject> oldProfiles = new java.util.HashMap<>();
-            List<DraftPlusRating.PlayerResult> ffaPlayers = new ArrayList<>();
-            List<DraftPlusRating.PlayerResult> teamA = new ArrayList<>(), teamB = new ArrayList<>();
-            for (DraftPlusRules.Player player : state.players()) {
-                JsonObject profile = obj(currentRatings, firebaseKey(player.id()));
-                oldProfiles.put(player.id(), profile);
-                int mmr = profile.has("mmr") ? (int) num(profile, "mmr") : DraftPlusRating.START_MMR;
-                DraftPlusRating.PlayerResult result = new DraftPlusRating.PlayerResult(
-                    player.id(), Math.max(0, mmr), cells.getOrDefault(player.id(), 0),
-                    contributionAdjustments.getOrDefault(player.id(), 0));
-                if (ffa) ffaPlayers.add(result);
-                else if (player.teamIndex() == DraftPlusTeams.TEAM_A) teamA.add(result);
-                else if (player.teamIndex() == DraftPlusTeams.TEAM_B) teamB.add(result);
-            }
-
-            List<DraftPlusRating.Delta> deltas = List.of();
-            if (rated) {
-                if (ffa) {
-                    deltas = DraftPlusRating.calculateFfa(ffaPlayers, forfeited);
-                } else {
-                    DraftPlusRating.TeamResult result = switch (state.winner()) {
-                        case "team:0" -> DraftPlusRating.TeamResult.A_WIN;
-                        case "team:1" -> DraftPlusRating.TeamResult.B_WIN;
-                        default -> DraftPlusRating.TeamResult.DRAW;
-                    };
-                    deltas = DraftPlusRating.calculateTeam(teamA, teamB, result, forfeited);
+            // Retry the complete read/compute/CAS cycle. A different match may settle
+            // concurrently; each retry recalculates Elo from the latest committed MMR.
+            for (int attempt = 0; attempt < 8; attempt++) {
+                JsonElement existing = send("GET", ratingsUrl, null);
+                JsonObject currentRatings = existing != null && existing.isJsonObject()
+                    ? existing.getAsJsonObject().deepCopy() : new JsonObject();
+                JsonObject currentSettlements = obj(currentRatings, "_settlements");
+                if (currentSettlements.has(historyId)) {
+                    JsonObject saved = obj(currentSettlements, historyId);
+                    JsonObject savedHistory = obj(saved, "history");
+                    ensureDraftPlusHistory(historyUrl, savedHistory);
+                    return str(saved, "deltas");
                 }
-            }
 
-            Map<String, DraftPlusRating.Delta> deltaByPlayer = new java.util.HashMap<>();
-            for (DraftPlusRating.Delta delta : deltas) deltaByPlayer.put(delta.playerId(), delta);
-            StringBuilder deltaText = new StringBuilder();
-            JsonObject ratingWrites = new JsonObject();
-            JsonObject historyPlayers = new JsonObject();
-            for (DraftPlusRules.Player player : state.players()) {
-                int playerCells = cells.getOrDefault(player.id(), 0);
-                JsonObject playerHistory = new JsonObject();
-                playerHistory.addProperty("team", player.teamIndex());
-                playerHistory.addProperty("cells", playerCells);
-                playerHistory.addProperty("forfeited", state.forfeitedPlayers().contains(player.id()));
-                playerHistory.addProperty("contributionScore",
-                    DraftPlusContribution.score(contributionMetrics.get(player.id())));
-                playerHistory.addProperty("successfulDraftPicks",
-                    contributionMetrics.get(player.id()).successfulDraftPicks());
-                String role = str(obj(doc, "draftPlusRoles"), player.id());
-                if (!role.isBlank()) playerHistory.addProperty("role", role);
+                List<DraftPlusRating.PlayerResult> ffaPlayers = new ArrayList<>();
+                List<DraftPlusRating.PlayerResult> teamA = new ArrayList<>(), teamB = new ArrayList<>();
+                for (DraftPlusRules.Player player : state.players()) {
+                    JsonObject profile = obj(currentRatings, firebaseKey(player.id()));
+                    int mmr = profile.has("mmr") ? (int) num(profile, "mmr") : DraftPlusRating.START_MMR;
+                    DraftPlusRating.PlayerResult result = new DraftPlusRating.PlayerResult(
+                        player.id(), Math.max(0, mmr), cells.getOrDefault(player.id(), 0),
+                        contributionAdjustments.getOrDefault(player.id(), 0));
+                    if (ffa) ffaPlayers.add(result);
+                    else if (player.teamIndex() == DraftPlusTeams.TEAM_A) teamA.add(result);
+                    else if (player.teamIndex() == DraftPlusTeams.TEAM_B) teamB.add(result);
+                }
 
+                List<DraftPlusRating.Delta> deltas = List.of();
                 if (rated) {
-                    JsonObject old = oldProfiles.getOrDefault(player.id(), new JsonObject());
-                    DraftPlusRating.Delta delta = deltaByPlayer.get(player.id());
-                    int oldMmr = old.has("mmr") ? (int) num(old, "mmr") : DraftPlusRating.START_MMR;
-                    int newMmr = delta == null ? oldMmr : delta.newMmr();
-                    int mmrDelta = delta == null ? 0 : delta.delta();
-                    boolean won = !forfeited.contains(player.id())
-                        && (ffa ? state.winner().equals("player:" + player.id())
-                            : state.winner().equals(player.teamIndex() == DraftPlusTeams.TEAM_A ? "team:0" : "team:1"));
-                    JsonObject updated = new JsonObject();
-                    updated.addProperty("name", player.id());
-                    updated.addProperty("mmr", newMmr);
-                    updated.addProperty("wins", num(old, "wins") + (won ? 1 : 0));
-                    updated.addProperty("games", num(old, "games") + 1);
-                    updated.addProperty("lastPlayedAt", System.currentTimeMillis());
-                    updated.addProperty("lastLobby", name);
-                    ratingWrites.add(ratingNode + "/" + firebaseKey(player.id()), updated);
-
-                    playerHistory.addProperty("oldMmr", oldMmr);
-                    playerHistory.addProperty("baseDelta", delta == null ? 0 : delta.baseDelta());
-                    playerHistory.addProperty("contributionDelta", delta == null ? 0 : delta.contributionDelta());
-                    playerHistory.addProperty("delta", mmrDelta);
-                    playerHistory.addProperty("newMmr", newMmr);
-                    if (deltaText.length() > 0) deltaText.append(", ");
-                    deltaText.append(player.id()).append(' ')
-                        .append(mmrDelta > 0 ? "+" : "").append(mmrDelta)
-                        .append(" (").append(newMmr).append(')');
+                    if (ffa) {
+                        deltas = DraftPlusRating.calculateFfa(ffaPlayers, forfeited);
+                    } else {
+                        DraftPlusRating.TeamResult result = switch (state.winner()) {
+                            case "team:0" -> DraftPlusRating.TeamResult.A_WIN;
+                            case "team:1" -> DraftPlusRating.TeamResult.B_WIN;
+                            default -> DraftPlusRating.TeamResult.DRAW;
+                        };
+                        deltas = DraftPlusRating.calculateTeam(teamA, teamB, result, forfeited);
+                    }
                 }
-                historyPlayers.add(player.id(), playerHistory);
+
+                Map<String, DraftPlusRating.Delta> deltaByPlayer = new java.util.HashMap<>();
+                for (DraftPlusRating.Delta delta : deltas) deltaByPlayer.put(delta.playerId(), delta);
+                StringBuilder deltaText = new StringBuilder();
+                JsonObject historyPlayers = new JsonObject();
+                for (DraftPlusRules.Player player : state.players()) {
+                    int playerCells = cells.getOrDefault(player.id(), 0);
+                    JsonObject playerHistory = new JsonObject();
+                    playerHistory.addProperty("team", player.teamIndex());
+                    playerHistory.addProperty("cells", playerCells);
+                    playerHistory.addProperty("forfeited", state.forfeitedPlayers().contains(player.id()));
+                    playerHistory.addProperty("contributionScore",
+                        DraftPlusContribution.score(contributionMetrics.get(player.id())));
+                    playerHistory.addProperty("successfulDraftPicks",
+                        contributionMetrics.get(player.id()).successfulDraftPicks());
+                    String role = str(obj(doc, "draftPlusRoles"), player.id());
+                    if (!role.isBlank()) playerHistory.addProperty("role", role);
+
+                    if (rated) {
+                        JsonObject old = obj(currentRatings, firebaseKey(player.id()));
+                        DraftPlusRating.Delta delta = deltaByPlayer.get(player.id());
+                        int oldMmr = old.has("mmr") ? (int) num(old, "mmr") : DraftPlusRating.START_MMR;
+                        int newMmr = delta == null ? oldMmr : delta.newMmr();
+                        int mmrDelta = delta == null ? 0 : delta.delta();
+                        boolean won = !forfeited.contains(player.id())
+                            && (ffa ? state.winner().equals("player:" + player.id())
+                                : state.winner().equals(player.teamIndex() == DraftPlusTeams.TEAM_A
+                                    ? "team:0" : "team:1"));
+                        JsonObject updated = new JsonObject();
+                        updated.addProperty("name", player.id());
+                        updated.addProperty("mmr", newMmr);
+                        updated.addProperty("wins", num(old, "wins") + (won ? 1 : 0));
+                        updated.addProperty("games", num(old, "games") + 1);
+                        updated.addProperty("lastPlayedAt", System.currentTimeMillis());
+                        updated.addProperty("lastLobby", name);
+                        currentRatings.add(firebaseKey(player.id()), updated);
+
+                        playerHistory.addProperty("oldMmr", oldMmr);
+                        playerHistory.addProperty("baseDelta", delta == null ? 0 : delta.baseDelta());
+                        playerHistory.addProperty("contributionDelta", delta == null ? 0 : delta.contributionDelta());
+                        playerHistory.addProperty("delta", mmrDelta);
+                        playerHistory.addProperty("newMmr", newMmr);
+                        if (deltaText.length() > 0) deltaText.append(", ");
+                        deltaText.append(player.id()).append(' ')
+                            .append(mmrDelta > 0 ? "+" : "").append(mmrDelta)
+                            .append(" (").append(newMmr).append(')');
+                    }
+                    historyPlayers.add(player.id(), playerHistory);
+                }
+
+                String deltaSummary = cancelled ? "Матч отменён — MMR не меняется"
+                    : rated ? deltaText.toString() : "Training — MMR не меняется";
+                JsonObject history = new JsonObject();
+                history.addProperty("id", historyId);
+                history.addProperty("lobby", name);
+                history.addProperty("timestamp", System.currentTimeMillis());
+                history.addProperty("durationMs", num(obj(doc, "winner"), "ms"));
+                history.addProperty("format", ffa ? "FFA" : "TEAM");
+                history.addProperty("firstBanActor", state.firstBanActor());
+                history.addProperty("firstDraftActor", state.firstDraftActor());
+                history.addProperty("rated", rated);
+                history.addProperty("cancelled", cancelled);
+                history.addProperty("globalTimeout", bool(doc, "draftPlusAllDisconnectedTimeout"));
+                history.addProperty("winner", state.winner());
+                history.add("forfeitedPlayers", strings(state.forfeitedPlayers()));
+                history.addProperty("winnerName", str(obj(doc, "winner"), "name"));
+                history.addProperty("deltas", deltaSummary);
+                JsonObject score = new JsonObject();
+                for (Map.Entry<String, Integer> entry : cells.entrySet())
+                    score.addProperty(entry.getKey(), entry.getValue());
+                history.add("cellScores", score);
+                history.add("players", historyPlayers);
+                history.add("boardGoals", strings(state.boardGoals()));
+                history.add("pickers", strings(state.pickers()));
+                history.add("owners", strings(state.owners()));
+                history.add("bannedGoals", strings(state.bannedGoals()));
+                history.add("roles", obj(doc, "draftPlusRoles").deepCopy());
+                JsonElement chaosHistory = doc.get("draftPlusChaosMods");
+                history.add("chaosModifiers", chaosHistory != null && chaosHistory.isJsonArray()
+                    ? chaosHistory.deepCopy() : new JsonArray());
+
+                JsonObject marker = new JsonObject();
+                marker.addProperty("deltas", deltaSummary);
+                marker.add("history", history);
+                JsonObject allMarkers = obj(currentRatings, "_settlements").deepCopy();
+                allMarkers.add(historyId, marker);
+                currentRatings.add("_settlements", allMarkers);
+
+                if (conditionalFirebasePut(ratingsUrl, existing, currentRatings)) {
+                    ensureDraftPlusHistory(historyUrl, history);
+                    return deltaSummary;
+                }
             }
-
-            String deltaSummary = cancelled ? "Матч отменён — MMR не меняется"
-                : rated ? deltaText.toString() : "Training — MMR не меняется";
-            JsonObject history = new JsonObject();
-            history.addProperty("id", historyId);
-            history.addProperty("lobby", name);
-            history.addProperty("timestamp", System.currentTimeMillis());
-            history.addProperty("durationMs", num(obj(doc, "winner"), "ms"));
-            history.addProperty("format", ffa ? "FFA" : "TEAM");
-            history.addProperty("firstBanActor", state.firstBanActor());
-            history.addProperty("firstDraftActor", state.firstDraftActor());
-            history.addProperty("rated", rated);
-            history.addProperty("cancelled", cancelled);
-            history.addProperty("globalTimeout", bool(doc, "draftPlusAllDisconnectedTimeout"));
-            history.addProperty("winner", state.winner());
-            history.add("forfeitedPlayers", strings(state.forfeitedPlayers()));
-            history.addProperty("winnerName", str(obj(doc, "winner"), "name"));
-            history.addProperty("deltas", deltaSummary);
-            JsonObject score = new JsonObject();
-            for (Map.Entry<String, Integer> entry : cells.entrySet()) score.addProperty(entry.getKey(), entry.getValue());
-            history.add("cellScores", score);
-            history.add("players", historyPlayers);
-            history.add("boardGoals", strings(state.boardGoals()));
-            history.add("pickers", strings(state.pickers()));
-            history.add("owners", strings(state.owners()));
-            history.add("bannedGoals", strings(state.bannedGoals()));
-            history.add("roles", obj(doc, "draftPlusRoles").deepCopy());
-            JsonElement chaosHistory = doc.get("draftPlusChaosMods");
-            history.add("chaosModifiers", chaosHistory != null && chaosHistory.isJsonArray()
-                ? chaosHistory.deepCopy() : new JsonArray());
-
-            JsonObject writes = ratingWrites.deepCopy();
-            writes.add(historyNode + "/" + historyId, history);
-            send("PATCH", root, writes.toString());
-            return deltaSummary;
+            FriendRunClient.LOG.warn("FRun: Draft+ settlement remained contended after retries for {}", historyId);
+            return null;
         } catch (IOException | RuntimeException ex) {
             FriendRunClient.LOG.warn("FRun: Draft+ rating/history persistence failed; will retry: {}", ex.toString());
             return null;
         }
+    }
+
+    /** Writes the public history projection once; the authoritative copy is in the CAS marker. */
+    private void ensureDraftPlusHistory(String historyUrl, JsonObject history) throws IOException {
+        JsonElement existing = send("GET", historyUrl, null);
+        if (existing != null) return;
+        conditionalFirebasePut(historyUrl, JsonNull.INSTANCE, history);
+    }
+
+    private boolean conditionalFirebasePut(String url, JsonElement expected, JsonElement replacement)
+            throws IOException {
+        return FirebaseConditionalState.putIfUnchanged(request -> {
+            try {
+                HttpResponse<String> response = HTTP.send(request, HttpResponse.BodyHandlers.ofString());
+                return new FirebaseConditionalState.Response(response.statusCode(), response.body(),
+                    response.headers().firstValue("ETag").orElse(null));
+            } catch (InterruptedException interrupted) {
+                Thread.currentThread().interrupt();
+                throw new IOException("Firebase conditional write interrupted", interrupted);
+            }
+        }, URI.create(url), expected, replacement);
     }
 
     private static void writeDraftPlusWinnerFields(
