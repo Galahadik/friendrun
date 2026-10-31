@@ -549,19 +549,21 @@ public final class Lobby {
                 o.add("players/" + id + "/draftPlusAction", JsonNull.INSTANCE);
                 o.add("players/" + id + "/draftPlusGoal", JsonNull.INSTANCE);
                 o.add("players/" + id + "/draftPlusChoice", JsonNull.INSTANCE);
+                o.add("players/" + id + "/draftPlusExpectedIndex", JsonNull.INSTANCE);
             }
         }
         patch("", o);
     }
 
     /** Submit a single Draft+ action; the host validates the actor and phase from its snapshot. */
-    public void submitDraftPlusAction(String action, String goal, int choice) {
+    public void submitDraftPlusAction(String action, String goal, int choice, int expectedIndex) {
         if (closed || action == null || (!action.equals("BAN") && !action.equals("PICK"))) return;
         JsonObject request = new JsonObject();
         request.addProperty("draftPlusActionId", java.util.UUID.randomUUID().toString());
         request.addProperty("draftPlusAction", action);
         request.addProperty("draftPlusGoal", goal == null ? "" : goal);
         request.addProperty("draftPlusChoice", choice);
+        request.addProperty("draftPlusExpectedIndex", expectedIndex);
         patch("/players/" + me, request);
     }
     public void setLanAddress(String addr) { JsonObject o = new JsonObject(); o.addProperty("lanAddress", addr); patch("", o); }
@@ -1061,6 +1063,9 @@ public final class Lobby {
             String actionId = str(player, "draftPlusActionId");
             if (actionId.isBlank() || actionId.equals(lastActionId) || !state.currentActor().equals(id)) continue;
             String action = str(player, "draftPlusAction");
+            int expectedIndex = (int) num(player, "draftPlusExpectedIndex");
+            int currentIndex = state.phase() == DraftPlusFlow.Phase.BANS ? state.banIndex() : state.pickIndex();
+            if (expectedIndex != currentIndex) continue;
             Random actionRandom = new Random(actionId.hashCode() * 0x9E3779B97F4A7C15L);
             try {
                 if (state.phase() == DraftPlusFlow.Phase.BANS && action.equals("BAN"))
