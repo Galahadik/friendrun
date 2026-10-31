@@ -88,8 +88,9 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
         int tableY = panel.y() + 84;
         Ui.frame(g, panel.x() + 12, tableY, panel.w() - 24, 18 + Math.min(10, players.size()) * 18, Ui.SECTION, Ui.LINE);
         Gfx.text(g, "Игрок", panel.x() + 20, tableY + 5, Ui.MUTED);
-        Gfx.text(g, "Клетки", panel.x() + panel.w() - 250, tableY + 5, Ui.MUTED);
-        Gfx.text(g, "Роль", panel.x() + panel.w() - 190, tableY + 5, Ui.MUTED);
+        Gfx.text(g, "Клетки", panel.x() + panel.w() - 290, tableY + 5, Ui.MUTED);
+        Gfx.text(g, "Вклад", panel.x() + panel.w() - 235, tableY + 5, Ui.MUTED);
+        Gfx.text(g, "Роль", panel.x() + panel.w() - 165, tableY + 5, Ui.MUTED);
         Ui.right(g, "MMR", panel.x() + panel.w() - 20, tableY + 5, Ui.MUTED);
         int row = 0;
         for (String id : players.keySet()) {
@@ -99,9 +100,13 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
             String team = (int) Lobby.num(player, "team") == DraftPlusTeams.TEAM_A ? "A"
                 : (int) Lobby.num(player, "team") == DraftPlusTeams.TEAM_B ? "B" : "";
             String name = team.isBlank() ? id : id + " · " + team;
-            Gfx.text(g, Ui.trunc(name, panel.w() - 290), panel.x() + 20, y, Ui.TEXT);
-            Gfx.text(g, Integer.toString((int) Lobby.num(player, "cells")), panel.x() + panel.w() - 250, y, Ui.TEXT);
-            Gfx.text(g, Ui.trunc(Lobby.str(player, "role"), 58), panel.x() + panel.w() - 190, y, Ui.MUTED);
+            Gfx.text(g, Ui.trunc(name, panel.w() - 330), panel.x() + 20, y, Ui.TEXT);
+            Gfx.text(g, Integer.toString((int) Lobby.num(player, "cells")), panel.x() + panel.w() - 290, y, Ui.TEXT);
+            int contributionScore = (int) Lobby.num(player, "contributionScore");
+            int contributionDelta = (int) Lobby.num(player, "contributionDelta");
+            String contribution = contributionScore + " (" + (contributionDelta > 0 ? "+" : "") + contributionDelta + " MMR)";
+            Gfx.text(g, Ui.trunc(contribution, 66), panel.x() + panel.w() - 235, y, Ui.MUTED);
+            Gfx.text(g, Ui.trunc(Lobby.str(player, "role"), 52), panel.x() + panel.w() - 165, y, Ui.MUTED);
             if (player.has("newMmr")) {
                 int mmrDelta = (int) Lobby.num(player, "delta");
                 String mmr = Lobby.num(player, "newMmr") + " (" + (mmrDelta > 0 ? "+" : "") + mmrDelta + ")";
