@@ -170,6 +170,16 @@ public final class ItemPicker {
         return families;
     }
 
+    /**
+     * Draft+ uses the configured item pool exactly, without the legacy random-picker
+     * fallback that restores every base item when the user disables the entire pool.
+     */
+    public static List<Item> draftPoolItems() {
+        Set<String> off = Settings.effOffItems();
+        boolean skipHard = Settings.effSkipHard();
+        return baseItems().stream().filter(item -> inPool(item, off, skipHard)).toList();
+    }
+
     /** Current selectable item pool, respecting the host's Draft item settings. */
     public static List<Item> poolItems() {
         List<Item> out = new java.util.ArrayList<>();
