@@ -9,6 +9,18 @@ import org.junit.jupiter.api.Test;
 
 final class DraftPlusStreamTest {
     @Test
+    void onlyFirebaseDocumentEventsCanMutateTheCachedSnapshot() {
+        assertTrue(Lobby.isSupportedSseEvent("put"));
+        assertTrue(Lobby.isSupportedSseEvent("patch"));
+        assertTrue(Lobby.isSupportedSseEvent("keep-alive"));
+        assertTrue(Lobby.isSupportedSseEvent("cancel"));
+        assertTrue(Lobby.isSupportedSseEvent("auth_revoked"));
+        assertFalse(Lobby.isSupportedSseEvent("message"));
+        assertFalse(Lobby.isSupportedSseEvent("unknown"));
+        assertFalse(Lobby.isSupportedSseEvent(null));
+    }
+
+    @Test
     void eventStreamClientFollowsFirebaseTemporaryRedirects() {
         assertEquals(java.net.http.HttpClient.Redirect.NORMAL, Lobby.STREAM_HTTP.followRedirects());
     }
