@@ -1058,9 +1058,9 @@ public final class Lobby {
     }
 
     private static java.util.Map<String, java.util.Set<String>> completedAdvancementsFor(
-            JsonObject players, long targetRound) {
+            JsonObject players, long targetRound, java.util.List<String> rosterIds) {
         java.util.Map<String, java.util.Set<String>> result = new java.util.HashMap<>();
-        for (String id : players.keySet()) {
+        for (String id : rosterIds) {
             JsonObject player = obj(players, id);
             if (num(player, "draftPlusAdvancementsRound") != targetRound) return null;
             java.util.Set<String> completed = new java.util.HashSet<>();
@@ -1097,7 +1097,7 @@ public final class Lobby {
             if (!allReady) return;
             long targetRound = num(doc, "roundId") + 1;
             java.util.Map<String, java.util.Set<String>> completedAdvancements =
-                completedAdvancementsFor(players, targetRound);
+                completedAdvancementsFor(players, targetRound, new ArrayList<>(players.keySet()));
             if (completedAdvancements == null) return; // wait until every client has reported its own baseline
             try {
                 List<String> ids = new ArrayList<>();
@@ -1148,7 +1148,7 @@ public final class Lobby {
             return;
         }
         java.util.Map<String, java.util.Set<String>> completedAdvancements =
-            completedAdvancementsFor(players, num(doc, "roundId") + 1);
+            completedAdvancementsFor(players, num(doc, "roundId") + 1, state.players().stream().map(DraftPlusRules.Player::id).toList());
         if (completedAdvancements == null) return;
         String lastActionId = str(doc, "draftPlusLastActionId");
         for (String id : players.keySet()) {
