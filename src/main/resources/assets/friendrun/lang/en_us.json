@@ -199,5 +199,13 @@
   "friendrun.draft_plus.team.name_hint": "Team name",
   "friendrun.draft_plus.team.name_captain_only": "Team name (captain only)",
   "friendrun.draft_plus.team.name_available_captain": "Team name (available to captain)",
-  "friendrun.draft_plus.team.players": "Players:"
+  "friendrun.draft_plus.team.players": "Players:",
+  "friendrun.draft_plus.leaderboard.title": "Draft+ Leaderboard",
+  "friendrun.draft_plus.leaderboard.summary": "Separate rating · starting at 1000 MMR · K = 32",
+  "friendrun.draft_plus.leaderboard.teams": "Teams",
+  "friendrun.draft_plus.leaderboard.history": "History",
+  "friendrun.draft_plus.leaderboard.error": "Could not load leaderboard",
+  "friendrun.draft_plus.leaderboard.empty": "No ranked matches yet",
+  "friendrun.draft_plus.leaderboard.player": "Player",
+  "friendrun.draft_plus.leaderboard.wins_matches": "Wins / matches"
 }
