@@ -878,6 +878,10 @@ public final class Lobby {
                 try {
                     if (path.isEmpty()) {
                         JsonObject snapshot = latestSnapshot();
+                        if (snapshot == null) {
+                            JsonElement fetched = request("GET", "", null);
+                            if (fetched != null && fetched.isJsonObject()) snapshot = fetched.getAsJsonObject();
+                        }
                         // Root-level lobby mutations are host-authoritative. If the
                         // snapshot is missing or already names another host, fail closed.
                         if (snapshot == null || !str(snapshot, "host").equals(me)) return;
