@@ -1022,6 +1022,14 @@ public final class Lobby {
             try { state = DraftPlusCodec.decode(stored.getAsJsonObject()); }
             catch (RuntimeException ex) { FriendRunClient.LOG.warn("FRun: invalid Draft+ state in lobby", ex); return; }
         }
+        if (state != null && state.phase() == DraftPlusFlow.Phase.COMPLETE) {
+            boolean readyAgain = !players.isEmpty();
+            for (String id : players.keySet()) {
+                JsonObject p = obj(players, id);
+                if (now - num(p, "lastSeen") > 20_000 || !bool(p, "ready")) { readyAgain = false; break; }
+            }
+            if (readyAgain) state = null;
+        }
         if (state == null) {
             boolean allReady = !players.isEmpty();
             for (String id : players.keySet()) {
@@ -1055,6 +1063,14 @@ public final class Lobby {
                 updates.add("draftPlusState", DraftPlusCodec.encode(state));
                 updates.addProperty("draftPlusLastActionId", "");
                 updates.addProperty("draftPlusStartError", "");
+                updates.addProperty("draftPlusPrepared", false);
+                for (String id : ids) {
+                    updates.add("players/" + id + "/draftPlusActionId", JsonNull.INSTANCE);
+                    updates.add("players/" + id + "/draftPlusAction", JsonNull.INSTANCE);
+                    updates.add("players/" + id + "/draftPlusGoal", JsonNull.INSTANCE);
+                    updates.add("players/" + id + "/draftPlusChoice", JsonNull.INSTANCE);
+                    updates.add("players/" + id + "/draftPlusExpectedIndex", JsonNull.INSTANCE);
+                }
             } catch (RuntimeException ex) {
                 FriendRunClient.LOG.warn("FRun: Draft+ match could not start: {}", ex.getMessage());
                 updates.addProperty("draftPlusStartError", ex.getMessage() == null ? "Не удалось начать Draft+" : ex.getMessage());
