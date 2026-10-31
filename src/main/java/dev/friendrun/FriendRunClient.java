@@ -397,10 +397,17 @@ public final class FriendRunClient implements ClientModInitializer {
             s.resultUntilNanos = System.nanoTime() + 10_000_000_000L;
             Snd.play(Snd.ITEM_DROP, 1.0f, 1.0f);
             if (wm != Game.PILLARS) {   // «Столбы» ведёт раунды сама карта: сбрасывать нечего и /go не нужен
+                java.util.List<DraftGoal> finalDraftPlusGoals =
+                    wm == Game.DRAFT_PLUS && s.draftPlusBoardPersonalized
+                        ? new ArrayList<>(s.draftGoals) : null;
                 Waves.cleanup();
                 Manhunt.cleanup();
                 Chaos.clear();
                 s.resetRound();
+                if (finalDraftPlusGoals != null) {
+                    s.draftGoals = finalDraftPlusGoals;
+                    s.draftPlusBoardPersonalized = true;
+                }
                 // Draft is a complete match, not a normal round. Do not immediately
                 // prompt everyone to /go again after its winner is announced.
                 if (wm != Game.DRAFT && wm != Game.DRAFT_PLUS) {
