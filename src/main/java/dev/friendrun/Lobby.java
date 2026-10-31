@@ -494,7 +494,7 @@ public final class Lobby {
     public void setDraftPlusBansEnabled(boolean enabled) {
         if (!host || closed) return;
         JsonObject current = latestSnapshot();
-        if (current != null && bool(current, "launched")) return;
+        if (current != null && !draftPlusEditable(current)) return;
         JsonObject o = new JsonObject();
         o.addProperty("draftPlusBansEnabled", enabled);
         patch("", o);
@@ -520,6 +520,15 @@ public final class Lobby {
         if (closed || current == null || num(current, "gameMode") != Game.DRAFT_PLUS
             || !draftPlusEditable(current) || teamIndex < DraftPlusTeams.NO_TEAM
             || teamIndex > DraftPlusTeams.TEAM_B) return;
+        JsonObject players = obj(current, "players");
+        int currentTeam = (int) num(obj(players, me), "draftPlusTeam");
+        long occupied = players.keySet().stream()
+            .filter(id -> !id.equals(me))
+            .filter(id -> !bool(obj(players, id), "draftPlusDisconnected")
+                && !bool(obj(players, id), "draftPlusForfeit"))
+            .filter(id -> num(obj(players, id), "draftPlusTeam") == teamIndex).count();
+        int capacity = Math.max(1, Math.min(5, (int) orDef(num(current, "draftPlusTeamSize"), 1)));
+        if (teamIndex != DraftPlusTeams.NO_TEAM && currentTeam != teamIndex && occupied >= capacity) return;
         JsonObject o = new JsonObject();
         o.addProperty("draftPlusTeam", teamIndex);
         patch("/players/" + me, o);
@@ -547,7 +556,8 @@ public final class Lobby {
         List<DraftPlusTeams.Member> roster = new ArrayList<>();
         for (String id : players.keySet()) {
             JsonObject p = obj(players, id);
-            if (System.currentTimeMillis() - num(p, "lastSeen") > 20_000) continue;
+            if (System.currentTimeMillis() - num(p, "lastSeen") > 20_000
+                || bool(p, "draftPlusDisconnected") || bool(p, "draftPlusForfeit")) continue;
             roster.add(new DraftPlusTeams.Member(id, num(p, "joinedAt"), (int) num(p, "draftPlusTeam")));
         }
         try {
