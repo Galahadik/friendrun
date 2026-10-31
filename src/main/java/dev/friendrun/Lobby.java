@@ -544,6 +544,7 @@ public final class Lobby {
             o.addProperty("draftPlusLastActionId", "");
             o.addProperty("draftPlusStartError", "");
             o.addProperty("draftPlusPrepared", false);
+            o.addProperty("draftPlusSeed", "");
             JsonObject currentPlayers = obj(current, "players");
             for (String id : currentPlayers.keySet()) {
                 o.add("players/" + id + "/draftPlusActionId", JsonNull.INSTANCE);
@@ -588,6 +589,7 @@ public final class Lobby {
         o.addProperty("draftPlusLastActionId", "");
         o.addProperty("draftPlusStartError", "");
         o.addProperty("draftPlusPrepared", false);
+        o.addProperty("draftPlusSeed", "");
         o.addProperty("draftPickCount", 0);
         o.addProperty("draftTurn", "");
         o.addProperty("draftSeed", "0");
@@ -1057,9 +1059,16 @@ public final class Lobby {
                     roster.add(new DraftPlusRules.Player(member.id(), format == DraftPlusRules.Format.FFA ? -1 : member.teamIndex(), captain, i));
                 }
                 long seed;
-                try { seed = Long.parseLong(str(doc, "worldSeed")); }
-                catch (NumberFormatException ex) { seed = Long.parseLong(str(doc, "itemSeed").isBlank() ? "1" : str(doc, "itemSeed")); }
+                String previousSeed = str(doc, "draftPlusSeed");
+                if (previousSeed.isBlank()) {
+                    try { seed = Long.parseLong(str(doc, "worldSeed")); }
+                    catch (NumberFormatException ex) { seed = Long.parseLong(str(doc, "itemSeed").isBlank() ? "1" : str(doc, "itemSeed")); }
+                } else {
+                    long prior = Long.parseLong(previousSeed);
+                    seed = new Random(prior ^ (0x9E3779B97F4A7C15L * (num(doc, "roundId") + 1L))).nextLong();
+                }
                 state = DraftPlusFlow.start(format, roster, DraftPlusPool.build(), true, new Random(seed));
+                updates.addProperty("draftPlusSeed", Long.toString(seed));
                 updates.add("draftPlusState", DraftPlusCodec.encode(state));
                 updates.addProperty("draftPlusLastActionId", "");
                 updates.addProperty("draftPlusStartError", "");
