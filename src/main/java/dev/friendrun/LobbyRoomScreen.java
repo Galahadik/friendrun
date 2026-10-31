@@ -181,7 +181,17 @@ public final class LobbyRoomScreen extends Screen {
         boolean soloSpeedrun = s.gameMode == Game.SINGLE_SPEEDRUN;
         boolean canRollItem = open && speed && !Roulette.running();
         boolean canSet = host && !s.launched && s.phase == RunState.Phase.IDLE;
-        boolean canStart = open && s.gameMode != Game.DRAFT_PLUS && (!soloSpeedrun || s.players.size() == 1) && (s.gameMode != Game.MANHUNT || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2))
+        boolean draftPlusReady;
+        if (s.draftPlusFormat == 0) draftPlusReady = !s.players.isEmpty() && s.players.size() <= 10;
+        else {
+            java.util.List<DraftPlusTeams.Member> members = new java.util.ArrayList<>();
+            for (RunState.PlayerInfo p : s.players)
+                members.add(new DraftPlusTeams.Member(p.name(), p.joinedAt(), p.draftPlusTeam()));
+            draftPlusReady = DraftPlusTeams.isReady(members, s.draftPlusTeamSize);
+        }
+        boolean canStart = open && (!soloSpeedrun || s.players.size() == 1)
+            && (s.gameMode != Game.DRAFT_PLUS || draftPlusReady)
+            && (s.gameMode != Game.MANHUNT || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2))
             && (s.gameMode != Game.PILLARS || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2));
         bSetA.visible = (!speed && !soloSpeedrun && s.gameMode != Game.PILLARS && s.gameMode != Game.DRAFT_PLUS)
             || (s.gameMode == Game.DRAFT_PLUS && s.draftPlusFormat == 1);
@@ -364,7 +374,8 @@ public final class LobbyRoomScreen extends Screen {
         int sc = canStart ? 0xFF1A1200 : 0xFF8A7A50;
         Icons.draw(g, Icons.PLAY, rStart.x() + 8, rStart.cy() - 3, 1, sc);
         String startText = s.launched ? Tr.t("friendrun.ui.started", "Игра запущена")
-            : host ? (s.gameMode == Game.DRAFT_PLUS ? "Draft+ скоро будет доступен" : canStart ? Tr.t("friendrun.ui.start", "Старт (создать мир)") : soloSpeedrun ? Tr.t("friendrun.ui.need_solo", "Одиночный спидран: 1 игрок") : Tr.t("friendrun.ui.need_two", "Нужно 2+ игрока и мир хоста"))
+            : host ? (canStart ? (s.gameMode == Game.DRAFT_PLUS ? "Старт Draft+" : Tr.t("friendrun.ui.start", "Старт (создать мир)"))
+                : s.gameMode == Game.DRAFT_PLUS ? "Заполните состав Draft+" : soloSpeedrun ? Tr.t("friendrun.ui.need_solo", "Одиночный спидран: 1 игрок") : Tr.t("friendrun.ui.need_two", "Нужно 2+ игрока и мир хоста"))
             : Tr.t("friendrun.ui.waiting_host", "Ждём старт от хоста…");
         Gfx.text(g, Ui.trunc(startText, rStart.w() - 26), rStart.x() + 20, rStart.cy() - 4, sc);
 
