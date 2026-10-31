@@ -430,6 +430,8 @@ public final class Lobby {
     public void setFlag(String key, boolean v) { JsonObject o = new JsonObject(); o.addProperty(key, v); patch("", o); }
     public void setDraftPlusConfig(int format, int teamSize) {
         if (!host || closed) return;
+        JsonObject current = latestSnapshot();
+        if (current != null && bool(current, "launched")) return;
         JsonObject o = new JsonObject();
         o.addProperty("draftPlusFormat", Math.max(0, Math.min(1, format)));
         o.addProperty("draftPlusTeamSize", Math.max(1, Math.min(5, teamSize)));
@@ -438,6 +440,8 @@ public final class Lobby {
 
     public void setDraftPlusBansEnabled(boolean enabled) {
         if (!host || closed) return;
+        JsonObject current = latestSnapshot();
+        if (current != null && bool(current, "launched")) return;
         JsonObject o = new JsonObject();
         o.addProperty("draftPlusBansEnabled", enabled);
         patch("", o);
@@ -447,6 +451,8 @@ public final class Lobby {
     public void setDraftPlusSettings(boolean rolesEnabled, boolean rated, boolean chaosEnabled,
                                      int chaosCount, int chaosDifficulty) {
         if (!host || closed) return;
+        JsonObject current = latestSnapshot();
+        if (current != null && bool(current, "launched")) return;
         JsonObject o = new JsonObject();
         o.addProperty("draftPlusRolesEnabled", rolesEnabled);
         o.addProperty("draftPlusRated", rated);
@@ -583,6 +589,7 @@ public final class Lobby {
         patch("", o);
     }
     public void launch() {
+        if (!host || closed) return;
         JsonObject o = new JsonObject();
         o.addProperty("launched", true); o.addProperty("worldSeed", newSeed());
         JsonObject current = latestSnapshot();
@@ -590,6 +597,18 @@ public final class Lobby {
             JsonObject currentPlayers = obj(current, "players");
             boolean rated = bool(current, "draftPlusRated");
             int format = (int) num(current, "draftPlusFormat");
+            JsonObject frozenSettings = new JsonObject();
+            frozenSettings.addProperty("format", format);
+            frozenSettings.addProperty("teamSize", Math.max(1, Math.min(5, (int) orDef(num(current, "draftPlusTeamSize"), 1))));
+            frozenSettings.addProperty("teamNameA", str(current, "draftPlusTeamNameA"));
+            frozenSettings.addProperty("teamNameB", str(current, "draftPlusTeamNameB"));
+            frozenSettings.addProperty("bansEnabled", !current.has("draftPlusBansEnabled") || bool(current, "draftPlusBansEnabled"));
+            frozenSettings.addProperty("rolesEnabled", !current.has("draftPlusRolesEnabled") || bool(current, "draftPlusRolesEnabled"));
+            frozenSettings.addProperty("rated", rated);
+            frozenSettings.addProperty("chaosEnabled", !current.has("draftPlusChaosEnabled") || bool(current, "draftPlusChaosEnabled"));
+            frozenSettings.addProperty("chaosCount", Math.max(1, Math.min(4, (int) orDef(num(current, "draftPlusChaosCount"), 1))));
+            frozenSettings.addProperty("chaosDifficulty", Math.max(0, Math.min(2, (int) num(current, "draftPlusChaosDifficulty")));
+            o.add("draftPlusFrozenSettings", frozenSettings);
             int teamSize = Math.max(1, Math.min(5, (int) orDef(num(current, "draftPlusTeamSize"), 1)));
             if (format == 0) {
                 if (currentPlayers.size() < 1 || currentPlayers.size() > 10
@@ -614,7 +633,7 @@ public final class Lobby {
                 }
             }
             JsonObject frozenRoles = new JsonObject();
-            boolean rolesEnabled = !current.has("draftPlusRolesEnabled") || bool(current, "draftPlusRolesEnabled");
+            boolean rolesEnabled = frozenSettings.get("rolesEnabled").getAsBoolean();
             if (rolesEnabled) {
                 for (String id : currentPlayers.keySet()) {
                     String roleId = str(obj(currentPlayers, id), "draftPlusRole");
@@ -1184,7 +1203,10 @@ public final class Lobby {
                     int team = p.has("draftPlusTeam") ? (int) num(p, "draftPlusTeam") : DraftPlusTeams.NO_TEAM;
                     members.add(new DraftPlusTeams.Member(id, joinedAt, team));
                 }
-                DraftPlusRules.Format format = num(doc, "draftPlusFormat") == 1 ? DraftPlusRules.Format.TEAM : DraftPlusRules.Format.FFA;
+                JsonObject frozen = obj(doc, "draftPlusFrozenSettings");
+                JsonObject matchSettings = frozen.isEmpty() ? doc : frozen;
+                DraftPlusRules.Format format = num(matchSettings, frozen.isEmpty() ? "draftPlusFormat" : "format") == 1
+                    ? DraftPlusRules.Format.TEAM : DraftPlusRules.Format.FFA;
                 for (int i = 0; i < members.size(); i++) {
                     DraftPlusTeams.Member member = members.get(i);
                     boolean captain = format == DraftPlusRules.Format.TEAM && DraftPlusTeams.isCaptain(members, member.id(), member.teamIndex());
@@ -1199,7 +1221,8 @@ public final class Lobby {
                     long prior = Long.parseLong(previousSeed);
                     seed = new Random(prior ^ (0x9E3779B97F4A7C15L * (num(doc, "roundId") + 1L))).nextLong();
                 }
-                boolean bansEnabled = !doc.has("draftPlusBansEnabled") || bool(doc, "draftPlusBansEnabled");
+                boolean bansEnabled = !matchSettings.has(frozen.isEmpty() ? "draftPlusBansEnabled" : "bansEnabled")
+                    || bool(matchSettings, frozen.isEmpty() ? "draftPlusBansEnabled" : "bansEnabled");
                 state = DraftPlusFlow.start(format, roster, DraftPlusPool.build(), bansEnabled, completedAdvancements, new Random(seed));
                 updates.addProperty("draftPlusSeed", Long.toString(seed));
                 updates.add("draftPlusState", DraftPlusCodec.encode(state));
@@ -1536,8 +1559,15 @@ public final class Lobby {
             String winnerToken = state.winner();
             String winnerName = "—";
             if (winnerToken.startsWith("player:")) winnerName = winnerToken.substring("player:".length());
-            else if (winnerToken.equals("team:0")) winnerName = str(doc, "draftPlusTeamNameA").isBlank() ? "Команда A" : str(doc, "draftPlusTeamNameA");
-            else if (winnerToken.equals("team:1")) winnerName = str(doc, "draftPlusTeamNameB").isBlank() ? "Команда B" : str(doc, "draftPlusTeamNameB");
+            else if (winnerToken.equals("team:0")) {
+                JsonObject frozen = obj(doc, "draftPlusFrozenSettings");
+                String teamName = str(frozen.isEmpty() ? doc : frozen, frozen.isEmpty() ? "draftPlusTeamNameA" : "teamNameA");
+                winnerName = teamName.isBlank() ? "Команда A" : teamName;
+            } else if (winnerToken.equals("team:1")) {
+                JsonObject frozen = obj(doc, "draftPlusFrozenSettings");
+                String teamName = str(frozen.isEmpty() ? doc : frozen, frozen.isEmpty() ? "draftPlusTeamNameB" : "teamNameB");
+                winnerName = teamName.isBlank() ? "Команда B" : teamName;
+            }
             updates.addProperty("winner/name", winnerName);
             updates.addProperty("winner/ms", Math.max(0, nowForDraftClaims() - startAt));
             updates.addProperty("winner/score", winnerToken.isBlank() ? 0 : DraftPlusRules.WIN_CELLS);
