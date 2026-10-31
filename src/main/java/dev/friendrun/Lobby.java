@@ -1550,6 +1550,7 @@ public final class Lobby {
             history.addProperty("format", ffa ? "FFA" : "TEAM");
             history.addProperty("rated", rated);
             history.addProperty("cancelled", cancelled);
+            history.addProperty("globalTimeout", bool(doc, "draftPlusAllDisconnectedTimeout"));
             history.addProperty("winner", state.winner());
             history.add("forfeitedPlayers", strings(state.forfeitedPlayers()));
             history.addProperty("winnerName", str(obj(doc, "winner"), "name"));
