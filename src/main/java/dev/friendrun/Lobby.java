@@ -1912,7 +1912,10 @@ public final class Lobby {
     /** Resolves Draft+ objective claims and stops the match when a side owns 13 cells. */
     private void processDraftPlusClaims(JsonObject updates, JsonObject doc, JsonObject players,
                                         long startAt, long roundId) {
-        JsonObject encoded = obj(doc, "draftPlusState");
+        JsonElement pendingState = updates.has("draftPlusState")
+            ? updates.get("draftPlusState") : doc.get("draftPlusState");
+        if (pendingState == null || !pendingState.isJsonObject()) return;
+        JsonObject encoded = pendingState.getAsJsonObject();
         DraftPlusFlow.State state;
         try { state = DraftPlusCodec.decode(encoded); }
         catch (RuntimeException ex) {
