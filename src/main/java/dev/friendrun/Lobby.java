@@ -943,28 +943,60 @@ public final class Lobby {
 
     public void close() {
         if (closed) return;
-        JsonObject current = latestSnapshot();
-        boolean ownsLobby = current != null && str(current, "host").equals(me);
-        boolean migrate = host && ownsLobby && isRatedDraftPlus(current);
-        String nextHost = migrate ? electDraftPlusHost(current, System.currentTimeMillis(), me) : null;
+        boolean wasHost = host;
         closed = true;
         if (poller != null) poller.cancel(false);
         try {
             writeEx.execute(() -> {
                 try {
-                    if (migrate) {
-                        JsonObject transfer = new JsonObject();
-                        transfer.addProperty("host", nextHost == null ? "" : nextHost);
-                        transfer.addProperty("hostSeen", nextHost == null ? 0 : System.currentTimeMillis());
-                        transfer.addProperty("hostInGame", false);
-                        transfer.addProperty("hostMigrationFrom", me);
-                        transfer.addProperty("hostMigrationAt", System.currentTimeMillis());
-                        transfer.addProperty("hostEpoch", num(current, "hostEpoch") + 1);
-                        if (commitDraftPlusHostSnapshot(current, transfer))
-                            request("DELETE", "/players/" + me, null);
-                    } else if (!host) {
+                    if (!wasHost) {
                         request("DELETE", "/players/" + me, null);
-                    } else if (ownsLobby) {
+                        return;
+                    }
+
+                    // Resolve queued start/settings writes before deciding whether the
+                    // lobby is still an ordinary lobby or has become a rated match.
+                    JsonElement fetched = request("GET", "", null);
+                    if (fetched == null || !fetched.isJsonObject()) return;
+                    JsonObject current = fetched.getAsJsonObject();
+
+                    if (!me.equals(str(current, "host"))) {
+                        request("DELETE", "/players/" + me, null);
+                        return;
+                    }
+
+                    if (isRatedDraftPlus(current)) {
+                        // A root CAS prevents a concurrent host migration or player write
+                        // from being overwritten by this voluntary close.
+                        for (int attempt = 0; attempt < 4; attempt++) {
+                            if (!me.equals(str(current, "host"))) {
+                                request("DELETE", "/players/" + me, null);
+                                return;
+                            }
+                            if (!isRatedDraftPlus(current)) {
+                                if (shouldDeleteLobbyOnClose(current, me))
+                                    request("DELETE", "", null);
+                                return;
+                            }
+                            long now = System.currentTimeMillis();
+                            String nextHost = electDraftPlusHost(current, now, me);
+                            JsonObject transfer = new JsonObject();
+                            transfer.addProperty("host", nextHost == null ? "" : nextHost);
+                            transfer.addProperty("hostSeen", nextHost == null ? 0 : now);
+                            transfer.addProperty("hostInGame", false);
+                            transfer.addProperty("hostMigrationFrom", me);
+                            transfer.addProperty("hostMigrationAt", now);
+                            transfer.addProperty("hostEpoch", num(current, "hostEpoch") + 1);
+                            if (commitDraftPlusHostSnapshot(current, transfer)) {
+                                request("DELETE", "/players/" + me, null);
+                                return;
+                            }
+                            JsonElement refreshed = request("GET", "", null);
+                            if (refreshed == null || !refreshed.isJsonObject()) return;
+                            current = refreshed.getAsJsonObject();
+                        }
+                        FriendRunClient.LOG.debug("FRun: close transfer deferred to Draft+ lease migration");
+                    } else if (shouldDeleteLobbyOnClose(current, me)) {
                         request("DELETE", "", null);
                     }
                 } catch (IOException ignored) {}
@@ -973,6 +1005,11 @@ public final class Lobby {
         pollEx.shutdownNow();
         streamEx.shutdownNow();
         writeEx.shutdown();
+    }
+
+    static boolean shouldDeleteLobbyOnClose(JsonObject persisted, String actor) {
+        return persisted != null && actor != null && actor.equals(str(persisted, "host"))
+            && !isRatedDraftPlus(persisted);
     }
 
     // ---------- опрос ----------
