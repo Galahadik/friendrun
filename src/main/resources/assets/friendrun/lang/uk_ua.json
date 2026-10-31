@@ -199,5 +199,13 @@
   "friendrun.draft_plus.team.name_hint": "Назва команди",
   "friendrun.draft_plus.team.name_captain_only": "Назва команди (лише капітан)",
   "friendrun.draft_plus.team.name_available_captain": "Назва команди (доступна капітану)",
-  "friendrun.draft_plus.team.players": "Гравці:"
+  "friendrun.draft_plus.team.players": "Гравці:",
+  "friendrun.draft_plus.leaderboard.title": "Рейтинг Draft+",
+  "friendrun.draft_plus.leaderboard.summary": "Окремий рейтинг · старт 1000 MMR · K = 32",
+  "friendrun.draft_plus.leaderboard.teams": "Команди",
+  "friendrun.draft_plus.leaderboard.history": "Історія",
+  "friendrun.draft_plus.leaderboard.error": "Не вдалося завантажити рейтинг",
+  "friendrun.draft_plus.leaderboard.empty": "Рейтингових матчів ще немає",
+  "friendrun.draft_plus.leaderboard.player": "Гравець",
+  "friendrun.draft_plus.leaderboard.wins_matches": "Перемоги / матчі"
 }
