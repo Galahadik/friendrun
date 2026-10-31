@@ -983,7 +983,9 @@ public final class Lobby {
     private static void reconcileDraftPlusTeams(JsonObject players, int teamSize, JsonObject updates) {
         if (teamSize < 1 || teamSize > 5) teamSize = 1;
         for (String id : players.keySet()) {
-            long assigned = num(obj(players, id), "draftPlusTeam");
+            JsonObject player = obj(players, id);
+            long assigned = player.has("draftPlusTeam")
+                ? num(player, "draftPlusTeam") : DraftPlusTeams.NO_TEAM;
             if ((assigned < DraftPlusTeams.NO_TEAM || assigned > DraftPlusTeams.TEAM_B)
                 && !updates.has("players/" + id))
                 updates.addProperty("players/" + id + "/draftPlusTeam", DraftPlusTeams.NO_TEAM);
@@ -993,7 +995,8 @@ public final class Lobby {
             List<String> members = new ArrayList<>();
             for (String id : players.keySet())
                 if (!updates.has("players/" + id)
-                    && num(obj(players, id), "draftPlusTeam") == teamIndex) members.add(id);
+                    && (obj(players, id).has("draftPlusTeam")
+                        ? num(obj(players, id), "draftPlusTeam") : DraftPlusTeams.NO_TEAM) == teamIndex) members.add(id);
             members.sort(java.util.Comparator
                 .comparingLong((String id) -> num(obj(players, id), "joinedAt"))
                 .thenComparing(id -> id));
