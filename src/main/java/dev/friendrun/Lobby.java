@@ -1641,6 +1641,18 @@ public final class Lobby {
                 }
                 boolean bansEnabled = !matchSettings.has(frozen.isEmpty() ? "draftPlusBansEnabled" : "bansEnabled")
                     || bool(matchSettings, frozen.isEmpty() ? "draftPlusBansEnabled" : "bansEnabled");
+                boolean rolesEnabled = !matchSettings.has(frozen.isEmpty() ? "draftPlusRolesEnabled" : "rolesEnabled")
+                    || bool(matchSettings, frozen.isEmpty() ? "draftPlusRolesEnabled" : "rolesEnabled");
+                JsonObject frozenRoles = new JsonObject();
+                if (rolesEnabled) {
+                    for (String id : ids) {
+                        String roleId = str(obj(players, id), "draftPlusRole");
+                        if (DraftPlusRole.byId(roleId) == null)
+                            throw new IllegalArgumentException("Каждый активный игрок должен выбрать роль перед стартом.");
+                        frozenRoles.addProperty(id, roleId);
+                    }
+                }
+                updates.add("draftPlusRoles", frozenRoles);
                 state = DraftPlusFlow.start(format, roster, DraftPlusPool.build(), bansEnabled, completedAdvancements, new Random(seed));
                 updates.addProperty("draftPlusSeed", Long.toString(seed));
                 updates.add("draftPlusState", DraftPlusCodec.encode(state));
