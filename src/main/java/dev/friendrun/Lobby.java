@@ -1188,6 +1188,8 @@ public final class Lobby {
         // Draft+ keeps disconnected participants in the frozen roster for five minutes.
         // Other game modes retain the existing short stale-player cleanup.
         boolean draftPlusLaunched = bool(doc, "launched") && num(doc, "gameMode") == Game.DRAFT_PLUS;
+        boolean draftPlusInMatch = draftPlusLaunched
+            && !str(obj(doc, "draftPlusState"), "phase").equals(DraftPlusFlow.Phase.COMPLETE.name());
         boolean allOfflineTimeout = bool(doc, "draftPlusAllDisconnectedTimeout");
         for (String p : new ArrayList<>(players.keySet())) {
             if (p.equals(me) && !allOfflineTimeout) continue;
