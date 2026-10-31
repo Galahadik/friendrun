@@ -1592,7 +1592,7 @@ public final class Lobby {
         frozen.addProperty("rolesEnabled", !current.has("draftPlusRolesEnabled") || bool(current, "draftPlusRolesEnabled"));
         frozen.addProperty("rated", bool(current, "draftPlusRated"));
         frozen.addProperty("chaosEnabled", !current.has("draftPlusChaosEnabled") || bool(current, "draftPlusChaosEnabled"));
-        frozen.addProperty("chaosCount", Math.max(1, Math.min(4, (int) orDef(num(current, "draftPlusChaosCount"), 1))));
+        frozen.addProperty("chaosCount", Math.max(1, Math.min(3, (int) orDef(num(current, "draftPlusChaosCount"), 1))));
         frozen.addProperty("chaosDifficulty", Math.max(0, Math.min(2, (int) num(current, "draftPlusChaosDifficulty"))));
         return frozen;
     }
