@@ -121,6 +121,29 @@ public final class Lobby {
         return java.util.List.copyOf(rows);
     }
 
+    public record DraftPlusHistoryEntry(String id, long timestamp, long durationMs,
+                                        boolean rated, String format, String winnerName,
+                                        String deltas, JsonObject data) {}
+
+    /** Returns the latest 50 matches for the selected independent Draft+ format. */
+    public static java.util.List<DraftPlusHistoryEntry> fetchDraftPlusHistory(String dbUrl, boolean team) throws IOException {
+        String node = team ? "/_draft_plus_team_history" : "/_draft_plus_ffa_history";
+        JsonElement raw = send("GET", rootOf(dbUrl) + node, null);
+        java.util.List<DraftPlusHistoryEntry> rows = new java.util.ArrayList<>();
+        if (raw != null && raw.isJsonObject()) {
+            JsonObject matches = raw.getAsJsonObject();
+            for (String id : matches.keySet()) {
+                JsonObject data = obj(matches, id).deepCopy();
+                rows.add(new DraftPlusHistoryEntry(id, num(data, "timestamp"), num(data, "durationMs"),
+                    bool(data, "rated"), str(data, "format"), str(data, "winnerName"),
+                    str(data, "deltas"), data));
+            }
+        }
+        rows.sort(java.util.Comparator.comparingLong(DraftPlusHistoryEntry::timestamp).reversed());
+        if (rows.size() > 50) rows = new java.util.ArrayList<>(rows.subList(0, 50));
+        return java.util.List.copyOf(rows);
+    }
+
     /** Читает таблицу, считает раунд, записывает обратно. Возвращает строку изменений для документа лобби или "" (сбой сети). */
     private String settle(java.util.function.Function<java.util.Map<String, Ranking.Profile>, Ranking.Outcome> round) {
         try {
