@@ -1441,9 +1441,9 @@ public final class Lobby {
     }
 
     /**
-     * Persists the isolated Draft+ rating and match history. Rating profiles and
-     * history are written in one Firebase multi-location PATCH, never to legacy _mmr.
-     * Returns null on a transient failure so the host can retry from the COMPLETE state.
+     * Persists isolated Draft+ rating and history. Profiles plus the idempotency marker
+     * are committed atomically with Firebase ETag conditional PUT; history is repairable
+     * from that marker. The legacy _mmr node is never touched.
      */
     private String settleDraftPlusResult(JsonObject doc, DraftPlusFlow.State state, String historyId) {
         try {
@@ -1454,18 +1454,11 @@ public final class Lobby {
             String historyUrl = root + "/" + historyNode + "/" + historyId;
             String ratingsUrl = root + "/" + ratingNode;
 
-            // The idempotency marker lives beside profiles in the same CAS-protected node.
-            // This makes profile changes and "already settled" status one atomic operation.
-            JsonElement initial = send("GET", ratingsUrl, null);
-            JsonObject initialObject = initial != null && initial.isJsonObject()
-                ? initial.getAsJsonObject() : new JsonObject();
-            JsonObject settlements = obj(initialObject, "__friendrun_draftplus_settlements_v1__");
-            if (settlements.has(historyId)) {
-                JsonObject saved = obj(settlements, historyId);
-                JsonObject savedHistory = obj(saved, "history");
-                ensureDraftPlusHistory(historyUrl, savedHistory);
-                return str(saved, "deltas");
-            }
+            // Preserve idempotency for matches settled by older builds, which wrote
+            // rating profiles and their public history in one multi-location PATCH.
+            JsonElement previousHistory = send("GET", historyUrl, null);
+            if (previousHistory != null && previousHistory.isJsonObject())
+                return str(previousHistory.getAsJsonObject(), "deltas");
 
             JsonObject frozen = obj(doc, "draftPlusFrozenSettings");
             boolean configuredRated = bool(frozen.isEmpty() ? doc : frozen,
