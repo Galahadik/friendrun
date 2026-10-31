@@ -918,6 +918,7 @@ public final class Lobby {
         long nowMs = System.currentTimeMillis();
         host = str(doc, "host").equals(me);
         if (host && bool(doc, "launched") && num(doc, "gameMode") == Game.DRAFT_PLUS
+            && !str(obj(doc, "draftPlusState"), "phase").equals(DraftPlusFlow.Phase.COMPLETE.name())
             && nowMs - num(doc, "hostSeen") >= 300_000
             && !bool(doc, "draftPlusAllDisconnectedTimeout")) {
             JsonObject timeout = new JsonObject();
@@ -1191,7 +1192,7 @@ public final class Lobby {
             if (p.equals(me) && !allOfflineTimeout) continue;
             JsonObject player = obj(players, p);
             long staleMs = now - num(player, "lastSeen");
-            if (allOfflineTimeout && draftPlusLaunched) {
+            if (allOfflineTimeout && draftPlusInMatch) {
                 player.addProperty("draftPlusForfeit", true);
                 player.addProperty("draftPlusDisconnected", true);
                 player.addProperty("draftPlusForfeitAt", now);
@@ -1201,7 +1202,7 @@ public final class Lobby {
             } else if (solo) {
                 players.remove(p);
                 updates.add("players/" + p, JsonNull.INSTANCE);
-            } else if (draftPlusLaunched) {
+            } else if (draftPlusInMatch) {
                 if (staleMs >= 300_000 && !bool(player, "draftPlusForfeit")) {
                     player.addProperty("draftPlusForfeit", true);
                     player.addProperty("draftPlusDisconnected", true);
@@ -1217,6 +1218,8 @@ public final class Lobby {
                     player.addProperty("draftPlusDisconnected", false);
                     updates.addProperty("players/" + p + "/draftPlusDisconnected", false);
                 }
+            } else if (draftPlusLaunched) {
+                // The match is already complete; keep the lobby roster without turning a post-match disconnect into a loss.
             } else if (staleMs > 20_000) {
                 players.remove(p);
                 updates.add("players/" + p, JsonNull.INSTANCE);
