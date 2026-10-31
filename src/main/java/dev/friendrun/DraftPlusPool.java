@@ -13,7 +13,7 @@ public final class DraftPlusPool {
      */
     public static List<String> build() {
         List<String> goals = new ArrayList<>();
-        for (net.minecraft.world.item.Item item : ItemPicker.poolItems())
+        for (net.minecraft.world.item.Item item : ItemPicker.draftPoolItems())
             goals.add("item:" + ItemPicker.idOf(item));
         for (String id : DraftGoal.Quest.ids())
             goals.add("quest:" + id);
