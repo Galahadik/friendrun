@@ -22,7 +22,7 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
     }
 
     public DraftPlusHistoryDetailScreen(Screen parent, Lobby.DraftPlusHistoryEntry entry, boolean resultMode) {
-        super(Component.literal("FriendRun — Матч Draft+"));
+        super(Component.literal(Tr.t("friendrun.draft_plus.detail.title", "Матч Draft+")));
         this.parent = parent;
         this.entry = entry;
         this.resultMode = resultMode;
@@ -71,22 +71,30 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
         JsonArray owners = data.has("owners") && data.get("owners").isJsonArray()
             ? data.getAsJsonArray("owners") : new JsonArray();
         String date = new SimpleDateFormat("dd.MM.yyyy HH:mm").format(new Date(entry.timestamp()));
-        String title = Lobby.bool(data, "cancelled") ? "Матч отменён — MMR не меняется"
+        String title = Lobby.bool(data, "cancelled")
+            ? Tr.t("friendrun.draft_plus.detail.cancelled", "Матч отменён — MMR не меняется")
             : entry.winnerName().isBlank() || entry.winnerName().equals("—")
-                ? "Ничья" : "Победитель: " + entry.winnerName();
+                ? Tr.t("friendrun.draft_plus.detail.draw", "Ничья")
+                : Tr.t("friendrun.draft_plus.detail.winner", "Победитель: %s", entry.winnerName());
 
         Ui.backdrop(g, width, height);
         Ui.panel(g, panel.x(), panel.y(), panel.w(), panel.h());
         Icons.draw(g, Icons.CROWN, panel.x() + 14, panel.y() + 10, 2, Ui.GOLD);
-        Ui.bold(g, "Матч Draft+ · " + entry.format(), panel.x() + 36, panel.y() + 9, Ui.GOLD);
+        String formatLabel = entry.format().equalsIgnoreCase("TEAM")
+            ? Tr.t("friendrun.draft_plus.detail.team_format", "Команды") : "FFA";
+        Ui.bold(g, Tr.t("friendrun.draft_plus.detail.mode", "Матч Draft+ · %s", formatLabel),
+            panel.x() + 36, panel.y() + 9, Ui.GOLD);
         Gfx.text(g, date + " · " + RunState.formatTime(entry.durationMs())
-            + " · " + (Lobby.bool(data, "cancelled") ? "Отменён" : entry.rated() ? "Рейтинговый" : "Тренировочный"),
+            + " · " + (Lobby.bool(data, "cancelled")
+                ? Tr.t("friendrun.draft_plus.history.cancelled", "Отменён")
+                : entry.rated() ? Tr.t("friendrun.draft_plus.history.rated", "Рейтинговый")
+                    : Tr.t("friendrun.draft_plus.history.training", "Тренировочный")),
             panel.x() + 14, panel.y() + 28, Ui.MUTED);
         Gfx.text(g, Ui.trunc(title, panel.w() - 28), panel.x() + 14, panel.y() + 46, Ui.TEXT);
         JsonArray chaos = data.has("chaosModifiers") && data.get("chaosModifiers").isJsonArray()
             ? data.getAsJsonArray("chaosModifiers") : new JsonArray();
-        String chaosText = chaos.isEmpty() ? "Хаос-моды: выключены"
-            : "Хаос: " + java.util.stream.StreamSupport.stream(chaos.spliterator(), false)
+        String chaosText = chaos.isEmpty() ? Tr.t("friendrun.draft_plus.detail.chaos.off", "Хаос-моды: выключены")
+            : Tr.t("friendrun.draft_plus.detail.chaos.prefix", "Хаос: ") + java.util.stream.StreamSupport.stream(chaos.spliterator(), false)
                 .map(value -> DraftPlusChaos.displayName(value.getAsString()))
                 .collect(java.util.stream.Collectors.joining(", "));
         String summary = entry.deltas().isBlank() ? chaosText : entry.deltas() + " · " + chaosText;
@@ -96,11 +104,11 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
         super.extractRenderState(g, mx, my, delta);
         int tableY = panel.y() + 84;
         Ui.frame(g, panel.x() + 12, tableY, panel.w() - 24, 18 + Math.min(10, players.size()) * 18, Ui.SECTION, Ui.LINE);
-        Gfx.text(g, "Игрок", panel.x() + 20, tableY + 5, Ui.MUTED);
-        Gfx.text(g, "Кл/пик", panel.x() + panel.w() - 290, tableY + 5, Ui.MUTED);
-        Gfx.text(g, "Вклад", panel.x() + panel.w() - 235, tableY + 5, Ui.MUTED);
-        Gfx.text(g, "Роль", panel.x() + panel.w() - 165, tableY + 5, Ui.MUTED);
-        Ui.right(g, "MMR", panel.x() + panel.w() - 20, tableY + 5, Ui.MUTED);
+        Gfx.text(g, Tr.t("friendrun.draft_plus.detail.player", "Игрок"), panel.x() + 20, tableY + 5, Ui.MUTED);
+        Gfx.text(g, Tr.t("friendrun.draft_plus.detail.cells_picks", "Кл/пик"), panel.x() + panel.w() - 290, tableY + 5, Ui.MUTED);
+        Gfx.text(g, Tr.t("friendrun.draft_plus.detail.contribution", "Вклад"), panel.x() + panel.w() - 235, tableY + 5, Ui.MUTED);
+        Gfx.text(g, Tr.t("friendrun.draft_plus.detail.role", "Роль"), panel.x() + panel.w() - 165, tableY + 5, Ui.MUTED);
+        Ui.right(g, Tr.t("friendrun.draft_plus.detail.mmr", "MMR"), panel.x() + panel.w() - 20, tableY + 5, Ui.MUTED);
         int row = 0;
         for (String id : players.keySet()) {
             if (row >= 10) break;
@@ -109,27 +117,31 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
             String team = (int) Lobby.num(player, "team") == DraftPlusTeams.TEAM_A ? "A"
                 : (int) Lobby.num(player, "team") == DraftPlusTeams.TEAM_B ? "B" : "";
             String name = team.isBlank() ? id : id + " · " + team;
-            if (Lobby.bool(data, "globalTimeout")) name += " · все отключились";
-            else if (Lobby.bool(player, "forfeited")) name += " · AFK/поражение";
+            if (Lobby.bool(data, "globalTimeout"))
+                name += Tr.t("friendrun.draft_plus.detail.all_disconnected", " · все отключились");
+            else if (Lobby.bool(player, "forfeited"))
+                name += Tr.t("friendrun.draft_plus.detail.afk_loss", " · AFK/поражение");
             Gfx.text(g, Ui.trunc(name, panel.w() - 330), panel.x() + 20, y, Ui.TEXT);
             String cellsAndPicks = (int) Lobby.num(player, "cells") + " / "
                 + (int) Lobby.num(player, "successfulDraftPicks");
             Gfx.text(g, cellsAndPicks, panel.x() + panel.w() - 290, y, Ui.TEXT);
             int contributionScore = (int) Lobby.num(player, "contributionScore");
             int contributionDelta = (int) Lobby.num(player, "contributionDelta");
-            String contribution = contributionScore + " (" + (contributionDelta > 0 ? "+" : "") + contributionDelta + " MMR)";
+            String contribution = Tr.t("friendrun.draft_plus.detail.contribution_value", "%s (%s MMR)",
+                contributionScore, (contributionDelta > 0 ? "+" : "") + contributionDelta);
             Gfx.text(g, Ui.trunc(contribution, 66), panel.x() + panel.w() - 235, y, Ui.MUTED);
-            Gfx.text(g, Ui.trunc(Lobby.str(player, "role"), 52), panel.x() + panel.w() - 165, y, Ui.MUTED);
+            Gfx.text(g, Ui.trunc(DraftPlusRole.label(Lobby.str(player, "role")), 52), panel.x() + panel.w() - 165, y, Ui.MUTED);
             if (player.has("newMmr")) {
                 int mmrDelta = (int) Lobby.num(player, "delta");
-                String mmr = Lobby.num(player, "newMmr") + " (" + (mmrDelta > 0 ? "+" : "") + mmrDelta + ")";
+                String mmr = Tr.t("friendrun.draft_plus.detail.mmr_value", "%s (%s)",
+                    Lobby.num(player, "newMmr"), (mmrDelta > 0 ? "+" : "") + mmrDelta);
                 Ui.right(g, mmr, panel.x() + panel.w() - 20, y, mmrDelta > 0 ? Ui.GREEN : (mmrDelta < 0 ? Ui.RED : Ui.TEXT));
             } else Ui.right(g, "—", panel.x() + panel.w() - 20, y, Ui.MUTED);
             row++;
         }
 
         int boardY = tableY + 18 + Math.min(10, players.size()) * 18 + 12;
-        Gfx.text(g, "Доска целей", panel.x() + 14, boardY, Ui.MUTED);
+        Gfx.text(g, Tr.t("friendrun.draft_plus.detail.board", "Доска целей"), panel.x() + 14, boardY, Ui.MUTED);
         int gridY = boardY + 14;
         int gridX = panel.x() + 12;
         int gridW = panel.w() - 24;
@@ -147,15 +159,15 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
 
         if (resultMode) {
             Ui.button(g, rematchRect, rematchRect.in(mx, my), true, Ui.Kind.GREEN);
-            Gfx.centered(g, "Сыграть ещё раз", rematchRect.x() + rematchRect.w() / 2,
+            Gfx.centered(g, Tr.t("friendrun.draft_plus.detail.rematch", "Сыграть ещё раз"), rematchRect.x() + rematchRect.w() / 2,
                 rematchRect.cy() - 4, Ui.GREEN);
             Ui.button(g, exitRect, exitRect.in(mx, my), true, Ui.Kind.NORMAL);
-            Gfx.centered(g, "Выйти в лобби", exitRect.x() + exitRect.w() / 2,
+            Gfx.centered(g, Tr.t("friendrun.draft_plus.detail.exit_lobby", "Выйти в лобби"), exitRect.x() + exitRect.w() / 2,
                 exitRect.cy() - 4, Ui.TEXT);
             rematchButton.active = exitButton.active = true;
         } else {
             Ui.button(g, backRect, backRect.in(mx, my), true, Ui.Kind.NORMAL);
-            Gfx.centered(g, "Назад", backRect.x() + backRect.w() / 2, backRect.cy() - 4, Ui.TEXT);
+            Gfx.centered(g, Tr.t("friendrun.ui.back", "Назад"), backRect.x() + backRect.w() / 2, backRect.cy() - 4, Ui.TEXT);
             backButton.active = true;
         }
     }
