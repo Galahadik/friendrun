@@ -29,6 +29,23 @@ final class DraftPlusHostMigrationTest {
     }
 
     @Test
+    void voluntaryWorldExitCannotBeUndoneByAStaleHostSnapshot() {
+        JsonObject doc = ratedMatch();
+        doc.addProperty("host", "alice");
+
+        assertFalse(Lobby.shouldActAsDraftPlusHost(doc, "alice", true));
+    }
+
+    @Test
+    void persistedReplacementHostCanActAfterVoluntaryWorldExit() {
+        JsonObject doc = ratedMatch();
+        doc.addProperty("host", "bob");
+
+        assertFalse(Lobby.shouldActAsDraftPlusHost(doc, "alice", true));
+        assertTrue(Lobby.shouldActAsDraftPlusHost(doc, "bob", false));
+    }
+
+    @Test
     void rootPatchMergePreservesUnrelatedFieldsAndAppliesNestedUpdates() {
         JsonObject doc = new JsonObject();
         doc.addProperty("host", "alice");
