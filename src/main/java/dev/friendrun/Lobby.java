@@ -1153,9 +1153,34 @@ public final class Lobby {
         if (solo) {
             for (String p : players.keySet()) if (!p.equals(me)) updates.add("players/" + p, JsonNull.INSTANCE);
         }
-        // выкинуть пропавших игроков
-        for (String p : players.keySet()) {
-            if (!p.equals(me) && (solo || now - num(obj(players, p), "lastSeen") > 20_000)) {
+        // Draft+ keeps disconnected participants in the frozen roster for five minutes.
+        // Other game modes retain the existing short stale-player cleanup.
+        boolean draftPlusLaunched = bool(doc, "launched") && num(doc, "gameMode") == Game.DRAFT_PLUS;
+        for (String p : new ArrayList<>(players.keySet())) {
+            if (p.equals(me)) continue;
+            JsonObject player = obj(players, p);
+            long staleMs = now - num(player, "lastSeen");
+            if (solo) {
+                players.remove(p);
+                updates.add("players/" + p, JsonNull.INSTANCE);
+            } else if (draftPlusLaunched) {
+                if (staleMs >= 300_000 && !bool(player, "draftPlusForfeit")) {
+                    player.addProperty("draftPlusForfeit", true);
+                    player.addProperty("draftPlusDisconnected", true);
+                    player.addProperty("draftPlusForfeitAt", now);
+                    updates.addProperty("players/" + p + "/draftPlusForfeit", true);
+                    updates.addProperty("players/" + p + "/draftPlusDisconnected", true);
+                    updates.addProperty("players/" + p + "/draftPlusForfeitAt", now);
+                } else if (staleMs > 20_000 && !bool(player, "draftPlusDisconnected")) {
+                    player.addProperty("draftPlusDisconnected", true);
+                    updates.addProperty("players/" + p + "/draftPlusDisconnected", true);
+                } else if (staleMs <= 20_000 && bool(player, "draftPlusDisconnected")
+                    && !bool(player, "draftPlusForfeit")) {
+                    player.addProperty("draftPlusDisconnected", false);
+                    updates.addProperty("players/" + p + "/draftPlusDisconnected", false);
+                }
+            } else if (staleMs > 20_000) {
+                players.remove(p);
                 updates.add("players/" + p, JsonNull.INSTANCE);
             }
         }
