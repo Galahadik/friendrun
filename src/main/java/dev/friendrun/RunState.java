@@ -76,6 +76,10 @@ public final class RunState {
     public int draftPlusClaimPendingIndex = -1;
     public long draftPlusClaimSentAtNanos;
     public boolean draftPlusNeedsBaseline;
+    // Monotonic item acquisition tracking for Draft+: pickup packets and inventory increases.
+    public final java.util.Map<String, Integer> draftPlusAcquired = new java.util.HashMap<>();
+    public final java.util.Map<String, Integer> draftPlusLastInventory = new java.util.HashMap<>();
+    public final java.util.Map<String, Integer> draftPlusPickupPending = new java.util.HashMap<>();
     public int[] bingoBase = new int[25];           // бинго: сколько штук было в инвентаре на старте
     public long countdownEndNanos;
     public long startNanos;
@@ -117,6 +121,9 @@ public final class RunState {
         draftPlusClaimPendingIndex = -1;
         draftPlusClaimSentAtNanos = 0;
         draftPlusNeedsBaseline = false;
+        draftPlusAcquired.clear();
+        draftPlusLastInventory.clear();
+        draftPlusPickupPending.clear();
     }
 
     public void resetAll() {
