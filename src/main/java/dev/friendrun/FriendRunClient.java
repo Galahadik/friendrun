@@ -162,6 +162,8 @@ public final class FriendRunClient implements ClientModInitializer {
         s.gameMode = (int) Lobby.num(doc, "gameMode");
         s.draftPlusFormat = (int) Lobby.orDef(Lobby.num(doc, "draftPlusFormat"), 0);
         s.draftPlusTeamSize = (int) Math.max(1, Math.min(5, Lobby.orDef(Lobby.num(doc, "draftPlusTeamSize"), 1)));
+        s.draftPlusTeamNameA = Lobby.str(doc, "draftPlusTeamNameA").isBlank() ? "Команда A" : Lobby.str(doc, "draftPlusTeamNameA");
+        s.draftPlusTeamNameB = Lobby.str(doc, "draftPlusTeamNameB").isBlank() ? "Команда B" : Lobby.str(doc, "draftPlusTeamNameB");
         s.draftActive = Lobby.bool(doc, "draftActive");
         s.draftComplete = Lobby.bool(doc, "draftComplete");
         s.draftPickCount = (int) Lobby.num(doc, "draftPickCount");
