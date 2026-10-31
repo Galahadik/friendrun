@@ -82,7 +82,8 @@ public final class LobbyRoomScreen extends Screen {
                 FriendRunClient.setDraftPlusBansEnabled(!current.draftPlusBansEnabled);
             else FriendRunClient.settingB();
         });
-        bBoard = make(rBoard, () -> Mc.setScreen(new LeaderboardScreen(this)));
+        bBoard = make(rBoard, () -> Mc.setScreen(FriendRunClient.STATE.gameMode == Game.DRAFT_PLUS
+            ? new DraftPlusLeaderboardScreen(this) : new LeaderboardScreen(this)));
         bGame = make(rGame, () -> Mc.setScreen(new GameModeScreen(this)));
         bMode = make(rMode, () -> FriendRunClient.setMode(s.mode == RunState.Mode.SEPARATE_WORLDS
             ? RunState.Mode.HOST_WORLD : RunState.Mode.SEPARATE_WORLDS));
