@@ -2193,21 +2193,12 @@ public final class Lobby {
         java.util.Map<String, java.util.Set<String>> completedAdvancements =
             completedAdvancementsFor(players, num(doc, "roundId") + 1, activeStateIds);
         if (completedAdvancements == null) return;
-        while ((state.phase() == DraftPlusFlow.Phase.BANS || state.phase() == DraftPlusFlow.Phase.DRAFT)
-            && state.forfeitedPlayers().contains(state.currentActor())) {
-            String skippedActor = state.currentActor();
-            long seed;
-            try { seed = Long.parseLong(str(doc, "draftPlusSeed")); }
-            catch (NumberFormatException ex) { seed = num(doc, "roundId"); }
-            Random autoRandom = new Random(seed ^ (0x9E3779B97F4A7C15L
-                * (state.phase() == DraftPlusFlow.Phase.BANS ? state.banIndex() + 1L : state.pickIndex() + 1L)));
-            if (state.phase() == DraftPlusFlow.Phase.BANS)
-                state = DraftPlusFlow.ban(state, skippedActor, state.offerA(), completedAdvancements, autoRandom);
-            else
-                state = DraftPlusFlow.pick(state, skippedActor, 0, completedAdvancements, autoRandom);
-            updates.add("draftPlusState", DraftPlusCodec.encode(state));
-            if (state.phase() == DraftPlusFlow.Phase.COMPLETE) break;
-        }
+        long skipSeed;
+        try { skipSeed = Long.parseLong(str(doc, "draftPlusSeed")); }
+        catch (NumberFormatException ex) { skipSeed = num(doc, "roundId"); }
+        DraftPlusFlow.State beforeSkip = state;
+        state = DraftPlusFlow.skipForfeitedActors(state, completedAdvancements, skipSeed);
+        if (state != beforeSkip) updates.add("draftPlusState", DraftPlusCodec.encode(state));
         DraftPlusFlow.State resolvedForfeits = DraftPlusFlow.resolveForfeitOutcome(state);
         if (resolvedForfeits != state) {
             state = resolvedForfeits;
