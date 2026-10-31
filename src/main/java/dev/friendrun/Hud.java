@@ -272,24 +272,36 @@ public final class Hud {
     private static void drawDraftPlusInventoryBoard(GuiGraphicsExtractor g, RunState s, int mouseX, int mouseY) {
         if (s.draftGoals.size() != DraftPlusRules.CELL_COUNT) return;
 
-        // Keep the board outside the 176px-wide vanilla inventory panel. The old
-        // centered overlay sat directly on top of the crafting slots and blocked use.
-        int inventoryWidth = 176;
-        int inventoryLeft = (Gfx.guiWidth(g) - inventoryWidth) / 2;
-        int rightSpace = Gfx.guiWidth(g) - (inventoryLeft + inventoryWidth) - 8;
-        int leftSpace = inventoryLeft - 8;
-        int sideSpace = Math.max(leftSpace, rightSpace);
+        // InventoryScreen shifts its 176px panel to the right when the recipe book
+        // is expanded. Use the live panel position and reserve the recipe-book area too.
+        InventoryScreen screen = (InventoryScreen) Mc.currentScreen();
+        int guiWidth = Gfx.guiWidth(g);
+        int inventoryWidth = screen.getImageWidth();
+        int inventoryLeft = screen.getGuiLeft();
+        int centeredInventoryLeft = (guiWidth - inventoryWidth) / 2;
+        boolean recipeBookOpen = inventoryLeft > centeredInventoryLeft;
+        int recipeBookWidth = 147; // RecipeBookComponent.IMAGE_WIDTH in Minecraft 26.3
+        int uiLeft = recipeBookOpen ? inventoryLeft - recipeBookWidth : inventoryLeft;
+        int uiRight = inventoryLeft + inventoryWidth;
 
+        int rightSpace = guiWidth - uiRight - 8;
+        int leftSpace = uiLeft - 8;
+        int sideSpace = Math.max(leftSpace, rightSpace);
         int cell = sideSpace >= 140 ? 24 : sideSpace >= 106 ? 18 : 12;
         int gap = cell == 24 ? 3 : 2;
         int total = DraftPlusRules.BOARD_SIZE * cell + (DraftPlusRules.BOARD_SIZE - 1) * gap;
-        int x;
-        if (rightSpace >= total + 8) x = inventoryLeft + inventoryWidth + 8;
-        else if (leftSpace >= total + 8) x = inventoryLeft - total - 8;
-        else x = Math.max(4, (inventoryLeft - total) / 2);
 
-        int y = Math.max(8, (Gfx.guiHeight(g) - total) / 2);
-        // No nextStratum(): the board is deliberately non-overlapping with inventory widgets.
+        int x;
+        if (rightSpace >= total + 12) x = uiRight + 12;
+        else if (leftSpace >= total + 12) x = uiLeft - total - 12;
+        else {
+            // Very narrow windows: keep the board beside the inventory panel,
+            // but clamp it to the visible screen instead of drawing over slots.
+            x = Math.max(4, Math.min(guiWidth - total - 4, uiRight + 8));
+        }
+
+        int y = Math.max(28, (Gfx.guiHeight(g) - total) / 2);
+        // No nextStratum(): the board remains a separate, non-interactive overlay.
         Gfx.rect(g, x - 6, y - 24, x + total + 6, y + total + 6, 0xF0101A2B);
         Gfx.rect(g, x - 6, y - 24, x + total + 6, y - 23, Ui.GOLD);
         Gfx.text(g, "DRAFT+  ·  СЕТКА 5×5", x, y - 18, Ui.GOLD);
