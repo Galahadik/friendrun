@@ -1249,7 +1249,7 @@ public final class Lobby {
 
     static long sseReconnectDelayMillis(int reconnects) {
         int attempt = Math.max(0, reconnects - 1);
-        return Math.min(10_000L, 500L * (1L << Math.min(attempt, 4)));
+        return Math.min(10_000L, 500L * (1L << Math.min(attempt, 5)));
     }
 
     static boolean shouldResetSseReconnectBackoff(long connectedAtNanos, long nowNanos) {
