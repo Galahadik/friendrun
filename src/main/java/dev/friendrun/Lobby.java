@@ -1435,6 +1435,19 @@ public final class Lobby {
                 cells.merge(owner, 1, Integer::sum);
 
             JsonObject playerDocs = obj(doc, "players");
+            Map<String, DraftPlusRules.Player> rosterById = new java.util.HashMap<>();
+            for (DraftPlusRules.Player player : state.players()) rosterById.put(player.id(), player);
+            Map<String, Integer> successfulDraftPicks = new java.util.HashMap<>();
+            for (int i = 0; i < Math.min(state.pickers().size(), state.owners().size()); i++) {
+                String pickerId = state.pickers().get(i);
+                String ownerId = state.owners().get(i);
+                DraftPlusRules.Player picker = rosterById.get(pickerId);
+                DraftPlusRules.Player owner = rosterById.get(ownerId);
+                if (picker == null || owner == null) continue;
+                boolean successful = ffa ? pickerId.equals(ownerId)
+                    : picker.teamIndex() == owner.teamIndex();
+                if (successful) successfulDraftPicks.merge(pickerId, 1, Integer::sum);
+            }
             Map<String, DraftPlusContribution.Metrics> contributionMetrics = new java.util.HashMap<>();
             Map<String, DraftPlusContribution.Metrics> activeContributionMetrics = new java.util.HashMap<>();
             for (DraftPlusRules.Player player : state.players()) {
@@ -1442,7 +1455,8 @@ public final class Lobby {
                 Set<String> acquiredIds = new HashSet<>();
                 for (String itemId : acquired.keySet()) if (num(acquired, itemId) > 0) acquiredIds.add(itemId);
                 DraftPlusContribution.Metrics metrics = new DraftPlusContribution.Metrics(
-                    acquiredIds, cells.getOrDefault(player.id(), 0));
+                    acquiredIds, cells.getOrDefault(player.id(), 0),
+                    successfulDraftPicks.getOrDefault(player.id(), 0));
                 contributionMetrics.put(player.id(), metrics);
                 if (!forfeited.contains(player.id())) activeContributionMetrics.put(player.id(), metrics);
             }
@@ -1490,6 +1504,8 @@ public final class Lobby {
                 playerHistory.addProperty("forfeited", state.forfeitedPlayers().contains(player.id()));
                 playerHistory.addProperty("contributionScore",
                     DraftPlusContribution.score(contributionMetrics.get(player.id())));
+                playerHistory.addProperty("successfulDraftPicks",
+                    contributionMetrics.get(player.id()).successfulDraftPicks());
                 String role = str(obj(doc, "draftPlusRoles"), player.id());
                 if (!role.isBlank()) playerHistory.addProperty("role", role);
 
@@ -1542,6 +1558,7 @@ public final class Lobby {
             history.add("cellScores", score);
             history.add("players", historyPlayers);
             history.add("boardGoals", strings(state.boardGoals()));
+            history.add("pickers", strings(state.pickers()));
             history.add("owners", strings(state.owners()));
             history.add("bannedGoals", strings(state.bannedGoals()));
             history.add("roles", obj(doc, "draftPlusRoles").deepCopy());
