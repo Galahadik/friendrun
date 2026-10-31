@@ -387,4 +387,60 @@ final class DraftPlusHostMigrationTest {
         assertFalse(Lobby.isValidDraftPlusHostMigration(doc, "bob", transfer));
     }
 
+
+    @Test
+    void staleHostHeartbeatCannotRenewLeaseAfterReplacement() {
+        JsonObject persisted = ratedMatch();
+        persisted.addProperty("host", "bob");
+        persisted.addProperty("hostSeen", 50_000);
+        persisted.addProperty("hostEpoch", 8);
+
+        // The old host may still send its own player-presence heartbeat,
+        // but it no longer has authority to renew the root host lease.
+        assertFalse(Lobby.isCurrentRatedDraftPlusHost(persisted, "alice"));
+        assertTrue(Lobby.isCurrentRatedDraftPlusHost(persisted, "bob"));
+        assertTrue(Lobby.num(persisted, "hostSeen") == 50_000);
+    }
+
+    @Test
+    void voluntaryHostTransferPreservesRatedMatchWhenNoSuccessorIsOnline() {
+        JsonObject doc = ratedMatch();
+        doc.addProperty("host", "alice");
+        doc.addProperty("hostSeen", 10_000);
+        doc.addProperty("hostEpoch", 21);
+        doc.addProperty("draftPlusSeed", "match-voluntary-exit");
+        JsonObject state = new JsonObject();
+        state.addProperty("phase", "PLAY");
+        state.addProperty("pickIndex", 11);
+        doc.add("draftPlusState", state);
+        JsonObject frozen = new JsonObject();
+        frozen.addProperty("rated", true);
+        frozen.addProperty("rolesEnabled", true);
+        doc.add("draftPlusFrozenSettings", frozen);
+        JsonObject players = new JsonObject();
+        JsonObject alice = new JsonObject();
+        alice.addProperty("joinedAt", 1);
+        alice.addProperty("lastSeen", 10_000);
+        players.add("alice", alice);
+        doc.add("players", players);
+
+        JsonObject transfer = new JsonObject();
+        transfer.addProperty("host", "");
+        transfer.addProperty("hostSeen", 0);
+        transfer.addProperty("hostInGame", false);
+        transfer.addProperty("hostMigrationFrom", "alice");
+        transfer.addProperty("hostMigrationAt", 25_001);
+        transfer.addProperty("hostEpoch", 22);
+        Lobby.applyFirebasePatch(doc, transfer);
+
+        assertTrue(Lobby.str(doc, "host").isBlank());
+        assertTrue(Lobby.num(doc, "hostEpoch") == 22);
+        assertTrue(Lobby.bool(Lobby.obj(doc, "draftPlusFrozenSettings"), "rated"));
+        assertTrue(Lobby.bool(Lobby.obj(doc, "draftPlusFrozenSettings"), "rolesEnabled"));
+        assertTrue("PLAY".equals(Lobby.str(Lobby.obj(doc, "draftPlusState"), "phase")));
+        assertTrue(Lobby.num(Lobby.obj(doc, "draftPlusState"), "pickIndex") == 11);
+        assertTrue("match-voluntary-exit".equals(Lobby.str(doc, "draftPlusSeed")));
+        assertTrue(Lobby.obj(doc, "players").has("alice"));
+    }
+
 }
