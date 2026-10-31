@@ -87,6 +87,7 @@ public final class RunState {
     public final java.util.Map<String, Integer> draftPlusAcquired = new java.util.HashMap<>();
     public final java.util.Map<String, Integer> draftPlusLastInventory = new java.util.HashMap<>();
     public final java.util.Map<String, Integer> draftPlusPickupPending = new java.util.HashMap<>();
+    public String draftPlusStatsSignature = "";
     public int[] bingoBase = new int[25];           // бинго: сколько штук было в инвентаре на старте
     public long countdownEndNanos;
     public long startNanos;
@@ -132,6 +133,7 @@ public final class RunState {
         draftPlusAcquired.clear();
         draftPlusLastInventory.clear();
         draftPlusPickupPending.clear();
+        draftPlusStatsSignature = "";
     }
 
     public void resetAll() {
