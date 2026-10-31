@@ -48,11 +48,20 @@ public final class DraftPlusRating {
      * across all opponents by dividing each pair's weight by (players - 1).
      */
     public static List<Delta> calculateFfa(List<PlayerResult> players) {
-        return calculateFfa(players, K_FACTOR);
+        return calculateFfa(players, K_FACTOR, Set.of());
     }
 
     public static List<Delta> calculateFfa(List<PlayerResult> players, int kFactor) {
+        return calculateFfa(players, kFactor, Set.of());
+    }
+
+    public static List<Delta> calculateFfa(List<PlayerResult> players, Set<String> forfeitedPlayers) {
+        return calculateFfa(players, K_FACTOR, forfeitedPlayers);
+    }
+
+    public static List<Delta> calculateFfa(List<PlayerResult> players, int kFactor, Set<String> forfeitedPlayers) {
         validatePlayers(players, 2, 10);
+        Set<String> forfeited = forfeitedPlayers == null ? Set.of() : Set.copyOf(forfeitedPlayers);
         validateK(kFactor);
 
         int size = players.size();
@@ -61,7 +70,10 @@ public final class DraftPlusRating {
             PlayerResult a = players.get(i);
             for (int j = i + 1; j < size; j++) {
                 PlayerResult b = players.get(j);
-                double actualA = score(a.cells(), b.cells());
+                boolean aForfeited = forfeited.contains(a.playerId());
+                boolean bForfeited = forfeited.contains(b.playerId());
+                double actualA = aForfeited && bForfeited ? 0.5
+                    : aForfeited ? 0.0 : bForfeited ? 1.0 : score(a.cells(), b.cells());
                 double expectedA = expected(a.mmr(), b.mmr());
                 double pairDelta = (kFactor / (double) (size - 1)) * (actualA - expectedA);
                 raw[i] += pairDelta;
@@ -71,7 +83,8 @@ public final class DraftPlusRating {
 
         int[] base = roundZeroSum(raw);
         List<Delta> result = new ArrayList<>(size);
-        for (int i = 0; i < size; i++) result.add(delta(players.get(i), base[i]));
+        for (int i = 0; i < size; i++)
+            result.add(delta(players.get(i), base[i], forfeited.contains(players.get(i).playerId())));
         return List.copyOf(result);
     }
 
@@ -83,13 +96,27 @@ public final class DraftPlusRating {
     public static List<Delta> calculateTeam(
         List<PlayerResult> teamA, List<PlayerResult> teamB, TeamResult result
     ) {
-        return calculateTeam(teamA, teamB, result, K_FACTOR);
+        return calculateTeam(teamA, teamB, result, K_FACTOR, Set.of());
     }
 
     public static List<Delta> calculateTeam(
         List<PlayerResult> teamA, List<PlayerResult> teamB, TeamResult result, int kFactor
     ) {
+        return calculateTeam(teamA, teamB, result, kFactor, Set.of());
+    }
+
+    public static List<Delta> calculateTeam(
+        List<PlayerResult> teamA, List<PlayerResult> teamB, TeamResult result, Set<String> forfeitedPlayers
+    ) {
+        return calculateTeam(teamA, teamB, result, K_FACTOR, forfeitedPlayers);
+    }
+
+    public static List<Delta> calculateTeam(
+        List<PlayerResult> teamA, List<PlayerResult> teamB, TeamResult result, int kFactor,
+        Set<String> forfeitedPlayers
+    ) {
         Objects.requireNonNull(result, "result");
+        Set<String> forfeited = forfeitedPlayers == null ? Set.of() : Set.copyOf(forfeitedPlayers);
         validatePlayers(teamA, 1, 5);
         validatePlayers(teamB, 1, 5);
         validateK(kFactor);
@@ -112,13 +139,25 @@ public final class DraftPlusRating {
         int baseB = -baseA;
 
         List<Delta> deltas = new ArrayList<>(teamA.size() + teamB.size());
-        for (PlayerResult player : teamA) deltas.add(delta(player, baseA));
-        for (PlayerResult player : teamB) deltas.add(delta(player, baseB));
+        for (PlayerResult player : teamA) {
+            int base = forfeited.contains(player.playerId())
+                ? (int) Math.round(kFactor * (0.0 - expected(player.mmr(), averageB))) : baseA;
+            deltas.add(delta(player, base, forfeited.contains(player.playerId())));
+        }
+        for (PlayerResult player : teamB) {
+            int base = forfeited.contains(player.playerId())
+                ? (int) Math.round(kFactor * (0.0 - expected(player.mmr(), averageA))) : baseB;
+            deltas.add(delta(player, base, forfeited.contains(player.playerId())));
+        }
         return List.copyOf(deltas);
     }
 
     private static Delta delta(PlayerResult player, int baseDelta) {
-        int contribution = Math.max(-MAX_CONTRIBUTION,
+        return delta(player, baseDelta, false);
+    }
+
+    private static Delta delta(PlayerResult player, int baseDelta, boolean forfeited) {
+        int contribution = forfeited ? 0 : Math.max(-MAX_CONTRIBUTION,
             Math.min(MAX_CONTRIBUTION, player.contributionAdjustment()));
         int proposed = baseDelta + contribution;
         int newMmr = Math.max(0, player.mmr() + proposed);
