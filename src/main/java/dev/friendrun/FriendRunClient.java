@@ -43,6 +43,7 @@ public final class FriendRunClient implements ClientModInitializer {
     private static long lastChaosRollAt;
     private static long lastRollAt;
     private static int lastSubmittedDraftPick = -1;
+    private static String lastDraftPlusAdvancementReport = "";
 
     @Override
     public void onInitializeClient() {
@@ -889,6 +890,16 @@ public final class FriendRunClient implements ClientModInitializer {
         WorldLauncher.tick(mc);
         RunState s = STATE;
         if (lobby == null) return;
+        if (s.gameMode == Game.DRAFT_PLUS && s.launched && s.draftPlusState == null
+            && mc.getConnection() != null) {
+            long targetRound = s.roundId + 1;
+            String completed = String.join(",", DraftGoal.Advancement.completedIds(mc));
+            String reportKey = targetRound + ":" + completed;
+            if (!reportKey.equals(lastDraftPlusAdvancementReport)) {
+                lastDraftPlusAdvancementReport = reportKey;
+                lobby.setDraftPlusCompletedAdvancements(completed, targetRound);
+            }
+        }
         boolean showDraftPlus = s.gameMode == Game.DRAFT_PLUS && s.launched
             && ((s.draftPlusState != null && s.draftPlusState.phase() != DraftPlusFlow.Phase.PLAY
                 && (s.draftPlusState.phase() != DraftPlusFlow.Phase.COMPLETE || !s.draftPlusScreenDismissed))
