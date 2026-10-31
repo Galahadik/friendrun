@@ -269,15 +269,31 @@ public final class Hud {
 
     private static void drawDraftPlusInventoryBoard(GuiGraphicsExtractor g, RunState s, int mouseX, int mouseY) {
         if (s.draftGoals.size() != DraftPlusRules.CELL_COUNT) return;
-        int cell = 24, gap = 3;
+
+        // Keep the board outside the 176px-wide vanilla inventory panel. The old
+        // centered overlay sat directly on top of the crafting slots and blocked use.
+        int inventoryWidth = 176;
+        int inventoryLeft = (Gfx.guiWidth(g) - inventoryWidth) / 2;
+        int rightSpace = Gfx.guiWidth(g) - (inventoryLeft + inventoryWidth) - 8;
+        int leftSpace = inventoryLeft - 8;
+        int sideSpace = Math.max(leftSpace, rightSpace);
+
+        int cell = sideSpace >= 172 ? 24 : sideSpace >= 134 ? 18 : 12;
+        int gap = cell == 24 ? 3 : 2;
         int total = DraftPlusRules.BOARD_SIZE * cell + (DraftPlusRules.BOARD_SIZE - 1) * gap;
-        int x = Math.max(6, (Gfx.guiWidth(g) - total) / 2);
+        int x;
+        if (rightSpace >= total + 8) x = inventoryLeft + inventoryWidth + 8;
+        else if (leftSpace >= total + 8) x = inventoryLeft - total - 8;
+        else x = Math.max(4, (inventoryLeft - total) / 2);
+
         int y = Math.max(8, (Gfx.guiHeight(g) - total) / 2);
-        g.nextStratum();
-        Gfx.rect(g, x - 8, y - 24, x + total + 8, y + total + 8, 0xF0101A2B);
-        Gfx.rect(g, x - 8, y - 24, x + total + 8, y - 23, Ui.GOLD);
+        // No nextStratum(): the board is deliberately non-overlapping with inventory widgets.
+        Gfx.rect(g, x - 6, y - 24, x + total + 6, y + total + 6, 0xF0101A2B);
+        Gfx.rect(g, x - 6, y - 24, x + total + 6, y - 23, Ui.GOLD);
         Gfx.text(g, "DRAFT+  ·  СЕТКА 5×5", x, y - 17, Ui.GOLD);
-        Gfx.text(g, "Захвачено: " + draftPlusOwnedByMe(s) + "/13", x + total - 82, y - 17, 0xFF55FF55);
+        String count = "Захвачено: " + draftPlusOwnedByMe(s) + "/13";
+        int countX = x + total - Minecraft.getInstance().font.width(count);
+        Gfx.text(g, count, countX, y - 17, 0xFF55FF55);
         drawDraftPlusBoard(g, s, x, y, cell, gap, mouseX, mouseY);
     }
 
