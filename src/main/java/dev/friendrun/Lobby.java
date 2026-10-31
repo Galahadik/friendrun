@@ -1000,7 +1000,8 @@ public final class Lobby {
             }
         }
         if (everyoneElseStale && now - num(doc, "hostSeen") >= 300_000
-            && bool(doc, "launched") && num(doc, "gameMode") == Game.DRAFT_PLUS)
+            && bool(doc, "launched") && num(doc, "gameMode") == Game.DRAFT_PLUS
+            && !str(obj(doc, "draftPlusState"), "phase").equals(DraftPlusFlow.Phase.COMPLETE.name()))
             transfer.addProperty("draftPlusAllDisconnectedTimeout", true);
         request("PATCH", "", transfer.toString());
         host = true;
