@@ -52,6 +52,7 @@ public final class FriendRunClient implements ClientModInitializer {
         Worlds.markForDelete();   // остатки одноразовых миров после прошлой сессии
         Commands.register();
         Hud.register();
+        DraftPlusRoles.register();
         ClientReceiveMessageEvents.GAME.register((message, overlay) -> E4mc.scan(message.getString()));
         ClientTickEvents.END_CLIENT_TICK.register(FriendRunClient::tick);
     }
@@ -233,6 +234,14 @@ public final class FriendRunClient implements ClientModInitializer {
                 STATE.countdownEndNanos = System.nanoTime() + Math.max(0L, lastStartAt - hostNow) * 1_000_000L;
             }
         }
+        JsonObject frozenRoleDoc = Lobby.obj(doc, "draftPlusRoles");
+        java.util.Map<String, String> frozenRoles = new java.util.HashMap<>();
+        for (String playerName : frozenRoleDoc.keySet()) {
+            String roleId = Lobby.str(frozenRoleDoc, playerName);
+            if (DraftPlusRole.byId(roleId) != null) frozenRoles.put(playerName, roleId);
+        }
+        s.draftPlusMatchRoles = java.util.Map.copyOf(frozenRoles);
+
         s.players.clear();
         for (String p : players.keySet()) {
             JsonObject playerDoc = Lobby.obj(players, p);
@@ -240,9 +249,11 @@ public final class FriendRunClient implements ClientModInitializer {
                 ? Lobby.num(playerDoc, "joinedAt") : Lobby.num(playerDoc, "lastSeen");
             int draftPlusTeam = playerDoc.has("draftPlusTeam")
                 ? (int) Lobby.num(playerDoc, "draftPlusTeam") : DraftPlusTeams.NO_TEAM;
+            String roleId = Lobby.str(playerDoc, "draftPlusRole");
+            if (DraftPlusRole.byId(roleId) == null) roleId = "";
             s.players.add(new RunState.PlayerInfo(p, p.equals(hostName), Lobby.bool(playerDoc, "ready"),
                 (int) Lobby.num(playerDoc, "score"), Lobby.bool(playerDoc, "dead"),
-                joinedAt, draftPlusTeam));
+                joinedAt, draftPlusTeam, roleId));
         }
         if (s.gameMode == Game.DRAFT || s.roundGame == Game.DRAFT)
             s.myScore = (int) Lobby.num(Lobby.obj(players, myName()), "score");
@@ -569,6 +580,7 @@ public final class FriendRunClient implements ClientModInitializer {
                 } catch (NumberFormatException ignored) {}
             }
         }
+        DraftPlusRoles.publish(s);
     }
 
     // ---------- настройки лобби (только хост) ----------
@@ -779,6 +791,22 @@ public final class FriendRunClient implements ClientModInitializer {
         lobby.setDraftPlusTeam(teamIndex);
     }
 
+    public static void setDraftPlusRole(String roleId) {
+        DraftPlusRole role = DraftPlusRole.byId(roleId);
+        if (lobby == null || role == null || STATE.gameMode != Game.DRAFT_PLUS
+            || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
+        lobby.setDraftPlusRole(role.id());
+        String me = myName();
+        for (int i = 0; i < STATE.players.size(); i++) {
+            RunState.PlayerInfo p = STATE.players.get(i);
+            if (p.name().equals(me)) {
+                STATE.players.set(i, new RunState.PlayerInfo(p.name(), p.host(), p.ready(),
+                    p.score(), p.dead(), p.joinedAt(), p.draftPlusTeam(), role.id()));
+                break;
+            }
+        }
+    }
+
     public static void renameDraftPlusTeam(int teamIndex, String name) {
         if (lobby == null || STATE.gameMode != Game.DRAFT_PLUS || STATE.draftPlusFormat != 1
             || STATE.launched || STATE.phase != RunState.Phase.IDLE) return;
@@ -831,6 +859,9 @@ public final class FriendRunClient implements ClientModInitializer {
                 if (!DraftPlusTeams.isReady(members, STATE.draftPlusTeamSize)) {
                     chat("Draft+ Команды: заполните обе команды до выбранного размера."); return;
                 }
+            }
+            if (STATE.players.stream().anyMatch(p -> DraftPlusRole.byId(p.draftPlusRole()) == null)) {
+                chat("Draft+: каждый игрок должен выбрать роль перед стартом."); return;
             }
         }
         if (STATE.gameMode == Game.SINGLE_SPEEDRUN && STATE.players.size() != 1) { chat("Одиночный спидран требует ровно одного игрока в этом лобби."); return; }
@@ -915,6 +946,7 @@ public final class FriendRunClient implements ClientModInitializer {
         lastJoinTry = 0; joinAttempts = 0; rouletteInit = false; chaosInit = false; lastChaosRollAt = 0; lastRollAt = 0; lastStartAt = 0; lastPreparedAckRound = 0; lastHostSeenValue = Long.MIN_VALUE; hostClockOffsetMs = 0; lastWinnerRound = Long.MAX_VALUE;
         lastDraftPlusAdvancementReport = "";
         lastDraftPlusAdvancementReportAtNanos = 0;
+        DraftPlusRoles.clear();
         STATE.resetAll();
         Settings.clearLobby();
     }
@@ -1085,6 +1117,7 @@ public final class FriendRunClient implements ClientModInitializer {
         if (s.phase == RunState.Phase.RUNNING && s.roundMod >= 0 && ++reapplyTicks % 100 == 0) Chaos.apply(s.roundMod);
         if (s.phase == RunState.Phase.RUNNING && mc.player != null && s.roundGame != Game.SINGLE_SPEEDRUN
             && (s.target != null || s.roundGame == Game.DRAFT_PLUS)) roundTick(mc, s);
+        DraftPlusRoles.publish(s);
     }
 
     /** Собрана ли линия (строка, столбец или диагональ) на карточке n×n; в режиме full — вся карточка. */

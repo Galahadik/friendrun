@@ -23,6 +23,7 @@ public final class RunState {
     public int draftPlusFormat;       // 0 = FFA, 1 = команды
     public int draftPlusTeamSize = 1;
     public boolean draftPlusBansEnabled = true;
+    public java.util.Map<String, String> draftPlusMatchRoles = java.util.Map.of();
     public DraftPlusFlow.State draftPlusState;
     public String draftPlusMatchSeed = "";
     public String draftPlusStartError = "";
@@ -38,7 +39,7 @@ public final class RunState {
     public String address = "";        // домен e4mc мира хоста
     public String status = "";         // строка состояния для экрана лобби
     public long roundId;
-    public record PlayerInfo(String name, boolean host, boolean ready, int score, boolean dead, long joinedAt, int draftPlusTeam) {}
+    public record PlayerInfo(String name, boolean host, boolean ready, int score, boolean dead, long joinedAt, int draftPlusTeam, String draftPlusRole) {}
     public final List<PlayerInfo> players = new ArrayList<>();
 
     public String playersLine() {
@@ -135,7 +136,7 @@ public final class RunState {
         amHost = false;
         chaos = false;
         gameMode = 0;
-        draftPlusFormat = 0; draftPlusTeamSize = 1; draftPlusState = null; draftPlusMatchSeed = ""; draftPlusStartError = ""; draftPlusScreenDismissed = false; draftPlusTeamNameA = "Команда A"; draftPlusTeamNameB = "Команда B";
+        draftPlusFormat = 0; draftPlusTeamSize = 1; draftPlusMatchRoles = java.util.Map.of(); draftPlusState = null; draftPlusMatchSeed = ""; draftPlusStartError = ""; draftPlusScreenDismissed = false; draftPlusTeamNameA = "Команда A"; draftPlusTeamNameB = "Команда B";
         convTotalMin = 20; convSlotMin = 3; chainLen = 5; bingoSize = 3; draftSize = cfgDraftSize = 5; draftType = cfgDraftType = 3; bingoFull = false; waveSec = 45; waveDiff = 1; manRunners = 1; manMin = 15;
         resultUntilNanos = 0;
         mode = Mode.SEPARATE_WORLDS;

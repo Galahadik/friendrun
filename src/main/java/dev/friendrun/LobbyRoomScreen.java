@@ -16,7 +16,7 @@ public final class LobbyRoomScreen extends Screen {
     private static final int PLAYER_ROW = 17, PLAYER_ROWS = 9, BODY_Y = 28, PLAYERS_H = 15 + PLAYER_ROWS * PLAYER_ROW + 2, FOOT_Y = 238, PANEL_H = 254;
 
     private final Screen parent;
-    private Button bGame, bMode, bRollItem, bRollChaos, bToggle, bStart, bLeave, bSetA, bSetB, bSettings, bBoard;
+    private Button bGame, bMode, bRollItem, bRollChaos, bToggle, bStart, bLeave, bSetA, bSetB, bSettings, bBoard, bRole;
     private Ui.R rGame, rMode, rRollItem, rRollChaos, rToggle, rStart, rLeave, rSetA, rSetB, rSettings, rBoard, rChaos, rPlayers;
     private int px, py, pw, ph, lx, lw, rx, rw;
 
@@ -89,6 +89,7 @@ public final class LobbyRoomScreen extends Screen {
         bRollItem = make(rRollItem, FriendRunClient::rollItem);
         bRollChaos = make(rRollChaos, FriendRunClient::rollChaos);
         bToggle = make(rToggle, FriendRunClient::toggleChaos);
+        bRole = make(rChaos, () -> Mc.setScreen(new DraftPlusRoleScreen(this)));
         bStart = make(rStart, FriendRunClient::launch);
         bLeave = make(rLeave, () -> { FriendRunClient.leave(); Mc.setScreen(parent); });
         openedAt = System.nanoTime();
@@ -201,8 +202,10 @@ public final class LobbyRoomScreen extends Screen {
                 members.add(new DraftPlusTeams.Member(p.name(), p.joinedAt(), p.draftPlusTeam()));
             draftPlusReady = DraftPlusTeams.isReady(members, s.draftPlusTeamSize);
         }
+        boolean draftPlusRolesReady = !s.players.isEmpty()
+            && s.players.stream().allMatch(p -> DraftPlusRole.byId(p.draftPlusRole()) != null);
         boolean canStart = open && (!soloSpeedrun || s.players.size() == 1)
-            && (s.gameMode != Game.DRAFT_PLUS || draftPlusReady)
+            && (s.gameMode != Game.DRAFT_PLUS || (draftPlusReady && draftPlusRolesReady))
             && (s.gameMode != Game.MANHUNT || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2))
             && (s.gameMode != Game.PILLARS || (s.mode == RunState.Mode.HOST_WORLD && s.players.size() >= 2));
         bSetA.visible = (!speed && !soloSpeedrun && s.gameMode != Game.PILLARS && s.gameMode != Game.DRAFT_PLUS)
@@ -220,6 +223,8 @@ public final class LobbyRoomScreen extends Screen {
         bRollItem.active = canRollItem && !pillars && !soloSpeedrun && s.gameMode != Game.DRAFT_PLUS;
         bRollChaos.active = canRollChaos && !soloSpeedrun && s.gameMode != Game.DRAFT_PLUS;
         bToggle.active = host && !pillars && !soloSpeedrun && s.gameMode != Game.DRAFT_PLUS;
+        bRole.visible = s.gameMode == Game.DRAFT_PLUS;
+        bRole.active = s.gameMode == Game.DRAFT_PLUS && !s.launched && s.phase == RunState.Phase.IDLE;
         bStart.active = canStart;
 
         int lcx = lx + lw / 2;
@@ -274,8 +279,20 @@ public final class LobbyRoomScreen extends Screen {
             drawSettings(g, s, mx, my, canSet, lcx);
         }
 
-        // ---------- усложнение ----------
-        if (pillars || soloSpeedrun) {
+        // ---------- усложнение / выбор роли ----------
+        if (s.gameMode == Game.DRAFT_PLUS) {
+            RunState.PlayerInfo me = s.players.stream()
+                .filter(p -> p.name().equals(FriendRunClient.myName())).findFirst().orElse(null);
+            DraftPlusRole role = me == null ? null : DraftPlusRole.byId(me.draftPlusRole());
+            boolean canChooseRole = !s.launched && s.phase == RunState.Phase.IDLE;
+            Ui.button(g, rChaos, hv("draftPlusRole", rChaos, mx, my, canChooseRole),
+                canChooseRole, role == null ? Ui.Kind.GOLD : Ui.Kind.GREEN);
+            Icons.draw(g, Icons.GEAR, rChaos.x() + 8, rChaos.y() + 6, 1, role == null ? Ui.GOLD : Ui.GREEN);
+            Gfx.text(g, "Роль: " + (role == null ? "не выбрана" : role.title()),
+                rChaos.x() + 22, rChaos.y() + 4, role == null ? Ui.GOLD : Ui.TEXT);
+            Gfx.text(g, Ui.trunc(role == null ? "Нажмите, чтобы выбрать" : role.bonus(),
+                rChaos.w() - 32), rChaos.x() + 22, rChaos.y() + 16, Ui.MUTED);
+        } else if (pillars || soloSpeedrun) {
             Icons.draw(g, Icons.GEAR, rChaos.x() + 8, rChaos.y() + 10, 1, Ui.GOLD);
             Gfx.text(g, Ui.trunc(Tr.t("friendrun.ui.rules_by_map", "Правила и запуск определяются картой"), lw - 30), rChaos.x() + 22, rChaos.y() + 10, Ui.TEXT);
         } else if (s.chaos) {
@@ -334,6 +351,8 @@ public final class LobbyRoomScreen extends Screen {
             if (mmrFits) Gfx.text(g, mmrText, leftLimit - mmrW, y + 4, mmrColor);
             int nameRight = mmrFits ? leftLimit - mmrW - 8 : leftLimit;
             String nm = p.name() + (p.host() ? " " + Tr.t("friendrun.ui.host_tag", "(хост)") : "");
+            if (s.gameMode == Game.DRAFT_PLUS)
+                nm += " · " + DraftPlusRole.label(p.draftPlusRole());
             Gfx.text(g, Ui.trunc(nm, nameRight - nx), nx, y + 4, Ui.TEXT);
 
             // плавное появление нового игрока
@@ -392,7 +411,9 @@ public final class LobbyRoomScreen extends Screen {
         Icons.draw(g, Icons.PLAY, rStart.x() + 8, rStart.cy() - 3, 1, sc);
         String startText = s.launched ? Tr.t("friendrun.ui.started", "Игра запущена")
             : host ? (canStart ? (s.gameMode == Game.DRAFT_PLUS ? "Старт Draft+" : Tr.t("friendrun.ui.start", "Старт (создать мир)"))
-                : s.gameMode == Game.DRAFT_PLUS ? "Заполните состав Draft+" : soloSpeedrun ? Tr.t("friendrun.ui.need_solo", "Одиночный спидран: 1 игрок") : Tr.t("friendrun.ui.need_two", "Нужно 2+ игрока и мир хоста"))
+                : s.gameMode == Game.DRAFT_PLUS
+                    ? (draftPlusReady ? "Все игроки должны выбрать роль" : "Заполните состав Draft+")
+                    : soloSpeedrun ? Tr.t("friendrun.ui.need_solo", "Одиночный спидран: 1 игрок") : Tr.t("friendrun.ui.need_two", "Нужно 2+ игрока и мир хоста"))
             : Tr.t("friendrun.ui.waiting_host", "Ждём старт от хоста…");
         Gfx.text(g, Ui.trunc(startText, rStart.w() - 26), rStart.x() + 20, rStart.cy() - 4, sc);
 

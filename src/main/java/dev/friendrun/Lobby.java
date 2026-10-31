@@ -401,6 +401,7 @@ public final class Lobby {
         p.addProperty("ready", false);
         p.addProperty("joinedAt", System.currentTimeMillis());
         p.addProperty("draftPlusTeam", DraftPlusTeams.NO_TEAM);
+        p.addProperty("draftPlusRole", "");
         p.addProperty("lastSeen", System.currentTimeMillis());
         p.addProperty("draftChoice", -1);
         p.addProperty("draftChoicePick", -1);
@@ -440,6 +441,19 @@ public final class Lobby {
         if (closed || teamIndex < DraftPlusTeams.NO_TEAM || teamIndex > DraftPlusTeams.TEAM_B) return;
         JsonObject o = new JsonObject();
         o.addProperty("draftPlusTeam", teamIndex);
+        patch("/players/" + me, o);
+    }
+
+    /** Each player chooses their own role; choices are locked when the host launches the lobby. */
+    public void setDraftPlusRole(String roleId) {
+        DraftPlusRole role = DraftPlusRole.byId(roleId);
+        if (closed || role == null) return;
+        JsonObject current = latestSnapshot();
+        if (current == null || bool(current, "launched") || num(current, "gameMode") != Game.DRAFT_PLUS) return;
+        JsonObject players = obj(current, "players");
+        if (!players.has(me)) return;
+        JsonObject o = new JsonObject();
+        o.addProperty("draftPlusRole", role.id());
         patch("/players/" + me, o);
     }
 
@@ -554,6 +568,17 @@ public final class Lobby {
         o.addProperty("launched", true); o.addProperty("worldSeed", newSeed());
         JsonObject current = latestSnapshot();
         if (current != null && num(current, "gameMode") == Game.DRAFT_PLUS) {
+            JsonObject currentPlayers = obj(current, "players");
+            JsonObject frozenRoles = new JsonObject();
+            for (String id : currentPlayers.keySet()) {
+                String roleId = str(obj(currentPlayers, id), "draftPlusRole");
+                if (DraftPlusRole.byId(roleId) == null) {
+                    FriendRunClient.chat("Draft+: каждый игрок должен выбрать роль перед стартом.");
+                    return;
+                }
+                frozenRoles.addProperty(id, roleId);
+            }
+            o.add("draftPlusRoles", frozenRoles);
             o.add("draftPlusState", JsonNull.INSTANCE);
             o.addProperty("draftPlusLastActionId", "");
             o.addProperty("draftPlusStartError", "");
@@ -611,6 +636,7 @@ public final class Lobby {
         o.addProperty("draftActive", false);
         o.addProperty("draftComplete", false);
         o.add("draftPlusState", JsonNull.INSTANCE);
+        o.add("draftPlusRoles", new JsonObject());
         o.addProperty("draftPlusLastActionId", "");
         o.addProperty("draftPlusStartError", "");
         o.addProperty("draftPlusPrepared", false);
