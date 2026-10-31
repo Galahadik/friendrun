@@ -116,7 +116,9 @@ public final class DraftPlusScreen extends Screen {
         Gfx.rect(g, 0, 0, width, height, 0xB5080D14);
         Ui.panel(g, panel.x(), panel.y(), panel.w(), panel.h());
         if (state == null) {
-            Gfx.centered(g, "Ожидание состояния Draft+…", width / 2, height / 2, Ui.MUTED);
+            String error = FriendRunClient.STATE.draftPlusStartError;
+            Gfx.centered(g, error.isBlank() ? "Ожидание состояния Draft+…" : "Не удалось начать Draft+: " + error,
+                width / 2, height / 2, error.isBlank() ? Ui.MUTED : Ui.RED);
             super.extractRenderState(g, mx, my, delta);
             return;
         }
