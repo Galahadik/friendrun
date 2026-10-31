@@ -121,9 +121,9 @@ final class DraftPlusFlowTest {
     @Test
     void ffaBoardCompletionIsDrawWhenTopCellCountsAreTied() {
         List<String> owners = new ArrayList<>();
-        owners.addAll(java.util.Collections.nCopies(8, "alice"));
-        owners.addAll(java.util.Collections.nCopies(8, "bob"));
-        owners.addAll(java.util.Collections.nCopies(7, "cara"));
+        owners.addAll(java.util.Collections.nCopies(9, "alice"));
+        owners.addAll(java.util.Collections.nCopies(9, "bob"));
+        owners.addAll(java.util.Collections.nCopies(6, "cara"));
         owners.add("-");
         DraftPlusFlow.State state = boardState(DraftPlusRules.Format.FFA, FFA_PLAYERS, owners);
 
