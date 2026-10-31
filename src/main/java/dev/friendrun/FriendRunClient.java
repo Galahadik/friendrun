@@ -956,7 +956,8 @@ public final class FriendRunClient implements ClientModInitializer {
                     int index = row * DraftPlusRules.BOARD_SIZE + col;
                     String owner = index < state.owners().size() ? state.owners().get(index) : "-";
                     String marker = owner.equals("-") ? "[ ] " : "[x] ";
-                    String goal = index < state.boardGoals().size() ? DraftGoal.parse(state.boardGoals().get(index)).displayName() : "—";
+                    DraftGoal parsed = index < state.boardGoals().size() ? DraftGoal.parse(state.boardGoals().get(index)) : null;
+                    String goal = parsed == null ? "—" : parsed.displayName();
                     line.append(marker).append(goal);
                     if (!owner.equals("-")) line.append(" (").append(owner).append(")");
                     if (col < DraftPlusRules.BOARD_SIZE - 1) line.append(" | ");
