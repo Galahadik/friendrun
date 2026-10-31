@@ -271,6 +271,17 @@ public final class DraftPlusFlow {
                 long owned = owners.stream().filter(player.id()::equals).count();
                 if (owned >= DraftPlusRules.WIN_CELLS) return "player:" + player.id();
             }
+            if (owners.stream().noneMatch("-"::equals)) {
+                long best = -1;
+                String leader = "";
+                boolean tied = false;
+                for (DraftPlusRules.Player player : active) {
+                    long owned = owners.stream().filter(player.id()::equals).count();
+                    if (owned > best) { best = owned; leader = player.id(); tied = false; }
+                    else if (owned == best) tied = true;
+                }
+                return tied ? "" : "player:" + leader;
+            }
             return "";
         }
         boolean activeA = active.stream().anyMatch(player -> player.teamIndex() == DraftPlusTeams.TEAM_A);
