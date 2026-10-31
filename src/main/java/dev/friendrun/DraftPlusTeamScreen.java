@@ -36,7 +36,7 @@ public final class DraftPlusTeamScreen extends Screen {
     }
 
     private int myTeam(RunState state) {
-        String me = FriendRunClient.accountName();
+        String me = FriendRunClient.myName();
         for (RunState.PlayerInfo p : state.players)
             if (p.name().equals(me)) return p.draftPlusTeam();
         return DraftPlusTeams.NO_TEAM;
@@ -94,7 +94,7 @@ public final class DraftPlusTeamScreen extends Screen {
         int countB = (int) members.stream().filter(m -> m.teamIndex() == DraftPlusTeams.TEAM_B).count();
         int mine = myTeam(s);
         int captainTeam = mine == DraftPlusTeams.TEAM_A || mine == DraftPlusTeams.TEAM_B
-            ? (DraftPlusTeams.isCaptain(members, FriendRunClient.accountName(), mine) ? mine : DraftPlusTeams.NO_TEAM)
+            ? (DraftPlusTeams.isCaptain(members, FriendRunClient.myName(), mine) ? mine : DraftPlusTeams.NO_TEAM)
             : DraftPlusTeams.NO_TEAM;
         boolean editable = !s.launched && s.phase == RunState.Phase.IDLE;
         boolean canJoinA = editable && countA < s.draftPlusTeamSize && mine != DraftPlusTeams.TEAM_A;
@@ -148,7 +148,7 @@ public final class DraftPlusTeamScreen extends Screen {
             int x = px + 14 + (row / 5) * ((pw - 28) / 2);
             int y = listY + 14 + (row % 5) * 10;
             String label = p.name() + (captain ? " ★" : "") + "  [" + team + "]";
-            Gfx.text(g, Ui.trunc(label, (pw - 36) / 2), x, y, p.name().equals(FriendRunClient.accountName()) ? Ui.GOLD : Ui.TEXT);
+            Gfx.text(g, Ui.trunc(label, (pw - 36) / 2), x, y, p.name().equals(FriendRunClient.myName()) ? Ui.GOLD : Ui.TEXT);
             row++;
             if (row >= 10) break;
         }
