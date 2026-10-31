@@ -136,5 +136,19 @@
   "friendrun.draft_plus.turn.pick": "Твій хід — обери ціль на поле",
   "friendrun.draft_plus.turn.current": "Зараз обирає: %s",
   "friendrun.draft_plus.no_more_choices": "Більше немає виборів",
-  "friendrun.draft_plus.chaos.prefix": "Хаос: "
+  "friendrun.draft_plus.chaos.prefix": "Хаос: ",
+  "friendrun.draft_plus.settings.title": "Налаштування Draft+",
+  "friendrun.draft_plus.settings.host_only": "Налаштування матчу змінює лише хост",
+  "friendrun.draft_plus.settings.roles": "Ролі: %s",
+  "friendrun.draft_plus.settings.enabled": "УВІМК.",
+  "friendrun.draft_plus.settings.disabled": "ВИМК.",
+  "friendrun.draft_plus.settings.rating_on": "Рейтинг: УВІМК.",
+  "friendrun.draft_plus.settings.training": "Тренування",
+  "friendrun.draft_plus.settings.chaos": "Хаос: %s",
+  "friendrun.draft_plus.settings.count": "Кількість: %s",
+  "friendrun.draft_plus.settings.difficulty.easy": "Легка",
+  "friendrun.draft_plus.settings.difficulty.medium": "Середня",
+  "friendrun.draft_plus.settings.difficulty.hard": "Висока",
+  "friendrun.draft_plus.settings.count.random": "Випадково 1–3",
+  "friendrun.draft_plus.settings.roles_off_note": "Ролі вимкнено — бонуси не застосовуються"
 }
