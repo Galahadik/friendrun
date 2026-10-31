@@ -364,12 +364,14 @@ public final class FriendRunClient implements ClientModInitializer {
         if (startAt > 0 && startAt != lastStartAt) {
             lastStartAt = startAt;
             long hostNow = System.currentTimeMillis() - (s.amHost ? 0 : hostClockOffsetMs);
-            if (hostNow - startAt < 10_000 && s.phase == RunState.Phase.IDLE) {
+            if ((hostNow - startAt < 10_000 || (int) Lobby.num(doc, "roundGame") == Game.DRAFT_PLUS)
+                && s.phase == RunState.Phase.IDLE) {
                 String rs = Lobby.str(doc, "roundSeed");
                 try {
                     long seed = Long.parseLong(rs);
                     s.roundSeed = seed;
                     s.roundGame = (int) Lobby.num(doc, "roundGame");
+                    boolean lateDraftPlusJoin = s.roundGame == Game.DRAFT_PLUS && hostNow >= startAt;
                     s.myScore = 0;
                     s.slot = -1;
                     s.slotDone = false;
@@ -405,6 +407,14 @@ public final class FriendRunClient implements ClientModInitializer {
                         s.draftOwners = s.draftPlusState == null ? parseDraftOwners("") : parseDraftOwners(String.join(",", s.draftPlusState.owners()));
                         s.draftBase = new int[49];
                         s.draftClaimPending = new boolean[49];
+                        s.draftPlusClaimPendingIndex = -1;
+                        s.draftPlusClaimSentAtNanos = 0;
+                        // A player joining an already-running match starts tracking only from now.
+                        // Goals completed before joining are intentionally not claimed retroactively.
+                        if (lateDraftPlusJoin && mc.player != null) {
+                            for (int i = 0; i < Math.min(DraftPlusRules.CELL_COUNT, s.draftGoals.size()); i++)
+                                s.draftBase[i] = s.draftGoals.get(i).progressValue(mc);
+                        }
                         s.target = null;
                     } else if (s.roundGame == Game.WAVES || s.roundGame == Game.MANHUNT) {
                         s.target = ItemPicker.pick(seed);   // для волн цель не нужна, но поле должно быть заполнено
@@ -415,8 +425,13 @@ public final class FriendRunClient implements ClientModInitializer {
                     } else {
                         s.target = ItemPicker.pick(seed);
                     }
-                    s.countdownEndNanos = System.nanoTime() + Math.max(0L, startAt - hostNow) * 1_000_000L;
-                    s.phase = RunState.Phase.COUNTDOWN;
+                    if (lateDraftPlusJoin) {
+                        s.startNanos = System.nanoTime() - Math.max(0L, hostNow - startAt) * 1_000_000L;
+                        s.phase = RunState.Phase.RUNNING;
+                    } else {
+                        s.countdownEndNanos = System.nanoTime() + Math.max(0L, startAt - hostNow) * 1_000_000L;
+                        s.phase = RunState.Phase.COUNTDOWN;
+                    }
                     s.roundMod = doc.has("roundMod") ? (int) Lobby.num(doc, "roundMod") : -1;
                     if (s.roundGame == Game.CHAIN) {
                         StringBuilder sb = new StringBuilder();
@@ -439,7 +454,9 @@ public final class FriendRunClient implements ClientModInitializer {
                     } else if (s.roundGame == Game.SINGLE_SPEEDRUN) {
                         chat("Одиночный спидран: предстартовый отсчёт. После GO таймер запустится автоматически. Играйте до финальных титров; незавершённые попытки не записываются.");
                     } else if (s.roundGame == Game.DRAFT_PLUS) {
-                        chat("Draft+ начинается через несколько секунд. Выполняйте цели и захватывайте клетки; доска: /rr card.");
+                        chat(lateDraftPlusJoin
+                            ? "Вы подключились к уже идущему матчу Draft+. Прогресс целей отслеживается с момента подключения; доска: /rr card."
+                            : "Draft+ начинается через несколько секунд. Выполняйте цели и захватывайте клетки; доска: /rr card.");
                     } else {
                         chat("Забег начинается! Ищите: " + ItemInfo.name(s.target));
                     }
