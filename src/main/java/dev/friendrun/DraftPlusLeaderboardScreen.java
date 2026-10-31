@@ -70,7 +70,7 @@ public final class DraftPlusLeaderboardScreen extends Screen {
         ffaRect = new Ui.R(x + 12, y + 42, tabW, 22);
         teamRect = new Ui.R(x + 18 + tabW, y + 42, tabW, 22);
         refreshRect = new Ui.R(x + w - 66, y + 70, 54, 20);
-        listRect = new Ui.R(x + 12, y + 70, w - 24, h - 106);
+        listRect = new Ui.R(x + 12, y + 94, w - 24, h - 130);
         backRect = new Ui.R(x + 12, y + h - 28, w - 24, 20);
         ffaButton = make(ffaRect, () -> {
             if (team) { team = false; scroll = 0; load(); }
@@ -132,7 +132,7 @@ public final class DraftPlusLeaderboardScreen extends Screen {
             for (int i = 0; i < visible; i++) {
                 Lobby.DraftPlusRank row = rows.get(scroll + i);
                 int y = rowY + i * 22;
-                if (i % 2 == 0) Ui.fill(g, listRect.x() + 4, y - 2, listRect.w() - 8, 20, Ui.ROW_ALT);
+                if (i % 2 == 0) Gfx.rect(g, listRect.x() + 4, y - 2, listRect.x() + listRect.w() - 4, y + 18, Ui.ROW);
                 Gfx.text(g, Integer.toString(scroll + i + 1), listRect.x() + 8, y + 3, Ui.MUTED);
                 Gfx.text(g, Ui.trunc(row.name(), listRect.w() - 190), listRect.x() + 34, y + 3,
                     row.name().equals(FriendRunClient.myName()) ? Ui.GOLD : Ui.TEXT);
