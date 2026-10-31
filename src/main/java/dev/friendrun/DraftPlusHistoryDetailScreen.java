@@ -86,9 +86,9 @@ public final class DraftPlusHistoryDetailScreen extends Screen {
             Gfx.text(g, Integer.toString((int) Lobby.num(player, "cells")), panel.x() + panel.w() - 250, y, Ui.TEXT);
             Gfx.text(g, Ui.trunc(Lobby.str(player, "role"), 58), panel.x() + panel.w() - 190, y, Ui.MUTED);
             if (player.has("newMmr")) {
-                int delta = (int) Lobby.num(player, "delta");
-                String mmr = Lobby.num(player, "newMmr") + " (" + (delta > 0 ? "+" : "") + delta + ")";
-                Ui.right(g, mmr, panel.x() + panel.w() - 20, y, delta > 0 ? Ui.GREEN : (delta < 0 ? Ui.RED : Ui.TEXT));
+                int mmrDelta = (int) Lobby.num(player, "delta");
+                String mmr = Lobby.num(player, "newMmr") + " (" + (mmrDelta > 0 ? "+" : "") + mmrDelta + ")";
+                Ui.right(g, mmr, panel.x() + panel.w() - 20, y, mmrDelta > 0 ? Ui.GREEN : (mmrDelta < 0 ? Ui.RED : Ui.TEXT));
             } else Ui.right(g, "—", panel.x() + panel.w() - 20, y, Ui.MUTED);
             row++;
         }
