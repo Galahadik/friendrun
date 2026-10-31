@@ -121,7 +121,9 @@ public final class DraftPlusScreen extends Screen {
         Ui.panel(g, panel.x(), panel.y(), panel.w(), panel.h());
         if (state == null) {
             String error = FriendRunClient.STATE.draftPlusStartError;
-            Gfx.centered(g, error.isBlank() ? "Ожидание состояния Draft+…" : "Не удалось начать Draft+: " + error,
+            Gfx.centered(g, error.isBlank()
+                ? Tr.t("friendrun.draft_plus.waiting_state", "Ожидание состояния Draft+…")
+                : Tr.t("friendrun.draft_plus.start_error", "Не удалось начать Draft+: %s", error),
                 width / 2, height / 2, error.isBlank() ? Ui.MUTED : Ui.RED);
             super.extractRenderState(g, mx, my, delta);
             return;
@@ -136,17 +138,17 @@ public final class DraftPlusScreen extends Screen {
         };
         Gfx.centered(g, "DRAFT+ · " + format + " · " + phase, width / 2, panel.y() + 10, Ui.GOLD);
         String chaos = FriendRunClient.STATE.draftPlusChaosModifiers.isEmpty() ? Tr.t("friendrun.draft_plus.chaos.off", "Хаос: выкл")
-            : "Хаос: " + FriendRunClient.STATE.draftPlusChaosModifiers.stream()
+            : Tr.t("friendrun.draft_plus.chaos.prefix", "Хаос: ") + FriendRunClient.STATE.draftPlusChaosModifiers.stream()
                 .map(DraftPlusChaos::displayName).collect(java.util.stream.Collectors.joining(", "));
-        String progress = "Поле 5×5 · выбрано " + state.boardGoals().size() + " / 25 · банов "
-            + state.bannedGoals().size() + " · " + chaos;
+        String progress = Tr.t("friendrun.draft_plus.progress", "Поле 5×5 · выбрано %s / 25 · банов %s · %s",
+            state.boardGoals().size(), state.bannedGoals().size(), chaos);
         Gfx.centered(g, Ui.trunc(progress, panel.w() - 32), width / 2, panel.y() + 27, Ui.TEXT);
 
         boolean myTurn = FriendRunClient.myName().equals(state.currentActor());
         boolean active = myTurn && state.phase() != DraftPlusFlow.Phase.COMPLETE;
         String status;
         if (state.phase() == DraftPlusFlow.Phase.COMPLETE) {
-            if (state.winner().isBlank()) status = "Поле заполнено — победитель не определён";
+            if (state.winner().isBlank()) status = Tr.t("friendrun.draft_plus.board_draw", "Поле заполнено — победитель не определён");
             else if (state.winner().startsWith("player:")) status = Tr.t("friendrun.draft_plus.winner.player", "Победитель: %s", state.winner().substring("player:".length()));
             else status = Tr.t("friendrun.draft_plus.winner.team", "Победитель: %s", state.winner().equals("team:0")
                 ? FriendRunClient.STATE.draftPlusTeamNameA : FriendRunClient.STATE.draftPlusTeamNameB);
@@ -161,7 +163,7 @@ public final class DraftPlusScreen extends Screen {
         int lastPick = -1;
         for (int i = state.pickers().size() - 1; i >= 0; i--)
             if (!state.pickers().get(i).isBlank()) { lastPick = i; break; }
-        String coinWinner = "после банов";
+        String coinWinner = Tr.t("friendrun.draft_plus.after_bans", "после банов");
         if (state.firstDraftActor() >= 0) {
             DraftPlusRules.Player first = DraftPlusRules.drafter(
                 state.format(), state.players(), state.firstDraftActor(), 0);
