@@ -32,7 +32,7 @@ final class DraftPlusFlowTest {
             DraftPlusRules.Format format, List<DraftPlusRules.Player> players, List<String> owners) {
         List<String> board = new ArrayList<>();
         for (int i = 0; i < DraftPlusRules.CELL_COUNT; i++) board.add("item:board_" + i);
-        return new DraftPlusFlow.State(format, players, List.of(), List.of(), board, owners,
+        return new DraftPlusFlow.State(format, players, List.of(), List.of(), board, owners, List.of(),
             DraftPlusFlow.Phase.PLAY, 0, 0, 0, DraftPlusRules.CELL_COUNT, "", "", "", "");
     }
 
@@ -131,6 +131,41 @@ final class DraftPlusFlowTest {
 
         assertEquals(DraftPlusFlow.Phase.COMPLETE, state.phase());
         assertEquals("", state.winner());
+    }
+
+    @Test
+    void forfeitedFfaPlayerCannotWinAndSoleRemainingPlayerWins() {
+        DraftPlusFlow.State state = boardState(DraftPlusRules.Format.FFA, FFA_PLAYERS,
+            new ArrayList<>(java.util.Collections.nCopies(25, "alice")));
+        state = DraftPlusFlow.forfeit(state, "alice");
+        assertEquals("player:bob", state.winner());
+        assertEquals(DraftPlusFlow.Phase.COMPLETE, state.phase());
+    }
+
+    @Test
+    void forfeitedTeamLosesWhenNoActivePlayersRemainOnThatSide() {
+        List<DraftPlusRules.Player> teams = List.of(
+            new DraftPlusRules.Player("a1", 0, true, 0),
+            new DraftPlusRules.Player("a2", 0, false, 1),
+            new DraftPlusRules.Player("b1", 1, true, 2),
+            new DraftPlusRules.Player("b2", 1, false, 3)
+        );
+        DraftPlusFlow.State state = boardState(DraftPlusRules.Format.TEAM, teams,
+            new ArrayList<>(java.util.Collections.nCopies(25, "a1")));
+        state = DraftPlusFlow.forfeit(state, "a1");
+        assertEquals("", state.winner());
+        state = DraftPlusFlow.forfeit(state, "a2");
+        assertEquals("team:1", state.winner());
+        assertEquals(DraftPlusFlow.Phase.COMPLETE, state.phase());
+    }
+
+    @Test
+    void forfeitedPlayerCannotClaimAnotherCell() {
+        DraftPlusFlow.State state = boardState(DraftPlusRules.Format.FFA, FFA_PLAYERS,
+            new ArrayList<>(java.util.Collections.nCopies(24, "-")));
+        state = DraftPlusFlow.forfeit(state, "alice");
+        DraftPlusFlow.State forfeited = state;
+        assertThrows(IllegalArgumentException.class, () -> DraftPlusFlow.claim(forfeited, "alice", 0));
     }
 
     @Test
