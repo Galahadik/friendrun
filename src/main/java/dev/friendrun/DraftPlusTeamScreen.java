@@ -17,7 +17,7 @@ public final class DraftPlusTeamScreen extends Screen {
     private int px, py, pw, ph;
 
     public DraftPlusTeamScreen(Screen parent) {
-        super(Component.literal("FriendRun — Draft+ команды"));
+        super(Component.literal(Tr.t("friendrun.draft_plus.team.title", "Draft+ · Команды")));
         this.parent = parent;
     }
 
@@ -72,7 +72,7 @@ public final class DraftPlusTeamScreen extends Screen {
         backButton = make(back, () -> Mc.setScreen(parent));
 
         teamNameBox = new EditBox(font, nameBox.x() + 7, nameBox.y() + 6, nameBox.w() - 14, 12,
-            Component.literal("Название команды"));
+            Component.literal(Tr.t("friendrun.draft_plus.team.name_hint", "Название команды")));
         teamNameBox.setMaxLength(DraftPlusTeams.MAX_TEAM_NAME_LENGTH);
         int initialTeam = myTeam(FriendRunClient.STATE);
         if (initialTeam == DraftPlusTeams.TEAM_A) teamNameBox.setValue(FriendRunClient.STATE.draftPlusTeamNameA);
@@ -105,8 +105,8 @@ public final class DraftPlusTeamScreen extends Screen {
         Ui.backdrop(g, width, height);
         Ui.panel(g, panel.x(), panel.y(), panel.w(), panel.h());
         Icons.draw(g, Icons.CROWN, px + 14, py + 12, 2, Ui.GOLD);
-        Ui.bold(g, "Draft+ · Команды", px + 36, py + 12, Ui.GOLD);
-        Gfx.text(g, "Составы и капитаны определяются по времени входа в лобби", px + 14, py + 34, Ui.MUTED);
+        Ui.bold(g, Tr.t("friendrun.draft_plus.team.title", "Draft+ · Команды"), px + 36, py + 12, Ui.GOLD);
+        Gfx.text(g, Tr.t("friendrun.draft_plus.team.roster_rule", "Составы и капитаны определяются по времени входа в лобби"), px + 14, py + 34, Ui.MUTED);
 
         int colW = (pw - 36) / 2;
         int colY = py + 48;
@@ -118,27 +118,33 @@ public final class DraftPlusTeamScreen extends Screen {
         super.extractRenderState(g, mx, my, delta);
 
         Ui.button(g, joinA, joinA.in(mx, my), canJoinA, mine == DraftPlusTeams.TEAM_A ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
-        Gfx.centered(g, mine == DraftPlusTeams.TEAM_A ? "Вы в команде A" : "Вступить в A",
+        Gfx.centered(g, mine == DraftPlusTeams.TEAM_A ? Tr.t("friendrun.draft_plus.team.you_a", "Вы в команде A")
+                : Tr.t("friendrun.draft_plus.team.join_a", "Вступить в A"),
             joinA.x() + joinA.w() / 2, joinA.cy() - 4, canJoinA || mine == DraftPlusTeams.TEAM_A ? Ui.TEXT : Ui.MUTED);
         Ui.button(g, joinB, joinB.in(mx, my), canJoinB, mine == DraftPlusTeams.TEAM_B ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
-        Gfx.centered(g, mine == DraftPlusTeams.TEAM_B ? "Вы в команде B" : "Вступить в B",
+        Gfx.centered(g, mine == DraftPlusTeams.TEAM_B ? Tr.t("friendrun.draft_plus.team.you_b", "Вы в команде B")
+                : Tr.t("friendrun.draft_plus.team.join_b", "Вступить в B"),
             joinB.x() + joinB.w() / 2, joinB.cy() - 4, canJoinB || mine == DraftPlusTeams.TEAM_B ? Ui.TEXT : Ui.MUTED);
 
         Ui.button(g, leave, leave.in(mx, my), editable && mine != DraftPlusTeams.NO_TEAM, Ui.Kind.NORMAL);
-        Gfx.centered(g, "Покинуть текущую команду", leave.x() + leave.w() / 2, leave.cy() - 4,
+        Gfx.centered(g, Tr.t("friendrun.draft_plus.team.leave", "Покинуть текущую команду"), leave.x() + leave.w() / 2, leave.cy() - 4,
             editable && mine != DraftPlusTeams.NO_TEAM ? Ui.TEXT : Ui.MUTED);
         Ui.button(g, random, random.in(mx, my), canRandomize, Ui.Kind.NORMAL);
-        Gfx.centered(g, s.amHost ? "Случайно распределить игроков" : "Случайное распределение — только хост",
+        Gfx.centered(g, s.amHost
+            ? Tr.t("friendrun.draft_plus.team.randomize", "Случайно распределить игроков")
+            : Tr.t("friendrun.draft_plus.team.randomize_host", "Случайное распределение — только хост"),
             random.x() + random.w() / 2, random.cy() - 4, canRandomize ? Ui.TEXT : Ui.MUTED);
 
         Ui.frame(g, nameBox.x(), nameBox.y(), nameBox.w(), nameBox.h(), Ui.SECTION, Ui.LINE);
         Ui.button(g, rename, rename.in(mx, my), canRename, Ui.Kind.NORMAL);
-        Gfx.centered(g, "Переименовать", rename.x() + rename.w() / 2, rename.cy() - 4, canRename ? Ui.TEXT : Ui.MUTED);
-        Gfx.text(g, canRename ? "Имя команды (только капитан)" : "Имя команды (доступно капитану)",
+        Gfx.centered(g, Tr.t("friendrun.draft_plus.team.rename", "Переименовать"), rename.x() + rename.w() / 2, rename.cy() - 4, canRename ? Ui.TEXT : Ui.MUTED);
+        Gfx.text(g, canRename
+            ? Tr.t("friendrun.draft_plus.team.name_captain_only", "Имя команды (только капитан)")
+            : Tr.t("friendrun.draft_plus.team.name_available_captain", "Имя команды (доступно капитану)"),
             nameBox.x(), nameBox.y() - 12, Ui.MUTED);
 
         int listY = py + 198;
-        Gfx.text(g, "Игроки:", px + 14, listY, Ui.MUTED);
+        Gfx.text(g, Tr.t("friendrun.draft_plus.team.players", "Игроки:"), px + 14, listY, Ui.MUTED);
         int row = 0;
         for (RunState.PlayerInfo p : s.players) {
             String team = p.draftPlusTeam() == DraftPlusTeams.TEAM_A ? "A"
@@ -154,7 +160,7 @@ public final class DraftPlusTeamScreen extends Screen {
         }
 
         Ui.button(g, back, back.in(mx, my), true, Ui.Kind.NORMAL);
-        Gfx.centered(g, "Назад", back.x() + back.w() / 2, back.cy() - 4, Ui.TEXT);
+        Gfx.centered(g, Tr.t("friendrun.ui.back", "Назад"), back.x() + back.w() / 2, back.cy() - 4, Ui.TEXT);
 
         joinAButton.active = canJoinA;
         joinBButton.active = canJoinB;
