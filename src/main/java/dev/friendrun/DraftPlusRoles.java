@@ -46,13 +46,12 @@ public final class DraftPlusRoles {
                     roles.put(entry.getKey(), entry.getValue());
             }
             // The frozen map is authoritative, but a lobby snapshot can briefly
-            // arrive before its sibling draftPlusRoles field. Player roles are
-            // already locked after launch, so use them as a safe short-term fallback.
-            if (roles.isEmpty()) {
-                for (RunState.PlayerInfo player : state.players) {
-                    if (DraftPlusRole.byId(player.draftPlusRole()) != null)
-                        roles.put(player.name(), player.draftPlusRole());
-                }
+            // arrive before all of its entries. Player roles are already locked
+            // after launch, so fill only missing entries from that same snapshot.
+            for (RunState.PlayerInfo player : state.players) {
+                if (!roles.containsKey(player.name())
+                    && DraftPlusRole.byId(player.draftPlusRole()) != null)
+                    roles.put(player.name(), player.draftPlusRole());
             }
         }
         Snapshot next = new Snapshot(active, roles);
