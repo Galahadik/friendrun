@@ -36,8 +36,8 @@ public enum DraftPlusRole {
     }
 
     public String id() { return id; }
-    public String title() { return title; }
-    public String bonus() { return bonus; }
+    public String title() { return Tr.t("friendrun.draft_plus.role." + id + ".title", title); }
+    public String bonus() { return Tr.t("friendrun.draft_plus.role." + id + ".bonus", bonus); }
     public double amount() { return amount; }
     public boolean multiplicative() { return multiplicative; }
 
