@@ -264,6 +264,7 @@ public final class FriendRunClient implements ClientModInitializer {
             } else if (wm == Game.DRAFT_PLUS) {
                 chat(wn.equals("—") ? "Draft+ завершён без победителя: правило ничьей ещё не определено."
                     : "Draft+ завершён. Победитель: " + wn + " — захвачено клеток: " + Lobby.num(w, "score"));
+                chat("Напишите /go, чтобы начать новый матч Draft+.");
             } else {
                 chat("Победитель: " + wn + " — " + RunState.formatTime(Lobby.num(w, "ms")));
             }
