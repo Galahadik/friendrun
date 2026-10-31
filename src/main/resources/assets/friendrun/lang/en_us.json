@@ -180,5 +180,9 @@
   "friendrun.draft_plus.detail.rematch": "Play again",
   "friendrun.draft_plus.detail.exit_lobby": "Back to lobby",
   "friendrun.draft_plus.detail.all_disconnected": " · all disconnected",
-  "friendrun.draft_plus.detail.afk_loss": " · AFK/loss"
+  "friendrun.draft_plus.detail.afk_loss": " · AFK/loss",
+  "friendrun.draft_plus.detail.contribution_value": "%s (%s MMR)",
+  "friendrun.draft_plus.detail.mmr_value": "%s (%s)",
+  "friendrun.draft_plus.detail.team_format": "Teams",
+  "friendrun.draft_plus.detail.mmr": "MMR"
 }
