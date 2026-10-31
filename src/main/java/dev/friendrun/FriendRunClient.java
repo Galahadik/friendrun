@@ -461,6 +461,7 @@ public final class FriendRunClient implements ClientModInitializer {
                         // If the world/player is not loaded yet, roundTick captures this baseline later.
                         s.draftPlusNeedsBaseline = lateDraftPlusJoin;
                         if (lateDraftPlusJoin && mc.player != null) {
+                            resetDraftPlusAcquisitionTracking(mc, s);
                             for (int i = 0; i < Math.min(DraftPlusRules.CELL_COUNT, s.draftGoals.size()); i++)
                                 s.draftBase[i] = s.draftGoals.get(i).progressValue(mc, s.draftPlusAcquired);
                             s.draftPlusNeedsBaseline = false;
