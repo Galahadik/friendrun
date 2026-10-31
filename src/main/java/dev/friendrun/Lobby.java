@@ -1067,7 +1067,8 @@ public final class Lobby {
             || candidate == null || candidate.isBlank() || str(expected, "host").isBlank()
             || !candidate.equals(str(updates, "host"))) return false;
         long migrationAt = num(updates, "hostMigrationAt");
-        if (migrationAt <= 0
+        // Never allow a takeover while the persisted owner's lease is still live.
+        if (migrationAt <= num(expected, "hostSeen") + 12_000
             || !candidate.equals(electDraftPlusHost(expected, migrationAt, str(expected, "host")))) return false;
         return num(updates, "hostEpoch") == num(expected, "hostEpoch") + 1;
     }
