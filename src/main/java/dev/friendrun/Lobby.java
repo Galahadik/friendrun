@@ -422,6 +422,13 @@ public final class Lobby {
         patch("", o);
     }
 
+    public void setDraftPlusBansEnabled(boolean enabled) {
+        if (!host || closed) return;
+        JsonObject o = new JsonObject();
+        o.addProperty("draftPlusBansEnabled", enabled);
+        patch("", o);
+    }
+
     public void setDraftPlusTeam(int teamIndex) {
         if (closed || teamIndex < DraftPlusTeams.NO_TEAM || teamIndex > DraftPlusTeams.TEAM_B) return;
         JsonObject o = new JsonObject();
@@ -1067,7 +1074,8 @@ public final class Lobby {
                     long prior = Long.parseLong(previousSeed);
                     seed = new Random(prior ^ (0x9E3779B97F4A7C15L * (num(doc, "roundId") + 1L))).nextLong();
                 }
-                state = DraftPlusFlow.start(format, roster, DraftPlusPool.build(), true, new Random(seed));
+                boolean bansEnabled = !doc.has("draftPlusBansEnabled") || bool(doc, "draftPlusBansEnabled");
+                state = DraftPlusFlow.start(format, roster, DraftPlusPool.build(), bansEnabled, new Random(seed));
                 updates.addProperty("draftPlusSeed", Long.toString(seed));
                 updates.add("draftPlusState", DraftPlusCodec.encode(state));
                 updates.addProperty("draftPlusLastActionId", "");
