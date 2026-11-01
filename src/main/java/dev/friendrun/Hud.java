@@ -7,6 +7,9 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
+import dev.friendrun.mixin.AbstractContainerScreenAccessor;
+import dev.friendrun.mixin.AbstractRecipeBookScreenAccessor;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.client.gui.screens.Screen;
@@ -272,14 +275,16 @@ public final class Hud {
     private static void drawDraftPlusInventoryBoard(GuiGraphicsExtractor g, RunState s, int mouseX, int mouseY) {
         if (s.draftGoals.size() != DraftPlusRules.CELL_COUNT) return;
 
-        // InventoryScreen shifts its 176px panel to the right when the recipe book
-        // is expanded. Use the live panel position and reserve the recipe-book area too.
+        // Read the actual container position and recipe-book visibility through accessors.
+        // This avoids guessing: the recipe book may be open or closed at any GUI scale.
         InventoryScreen screen = (InventoryScreen) Mc.currentScreen();
         int guiWidth = Gfx.guiWidth(g);
-        int inventoryWidth = screen.getImageWidth();
-        int inventoryLeft = screen.getGuiLeft();
-        int centeredInventoryLeft = (guiWidth - inventoryWidth) / 2;
-        boolean recipeBookOpen = inventoryLeft > centeredInventoryLeft;
+        AbstractContainerScreenAccessor container = (AbstractContainerScreenAccessor) screen;
+        int inventoryWidth = container.friendrun$getImageWidth();
+        int inventoryLeft = container.friendrun$getLeftPos();
+        RecipeBookComponent<?> recipeBook =
+            ((AbstractRecipeBookScreenAccessor) screen).friendrun$getRecipeBookComponent();
+        boolean recipeBookOpen = recipeBook.isVisible();
         int recipeBookWidth = 147; // RecipeBookComponent.IMAGE_WIDTH in Minecraft 26.3
         int uiLeft = recipeBookOpen ? inventoryLeft - recipeBookWidth : inventoryLeft;
         int uiRight = inventoryLeft + inventoryWidth;
