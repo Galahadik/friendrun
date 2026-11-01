@@ -149,4 +149,46 @@ public final class DraftPlusTeamScreen extends Screen {
         Gfx.centered(g, Tr.t("friendrun.draft_plus.team.rename", "Переименовать"), rename.x() + rename.w() / 2, rename.cy() - 4, canRename ? Ui.TEXT : Ui.MUTED);
         Gfx.text(g, canRename
             ? Tr.t("friendrun.draft_plus.team.name_captain_only", "Имя команды (только капитан)")
-            : Tr.t("friendrun.draft_plus.
+            : Tr.t("friendrun.draft_plus.team.name_available_captain", "Имя команды (доступно капитану)"),
+            nameBox.x(), nameBox.y() - 12, Ui.MUTED);
+
+        // Два постоянных ростера: игроки занимают свои места сразу после вступления.
+        int rosterY = py + 48;
+        int colW = (pw - 36) / 2;
+        int teamAX = px + 12;
+        int teamBX = px + 24 + colW;
+        int rosterH = 108;
+        Ui.frame(g, teamAX, rosterY, colW, rosterH, Ui.SECTION, Ui.LINE);
+        Ui.frame(g, teamBX, rosterY, colW, rosterH, Ui.SECTION, Ui.LINE);
+        Gfx.text(g, Ui.trunc(s.draftPlusTeamNameA + " · " + countA + "/" + s.draftPlusTeamSize, colW - 10),
+            teamAX + 6, rosterY + 5, Ui.GOLD);
+        Gfx.text(g, Ui.trunc(s.draftPlusTeamNameB + " · " + countB + "/" + s.draftPlusTeamSize, colW - 10),
+            teamBX + 6, rosterY + 5, Ui.GOLD);
+        int slots = Math.max(1, s.draftPlusTeamSize);
+        for (int i = 0; i < slots; i++) {
+            int slotY = rosterY + 22 + i * 16;
+            RunState.PlayerInfo playerA = members.stream()
+                .filter(m -> m.teamIndex() == DraftPlusTeams.TEAM_A)
+                .sorted(java.util.Comparator.comparingLong(DraftPlusTeams.Member::joinedAt))
+                .skip(i).findFirst()
+                .flatMap(m -> s.players.stream().filter(p -> p.name().equals(m.name())).findFirst()).orElse(null);
+            RunState.PlayerInfo playerB = members.stream()
+                .filter(m -> m.teamIndex() == DraftPlusTeams.TEAM_B)
+                .sorted(java.util.Comparator.comparingLong(DraftPlusTeams.Member::joinedAt))
+                .skip(i).findFirst()
+                .flatMap(m -> s.players.stream().filter(p -> p.name().equals(m.name())).findFirst()).orElse(null);
+            drawRosterSlot(g, playerA, members, DraftPlusTeams.TEAM_A, teamAX + 6, slotY, colW - 12);
+            drawRosterSlot(g, playerB, members, DraftPlusTeams.TEAM_B, teamBX + 6, slotY, colW - 12);
+        }
+
+        Ui.button(g, back, back.in(mx, my), true, Ui.Kind.NORMAL);
+        Gfx.centered(g, Tr.t("friendrun.ui.back", "Назад"), back.x() + back.w() / 2, back.cy() - 4, Ui.TEXT);
+
+        joinAButton.active = canJoinA;
+        joinBButton.active = canJoinB;
+        leaveButton.active = editable && mine != DraftPlusTeams.NO_TEAM;
+        randomButton.active = canRandomize;
+        renameButton.active = canRename;
+        backButton.active = true;
+    }
+}
