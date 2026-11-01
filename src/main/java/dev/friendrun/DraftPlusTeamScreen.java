@@ -171,12 +171,12 @@ public final class DraftPlusTeamScreen extends Screen {
                 .filter(m -> m.teamIndex() == DraftPlusTeams.TEAM_A)
                 .sorted(java.util.Comparator.comparingLong(DraftPlusTeams.Member::joinedAt))
                 .skip(i).findFirst()
-                .flatMap(m -> s.players.stream().filter(p -> p.name().equals(m.name())).findFirst()).orElse(null);
+                .flatMap(m -> s.players.stream().filter(p -> p.name().equals(m.getName())).findFirst()).orElse(null);
             RunState.PlayerInfo playerB = members.stream()
                 .filter(m -> m.teamIndex() == DraftPlusTeams.TEAM_B)
                 .sorted(java.util.Comparator.comparingLong(DraftPlusTeams.Member::joinedAt))
                 .skip(i).findFirst()
-                .flatMap(m -> s.players.stream().filter(p -> p.name().equals(m.name())).findFirst()).orElse(null);
+                .flatMap(m -> s.players.stream().filter(p -> p.name().equals(m.getName())).findFirst()).orElse(null);
             drawRosterSlot(g, playerA, members, DraftPlusTeams.TEAM_A, teamAX + 6, slotY, colW - 12);
             drawRosterSlot(g, playerB, members, DraftPlusTeams.TEAM_B, teamBX + 6, slotY, colW - 12);
         }
