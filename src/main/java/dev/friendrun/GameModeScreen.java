@@ -28,6 +28,9 @@ public final class GameModeScreen extends Screen {
         return b;
     }
 
+    /** Экран лобби, из которого открыли выбор режима. */
+    Screen lobbyScreen() { return parent; }
+
     @Override
     protected void init() {
         cards.clear();
