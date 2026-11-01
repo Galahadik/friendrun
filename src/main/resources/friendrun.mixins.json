@@ -6,7 +6,9 @@
   "client": [
     "ChatCaptureMixin",
     "ClientPacketListenerMixin",
-    "TitleScreenMixin"
+    "TitleScreenMixin",
+    "AbstractContainerScreenAccessor",
+    "AbstractRecipeBookScreenAccessor"
   ],
   "injectors": {
     "defaultRequire": 1
