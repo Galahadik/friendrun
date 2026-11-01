@@ -301,10 +301,8 @@ public final class LobbyRoomScreen extends Screen {
 
         // ---------- усложнение / выбор роли ----------
         if (s.gameMode == Game.DRAFT_PLUS) {
-            RunState.PlayerInfo me = s.players.stream()
-                .filter(p -> p.name().equals(FriendRunClient.myName())).findFirst().orElse(null);
-            DraftPlusRole role = me == null ? null : DraftPlusRole.byId(me.draftPlusRole());
-            boolean canChooseRole = !s.launched && s.phase == RunState.Phase.IDLE;
+            boolean canChooseRole = (!s.launched || draftPlusComplete)
+                && s.phase == RunState.Phase.IDLE;
             Ui.button(g, rChaos, hv("draftPlusSettings", rChaos, mx, my, canChooseRole),
                 canChooseRole, Ui.Kind.NORMAL);
             Icons.draw(g, Icons.GEAR, rChaos.x() + 8, rChaos.cy() - 3, 1, Ui.GOLD);
