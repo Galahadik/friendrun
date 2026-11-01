@@ -42,21 +42,37 @@ public final class DraftPlusTeamScreen extends Screen {
         return DraftPlusTeams.NO_TEAM;
     }
 
+    private void drawRosterSlot(GuiGraphicsExtractor g, RunState.PlayerInfo player,
+                                List<DraftPlusTeams.Member> members, int team,
+                                int x, int y, int width) {
+        Ui.R slot = new Ui.R(x, y - 2, width, 14);
+        Ui.frame(g, slot.x(), slot.y(), slot.w(), slot.h(), Ui.SECTION, Ui.LINE);
+        if (player == null) {
+            Gfx.text(g, Tr.t("friendrun.draft_plus.team.empty_slot", "— свободное место —"),
+                x + 4, y + 1, Ui.MUTED);
+            return;
+        }
+        boolean captain = DraftPlusTeams.isCaptain(members, player.name(), team);
+        String label = player.name() + (captain ? " ★" : "");
+        int color = player.name().equals(FriendRunClient.myName()) ? Ui.GOLD : Ui.TEXT;
+        Gfx.text(g, Ui.trunc(label, width - 8), x + 4, y + 1, color);
+    }
+
     @Override
     protected void init() {
         pw = Math.min(width - 20, 470);
-        ph = Math.min(height - 16, 300);
+        ph = Math.min(height - 16, 360);
         px = (width - pw) / 2;
         py = (height - ph) / 2;
         panel = new Ui.R(px, py, pw, ph);
 
         int inner = pw - 24;
         int half = (inner - 8) / 2;
-        joinA = new Ui.R(px + 12, py + 64, half, 24);
-        joinB = new Ui.R(px + 12 + half + 8, py + 64, half, 24);
-        leave = new Ui.R(px + 12, py + 94, inner, 22);
-        random = new Ui.R(px + 12, py + 122, inner, 22);
-        nameBox = new Ui.R(px + 12, py + 174, inner - 82, 22);
+        joinA = new Ui.R(px + 12, py + 166, half, 24);
+        joinB = new Ui.R(px + 12 + half + 8, py + 166, half, 24);
+        leave = new Ui.R(px + 12, py + 196, inner, 22);
+        random = new Ui.R(px + 12, py + 224, inner, 22);
+        nameBox = new Ui.R(px + 12, py + 272, inner - 82, 22);
         rename = new Ui.R(nameBox.x() + nameBox.w() + 6, nameBox.y(), 76, 22);
         back = new Ui.R(px + 12, py + ph - 28, inner, 22);
 
@@ -108,13 +124,6 @@ public final class DraftPlusTeamScreen extends Screen {
         Ui.bold(g, Tr.t("friendrun.draft_plus.team.title", "Draft+ · Команды"), px + 36, py + 12, Ui.GOLD);
         Gfx.text(g, Tr.t("friendrun.draft_plus.team.roster_rule", "Составы и капитаны определяются по времени входа в лобби"), px + 14, py + 34, Ui.MUTED);
 
-        int colW = (pw - 36) / 2;
-        int colY = py + 48;
-        Ui.frame(g, px + 12, colY, colW, 14, Ui.SECTION, Ui.LINE);
-        Ui.frame(g, px + 24 + colW, colY, colW, 14, Ui.SECTION, Ui.LINE);
-        Gfx.text(g, Ui.trunc(s.draftPlusTeamNameA + " · " + countA + "/" + s.draftPlusTeamSize, colW - 10), px + 17, colY + 3, Ui.TEXT);
-        Gfx.text(g, Ui.trunc(s.draftPlusTeamNameB + " · " + countB + "/" + s.draftPlusTeamSize, colW - 10), px + 29 + colW, colY + 3, Ui.TEXT);
-
         super.extractRenderState(g, mx, my, delta);
 
         Ui.button(g, joinA, joinA.in(mx, my), canJoinA, mine == DraftPlusTeams.TEAM_A ? Ui.Kind.GREEN : Ui.Kind.NORMAL);
@@ -143,20 +152,33 @@ public final class DraftPlusTeamScreen extends Screen {
             : Tr.t("friendrun.draft_plus.team.name_available_captain", "Имя команды (доступно капитану)"),
             nameBox.x(), nameBox.y() - 12, Ui.MUTED);
 
-        int listY = py + 198;
-        Gfx.text(g, Tr.t("friendrun.draft_plus.team.players", "Игроки:"), px + 14, listY, Ui.MUTED);
-        int row = 0;
-        for (RunState.PlayerInfo p : s.players) {
-            String team = p.draftPlusTeam() == DraftPlusTeams.TEAM_A ? "A"
-                : p.draftPlusTeam() == DraftPlusTeams.TEAM_B ? "B" : "—";
-            boolean captain = p.draftPlusTeam() >= 0
-                && DraftPlusTeams.isCaptain(members, p.name(), p.draftPlusTeam());
-            int x = px + 14 + (row / 5) * ((pw - 28) / 2);
-            int y = listY + 14 + (row % 5) * 10;
-            String label = p.name() + (captain ? " ★" : "") + "  [" + team + "]";
-            Gfx.text(g, Ui.trunc(label, (pw - 36) / 2), x, y, p.name().equals(FriendRunClient.myName()) ? Ui.GOLD : Ui.TEXT);
-            row++;
-            if (row >= 10) break;
+        // Два постоянных ростера: игроки занимают свои места сразу после вступления.
+        int rosterY = py + 48;
+        int colW = (pw - 36) / 2;
+        int teamAX = px + 12;
+        int teamBX = px + 24 + colW;
+        int rosterH = 108;
+        Ui.frame(g, teamAX, rosterY, colW, rosterH, Ui.SECTION, Ui.LINE);
+        Ui.frame(g, teamBX, rosterY, colW, rosterH, Ui.SECTION, Ui.LINE);
+        Gfx.text(g, Ui.trunc(s.draftPlusTeamNameA + " · " + countA + "/" + s.draftPlusTeamSize, colW - 10),
+            teamAX + 6, rosterY + 5, Ui.GOLD);
+        Gfx.text(g, Ui.trunc(s.draftPlusTeamNameB + " · " + countB + "/" + s.draftPlusTeamSize, colW - 10),
+            teamBX + 6, rosterY + 5, Ui.GOLD);
+        int slots = Math.max(1, s.draftPlusTeamSize);
+        for (int i = 0; i < slots; i++) {
+            int slotY = rosterY + 22 + i * 16;
+            RunState.PlayerInfo playerA = members.stream()
+                .filter(m -> m.teamIndex() == DraftPlusTeams.TEAM_A)
+                .sorted(java.util.Comparator.comparingLong(DraftPlusTeams.Member::joinedAt))
+                .skip(i).findFirst()
+                .flatMap(m -> s.players.stream().filter(p -> p.name().equals(m.name())).findFirst()).orElse(null);
+            RunState.PlayerInfo playerB = members.stream()
+                .filter(m -> m.teamIndex() == DraftPlusTeams.TEAM_B)
+                .sorted(java.util.Comparator.comparingLong(DraftPlusTeams.Member::joinedAt))
+                .skip(i).findFirst()
+                .flatMap(m -> s.players.stream().filter(p -> p.name().equals(m.name())).findFirst()).orElse(null);
+            drawRosterSlot(g, playerA, members, DraftPlusTeams.TEAM_A, teamAX + 6, slotY, colW - 12);
+            drawRosterSlot(g, playerB, members, DraftPlusTeams.TEAM_B, teamBX + 6, slotY, colW - 12);
         }
 
         Ui.button(g, back, back.in(mx, my), true, Ui.Kind.NORMAL);
