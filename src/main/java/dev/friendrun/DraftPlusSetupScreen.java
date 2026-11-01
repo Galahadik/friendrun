@@ -48,7 +48,9 @@ public final class DraftPlusSetupScreen extends Screen {
             if (!s.amHost || s.phase != RunState.Phase.IDLE) return;
             FriendRunClient.setDraftPlusConfig(selectedFormat, selectedTeamSize);
             FriendRunClient.setGameMode(Game.DRAFT_PLUS);
-            Mc.setScreen(parent);
+            Screen destination = parent instanceof GameModeScreen modeScreen
+                ? modeScreen.lobbyScreen() : parent;
+            Mc.setScreen(destination);
         });
         backButton = make(backRect, () -> Mc.setScreen(parent));
     }
