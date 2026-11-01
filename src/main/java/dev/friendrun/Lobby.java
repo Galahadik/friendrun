@@ -1620,8 +1620,10 @@ public final class Lobby {
                 }
             } else {
                 boolean prepared = true;
+                boolean requireReady = gmSel != Game.DRAFT_PLUS;
                 for (String p : players.keySet()) {
-                    if (!bool(obj(players, p), "ready") || num(obj(players, p), "preparedRound") != prepareRound) {
+                    if ((requireReady && !bool(obj(players, p), "ready"))
+                        || num(obj(players, p), "preparedRound") != prepareRound) {
                         prepared = false;
                         break;
                     }
